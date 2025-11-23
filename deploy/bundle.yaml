@@ -9468,7 +9468,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        image: docker.io/perconalab/everest-operator:1.10.0-rc3
+        image: docker.io/perconalab/everest-operator:1.10.0-rc4
         livenessProbe:
           httpGet:
             path: /healthz
@@ -9510,7 +9510,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        image: docker.io/perconalab/everest-operator:1.10.0-rc3
+        image: docker.io/perconalab/everest-operator:1.10.0-rc4
         imagePullPolicy: IfNotPresent
         name: crs-migration
       securityContext:
