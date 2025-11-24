@@ -330,10 +330,10 @@ func (r *BackupStorageReconciler) isBackupStorageUsed(ctx context.Context, bs *e
 	}
 
 	// Check if the backup storage is used by any database cluster restore through the dbClusterRestoreDataSourceBackupStorageNameField field
-	if dbrList, err := common.DatabaseClusterRestoresThatReferenceObject(ctx, r.Client, dbClusterRestoreDataSourceBackupStorageNameField,
+	if dbrList, err := common.DatabaseClusterRestoresThatReferenceObject(ctx, r.Client, consts.DataSourceBackupStorageNameField,
 		bs.GetNamespace(), bs.GetName()); err != nil {
 		return false, fmt.Errorf("failed to fetch DB cluster restores that use backup storage='%s' through '%s' field: %w",
-			bs.GetName(), dbClusterRestoreDataSourceBackupStorageNameField, err)
+			bs.GetName(), consts.DataSourceBackupStorageNameField, err)
 	} else if len(dbrList.Items) > 0 {
 		return slices.ContainsFunc(dbrList.Items, func(dbr everestv1alpha1.DatabaseClusterRestore) bool {
 			// If any of the restores is in progress, we consider the backup storage as used.

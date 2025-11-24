@@ -28,11 +28,11 @@ const (
 	// DBClusterRestoreDBClusterNameField is the field in the DatabaseClusterRestore CR.
 	DBClusterRestoreDBClusterNameField = ".spec.dbClusterName"
 
-	// DBClusterBackupDBClusterNameField is the field in the DatabaseClusterBackup CR.
+	// DBClusterBackupDBClusterNameField is the field in the DatabaseClusterBackup and DatabaseClusterRestore CRs.
 	DBClusterBackupDBClusterNameField = ".spec.dbClusterName"
 	// DBClusterBackupBackupStorageNameField is the field in the DatabaseClusterBackup CR.
 	DBClusterBackupBackupStorageNameField = ".spec.backupStorageName"
-	// DataSourceBackupStorageNameField is the field in the DatabaseClusterBackup CR.
+	// DataSourceBackupStorageNameField is the field in the DatabaseClusterBackup and DatabaseClusterRestore CRs.
 	DataSourceBackupStorageNameField = ".spec.dataSource.backupSource.backupStorageName"
 
 	// TopologyKeyHostname is the topology key for hostname.

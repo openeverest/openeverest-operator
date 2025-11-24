@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/AlekSi/pointer"
 	pgv2 "github.com/percona/percona-postgresql-operator/pkg/apis/pgv2.percona.com/v2"
@@ -34,26 +33,25 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
 	"github.com/percona/everest-operator/internal/consts"
 	"github.com/percona/everest-operator/internal/controller/everest/common"
+	"github.com/percona/everest-operator/internal/predicates"
 )
 
 const (
-	clusterReadyTimeout = 15 * time.Minute
-
-	dbClusterRestoreDBClusterNameField               = ".spec.dbClusterName"
-	dbClusterRestoreDataSourceBackupStorageNameField = ".spec.dataSource.backupSource.backupStorageName"
-	pgBackupTypeDate                                 = "time"
-	pgBackupTypeImmediate                            = "immediate"
+	pgBackupTypeDate      = "time"
+	pgBackupTypeImmediate = "immediate"
 )
 
 // DatabaseClusterRestoreReconciler reconciles a DatabaseClusterRestore object.
@@ -185,7 +183,9 @@ func (r *DatabaseClusterRestoreReconciler) SetupWithManager(mgr ctrl.Manager) er
 
 	ctrlBuilder := ctrl.NewControllerManagedBy(mgr).
 		Named("DatabaseClusterRestore").
-		For(&everestv1alpha1.DatabaseClusterRestore{}).
+		For(&everestv1alpha1.DatabaseClusterRestore{},
+			builder.WithPredicates(predicates.GetDatabaseClusterRestorePredicate(),
+				predicate.GenerationChangedPredicate{})).
 		Watches(
 			&corev1.Namespace{},
 			common.EnqueueObjectsInNamespace(r.Client, &everestv1alpha1.DatabaseClusterRestoreList{}),
@@ -613,7 +613,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePG(ctx context.Context, restor
 
 func (r *DatabaseClusterRestoreReconciler) initIndexers(ctx context.Context, mgr ctrl.Manager) error {
 	err := mgr.GetFieldIndexer().IndexField(
-		ctx, &everestv1alpha1.DatabaseClusterRestore{}, dbClusterRestoreDBClusterNameField,
+		ctx, &everestv1alpha1.DatabaseClusterRestore{}, consts.DBClusterRestoreDBClusterNameField,
 		func(rawObj client.Object) []string {
 			var res []string
 			dbr, ok := rawObj.(*everestv1alpha1.DatabaseClusterRestore)
@@ -628,7 +628,7 @@ func (r *DatabaseClusterRestoreReconciler) initIndexers(ctx context.Context, mgr
 	}
 
 	err = mgr.GetFieldIndexer().IndexField(
-		ctx, &everestv1alpha1.DatabaseClusterRestore{}, dbClusterRestoreDataSourceBackupStorageNameField,
+		ctx, &everestv1alpha1.DatabaseClusterRestore{}, consts.DataSourceBackupStorageNameField,
 		func(rawObj client.Object) []string {
 			var res []string
 			dbr, ok := rawObj.(*everestv1alpha1.DatabaseClusterRestore)
@@ -755,7 +755,7 @@ func (r *DatabaseClusterRestoreReconciler) tryCreateDBRestore(
 	if len(obj.GetOwnerReferences()) == 0 {
 		err := createRestoreFunc(ctx, obj)
 		if err != nil {
-			logger.Error(err, "Failed to create DatabaseClusterRestore "+obj.GetName())
+			logger.Error(err, fmt.Sprintf("Failed to create DatabaseClusterRestore='%s'", client.ObjectKeyFromObject(obj)))
 		}
 	}
 }
