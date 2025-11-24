@@ -1,0 +1,67 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 300
+collectors:
+  - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get dataimportjob/data-import-test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get job -n ${NAMESPACE} -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DataImportJob
+metadata:
+  labels:
+    clusterName: test-psmdb-cluster
+  name: data-import-test-psmdb-cluster
+  ownerReferences:
+    - apiVersion: everest.percona.com/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DatabaseCluster
+      name: test-psmdb-cluster
+spec:
+  dataImporterName: everest-percona-psmdb-operator
+  source:
+    path: "/psmdb/2025-11-03T09:34:50Z"
+    s3:
+      endpointURL: "https://minio.minio.svc"
+      bucket: everest-operator
+      credentialsSecretName: test-s3-secret
+      forcePathStyle: true
+      region: us-east-1
+      verifyTLS: false
+  targetClusterName: test-psmdb-cluster
+status:
+  state: Running
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  ownerReferences:
+    - apiVersion: everest.percona.com/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DataImportJob
+      name: data-import-test-psmdb-cluster
+spec:
+  template:
+    spec:
+      containers:
+        - args:
+            - /payload/request.json
+          command:
+            - /data-importer
+            - psmdb
+          image: perconalab/everest-operator:0.0.0
+          name: importer
+          volumeMounts:
+            - mountPath: /payload
+              name: payload
+              readOnly: true
+      serviceAccountName: data-import-test-psmdb-cluster-sa
+      volumes:
+        - name: payload

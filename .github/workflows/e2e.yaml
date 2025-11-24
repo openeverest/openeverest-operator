@@ -22,6 +22,7 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-core') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
     timeout-minutes: 80
     concurrency: eks-e2e-tests
@@ -100,6 +101,20 @@ jobs:
           contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
         run: |
           make test-e2e-core
+
+      - name: Clean up custom resources
+        continue-on-error: true
+        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
+        timeout-minutes: 10
+        run: |
+          make cluster-cleanup
+
+      - name: Run engine features tests
+        if: |
+          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
+        run: |
+          make test-e2e-engine-features
 
       - name: Clean up custom resources
         continue-on-error: true

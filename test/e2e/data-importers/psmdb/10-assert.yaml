@@ -1,0 +1,50 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-s3-secret
+data:
+  AWS_ACCESS_KEY_ID: bWluaW9hZG1pbg==     # minioadmin
+  AWS_SECRET_ACCESS_KEY: bWluaW9hZG1pbg== # minioadmin
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-cluster
+spec:
+  dataSource:
+    dataImport:
+      dataImporterName: everest-percona-psmdb-operator
+      source:
+        path: "/psmdb/2025-11-03T09:34:50Z"
+        s3:
+          endpointURL: "https://minio.minio.svc"
+          bucket: everest-operator
+          region: us-east-1
+          credentialsSecretName: test-s3-secret
+          verifyTLS: false
+          forcePathStyle: true
+  engine:
+    replicas: 3
+    type: psmdb
+  proxy:
+    replicas: 3
+status:
+  status: initializing
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: test-psmdb-cluster
+status:
+  state: initializing

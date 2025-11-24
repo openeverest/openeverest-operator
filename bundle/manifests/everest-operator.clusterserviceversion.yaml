@@ -5,6 +5,18 @@ metadata:
     alm-examples: |-
       [
         {
+          "apiVersion": "enginefeatures.everest.percona.com/v1alpha1",
+          "kind": "SplitHorizonDNSConfig",
+          "metadata": {
+            "labels": {
+              "app.kubernetes.io/managed-by": "kustomize",
+              "app.kubernetes.io/name": "everest-operator"
+            },
+            "name": "splithorizondnsconfig-sample"
+          },
+          "spec": null
+        },
+        {
           "apiVersion": "everest.percona.com/v1alpha1",
           "kind": "BackupStorage",
           "metadata": {
@@ -78,7 +90,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-10-08T12:22:07Z"
+    createdAt: "2025-11-19T11:45:34Z"
     operators.operatorframework.io/builder: operator-sdk-v1.40.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: everest-operator.v0.0.0
@@ -114,13 +126,20 @@ spec:
       kind: DatabaseEngine
       name: databaseengines.everest.percona.com
       version: v1alpha1
-    - kind: DataImporter
+    - description: DataImporter defines a reusable strategy for importing data into
+        a DatabaseCluster.
+      displayName: Data Importer
+      kind: DataImporter
       name: dataimporters.everest.percona.com
       version: v1alpha1
-    - kind: DataImportJob
+    - description: DataImportJob is the schema for the dataimportjobs API.
+      displayName: Data Import Job
+      kind: DataImportJob
       name: dataimportjobs.everest.percona.com
       version: v1alpha1
-    - kind: LoadBalancerConfig
+    - description: LoadBalancerConfig is the Schema for the Load Balancer Config API.
+      displayName: Load Balancer Config
+      kind: LoadBalancerConfig
       name: loadbalancerconfigs.everest.percona.com
       version: v1alpha1
     - description: MonitoringConfig is the Schema for the monitoringconfigs API.
@@ -128,8 +147,17 @@ spec:
       kind: MonitoringConfig
       name: monitoringconfigs.everest.percona.com
       version: v1alpha1
-    - kind: PodSchedulingPolicy
+    - description: PodSchedulingPolicy is the Schema for the Pod Scheduling Policy
+        API.
+      displayName: Pod Scheduling Policy
+      kind: PodSchedulingPolicy
       name: podschedulingpolicies.everest.percona.com
+      version: v1alpha1
+    - description: SplitHorizonDNSConfig is the Schema for the splithorizondnsconfigs
+        API.
+      displayName: Split Horizon DNSConfig
+      kind: SplitHorizonDNSConfig
+      name: splithorizondnsconfigs.enginefeatures.everest.percona.com
       version: v1alpha1
   description: Deploy database clusters easily with Everest operator
   displayName: Everest operator
@@ -145,6 +173,7 @@ spec:
           resources:
           - namespaces
           - persistentvolumeclaims
+          - services
           verbs:
           - get
           - list
@@ -200,6 +229,32 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - enginefeatures.everest.percona.com
+          resources:
+          - splithorizondnsconfigs
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - enginefeatures.everest.percona.com
+          resources:
+          - splithorizondnsconfigs/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - enginefeatures.everest.percona.com
+          resources:
+          - splithorizondnsconfigs/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - everest.percona.com
           resources:
@@ -584,6 +639,26 @@ spec:
     containerPort: 443
     deploymentName: everest-operator-controller-manager
     failurePolicy: Fail
+    generateName: msplithorizondnsconfig-v1alpha1.enginefeatures.everest.percona.com
+    rules:
+    - apiGroups:
+      - enginefeatures.everest.percona.com
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - splithorizondnsconfigs
+    sideEffects: None
+    targetPort: 9443
+    type: MutatingAdmissionWebhook
+    webhookPath: /mutate-enginefeatures-everest-percona-com-v1alpha1-splithorizondnsconfig
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    deploymentName: everest-operator-controller-manager
+    failurePolicy: Fail
     generateName: vdatabasecluster-v1alpha1.everest.percona.com
     rules:
     - apiGroups:
@@ -640,3 +715,24 @@ spec:
     targetPort: 9443
     type: ValidatingAdmissionWebhook
     webhookPath: /validate-everest-percona-com-v1alpha1-monitoringconfig
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    deploymentName: everest-operator-controller-manager
+    failurePolicy: Fail
+    generateName: vsplithorizondnsconfig-v1alpha1.enginefeatures.everest.percona.com
+    rules:
+    - apiGroups:
+      - enginefeatures.everest.percona.com
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      - DELETE
+      resources:
+      - splithorizondnsconfigs
+    sideEffects: None
+    targetPort: 9443
+    type: ValidatingAdmissionWebhook
+    webhookPath: /validate-enginefeatures-everest-percona-com-v1alpha1-splithorizondnsconfig

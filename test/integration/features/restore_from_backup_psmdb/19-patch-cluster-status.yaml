@@ -1,0 +1,8 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+commands:
+  # in psmdb 1.20 the pbm initialization process has changed. So now let's test CR version 1.20
+  # the psmdb-backup object will be created once the pbm is initialized which is indicated by non-empty .status.backupConfigHash,
+  # so let's add the field
+  - command: kubectl patch db test-psmdb-cluster -n $NAMESPACE -p '{"spec":{"engine":{"crVersion":"${PSMDB_OPERATOR_VERSION}"}}}' --type merge
+  - command: kubectl patch psmdb test-psmdb-cluster -n $NAMESPACE -p '{"status":{"backupConfigHash":"some_hash_string"}}' --subresource=status --type merge

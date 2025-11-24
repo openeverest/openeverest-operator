@@ -54,6 +54,7 @@ replacements:
     - webhooks.[name=vdatabasecluster-v1alpha1.everest.percona.com].clientConfig.caBundle
     - webhooks.[name=vmonitoringconfig-v1alpha1.everest.percona.com].clientConfig.caBundle
     - webhooks.[name=vloadbalancerconfig-v1alpha1.everest.percona.com].clientConfig.caBundle
+    - webhooks.[name=vsplithorizondnsconfig-v1alpha1.enginefeatures.everest.percona.com].clientConfig.caBundle
     options:
       create: true
   - select:
@@ -62,6 +63,7 @@ replacements:
     fieldPaths:
     - webhooks.[name=mdatabasecluster-v1alpha1.everest.percona.com].clientConfig.caBundle
     - webhooks.[name=mdataimportjobs-v1akpha1.everest.percona.com].clientConfig.caBundle
+    - webhooks.[name=msplithorizondnsconfig-v1alpha1.enginefeatures.everest.percona.com].clientConfig.caBundle
     options:
       create: true
 

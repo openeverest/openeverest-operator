@@ -1,0 +1,131 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get dbc/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+commands:
+  - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PSMDB_OPERATOR_VERSION} dbc/test-psmdb-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PSMDB_DB_ENGINE_VERSION} dbc/test-psmdb-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=jsonpath='{.spec.image}'="percona/percona-server-mongodb:${PSMDB_DB_ENGINE_VERSION}" psmdb/test-psmdb-cluster -n ${NAMESPACE}
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: test-psmdb-cluster
+    ref: db
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: test-psmdb-cluster
+    ref: psmdb
+assertAll:
+  - celExpr: "has(db.metadata.finalizers)"
+    message: "db doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
+    message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
+
+  - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
+    message: "foregroundDeletion' is absent in db.metadata.finalizers"
+
+  - celExpr: "has(psmdb.metadata.finalizers)"
+    message: "psmdb doesn't have finalizers"
+
+  - celExpr: "'percona.com/delete-psmdb-pods-in-order' in psmdb.metadata.finalizers"
+    message: "'percona.com/delete-psmdb-pods-in-order' is absent in psmdb.metadata.finalizers"
+
+  - celExpr: "'percona.com/delete-psmdb-pvc' in psmdb.metadata.finalizers"
+    message: "percona.com/delete-psmdb-pvc' is absent in psmdb.metadata.finalizers"
+
+  - celExpr: "!has(psmdb.spec.pmm.enabled)"
+    message: "psmdb.spec.pmm.enabled is not empty"
+
+  - celExpr: "!has(psmdb.spec.pmm.serverHost)"
+    message: "psmdb.spec.pmm.serverHost is not empty"
+
+  - celExpr: "!has(psmdb.spec.pmm.resources.limits)"
+    message: "psmdb.spec.pmm.resources.limits is not empty"
+
+  - celExpr: "!has(psmdb.spec.pmm.resources.requests)"
+    message: "psmdb.spec.pmm.resources.requests is not empty"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-cluster
+spec:
+  engine:
+    replicas: 3
+    resources:
+      cpu: "1"
+      memory: 4G
+    storage:
+      size: 25Gi
+    type: psmdb
+    userSecretsName: everest-secrets-test-psmdb-cluster
+  proxy:
+    expose:
+      type: internal
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: test-psmdb-cluster
+spec:
+  imagePullPolicy: IfNotPresent
+  backup:
+    configuration:
+      backupOptions:
+        oplogSpanMin: 0
+        timeouts:
+          startingStatus: 120
+    enabled: true
+    pitr: {}
+    resources:
+      limits:
+        cpu: 300m
+        memory: 1G
+  multiCluster:
+    enabled: false
+  replsets:
+  - arbiter:
+      enabled: false
+      resources: {}
+      size: 0
+    expose:
+      enabled: true
+      type: ClusterIP
+    name: rs0
+    nonvoting:
+      enabled: false
+      resources: {}
+      size: 0
+    podDisruptionBudget:
+      maxUnavailable: 1
+    resources:
+      limits:
+        cpu: "1"
+        memory: 4G
+    size: 3
+    volumeSpec:
+      persistentVolumeClaim:
+        resources:
+          requests:
+            storage: 25Gi
+  secrets:
+    encryptionKey: test-psmdb-cluster-mongodb-encryption-key
+    users: everest-secrets-test-psmdb-cluster
+  sharding:
+    balancer: {}
+    enabled: false
+  unsafeFlags: {}
+  updateStrategy: SmartUpdate
+  upgradeOptions:
+    apply: disabled
+    schedule: 0 4 * * *
+    setFCV: true

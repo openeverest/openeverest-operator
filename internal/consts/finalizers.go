@@ -39,4 +39,8 @@ const (
 	MonitoringConfigSecretCleanupFinalizer = EverestFinalizerPrefix + "cleanup-secrets"
 	// MonitoringConfigVMAgentFinalizer is a finalizer that is used to clean up VM Agent resources created by the monitoring configuration.
 	MonitoringConfigVMAgentFinalizer = EverestFinalizerPrefix + "vmagent"
+
+	// EngineFeaturesSplitHorizonDNSConfigSecretCleanupFinalizer is a finalizer that is used to clean up
+	// secrets created by the SplitHorizonDNSConfig configuration.
+	EngineFeaturesSplitHorizonDNSConfigSecretCleanupFinalizer = EverestFinalizerPrefix + "cleanup-secrets"
 )

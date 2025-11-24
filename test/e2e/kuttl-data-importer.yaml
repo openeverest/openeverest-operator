@@ -1,0 +1,42 @@
+apiVersion: kuttl.dev/v1
+kind: TestSuite
+artifactsDir: /tmp/
+startKIND: false
+skipDelete: false
+# test uses external cluster, so skip cluster deletion
+skipClusterDelete: true
+suppress:
+  - events
+parallel: 1
+commands:
+  # Deploy Everest Operator into K8S cluster
+  - command: make -f ${OPERATOR_ROOT_PATH}/Makefile deploy-test
+  # Check that DataImporters are installed.
+  - command: kubectl wait --for condition=established --timeout=10s crd dataimporters.everest.percona.com
+  # Install upstream DB operators CRDs.
+  - command: kubectl apply --server-side -f https://raw.githubusercontent.com/percona/percona-xtradb-cluster-operator/v${PXC_OPERATOR_VERSION}/deploy/crd.yaml
+  - command: kubectl apply --server-side -f https://raw.githubusercontent.com/percona/percona-server-mongodb-operator/v${PSMDB_OPERATOR_VERSION}/deploy/crd.yaml
+  - command: kubectl apply --server-side -f https://raw.githubusercontent.com/percona/percona-postgresql-operator/v${PG_OPERATOR_VERSION}/deploy/crd.yaml
+  # Check that upstream DB operators CRDs are installed.
+  - command: kubectl wait --for condition=established --timeout=10s crd perconapgclusters.pgv2.percona.com
+  - command: kubectl wait --for condition=established --timeout=10s crd perconaservermongodbs.psmdb.percona.com
+  - command: kubectl wait --for condition=established --timeout=10s crd perconaxtradbclusters.pxc.percona.com
+  # Wait for Everest Operator to be ready.
+  - command: kubectl wait --for condition=available --timeout=30s deploy/everest-controller-manager -n everest-system
+  # Wait for Minio to be ready
+  - command: kubectl wait pod/minio --for=condition=Ready -n minio --timeout=120s
+  # Upload test data to Minio
+  - script: |
+      cat ${OPERATOR_ROOT_PATH}/test/testdata/backups/pg.tar | kubectl exec -i minio -n minio -c cp-helper -- tar xf - -C /shared
+      cat ${OPERATOR_ROOT_PATH}/test/testdata/backups/psmdb.tar | kubectl exec -i minio -n minio -c cp-helper -- tar xf - -C /shared
+      cat ${OPERATOR_ROOT_PATH}/test/testdata/backups/pxc.tar | kubectl exec -i minio -n minio -c cp-helper -- tar xf - -C /shared
+
+      kubectl exec --quiet minio -n minio -c minio -- mc alias set s3 https://minio.minio.svc minioadmin minioadmin --insecure 
+      kubectl exec --quiet minio -n minio -c minio -- mc cp --recursive /shared/pg s3/everest-operator --insecure
+      kubectl exec --quiet minio -n minio -c minio -- mc cp --recursive /shared/psmdb s3/everest-operator --insecure
+      kubectl exec --quiet minio -n minio -c minio -- mc cp --recursive /shared/pxc s3/everest-operator --insecure
+testDirs:
+  - test/e2e/data-importers
+manifestDirs:
+  - test/manifests
+  - test/testdata/minio

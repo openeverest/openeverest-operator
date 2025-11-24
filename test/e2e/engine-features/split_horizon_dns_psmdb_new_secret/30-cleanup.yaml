@@ -1,0 +1,7 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 30
+delete:
+  - apiVersion: enginefeatures.everest.percona.com/v1alpha1
+    kind: SplitHorizonDNSConfig
+    name: shdc-psmdb

@@ -299,7 +299,7 @@ spec:
   credentialsSecretName: pmm-credentials
   pmm:
     url: "https://pmm.example.com"
-    image: "percona/pmm-client:2.41.0"  # Optional: specify PMM client version
+    image: "percona/pmm-client:3.4.1"  # Optional: specify PMM client version
   verifyTLS: true  # Optional: verify TLS certificates
 ```
 
@@ -390,7 +390,7 @@ spec:
       size: 25Gi
     type: psmdb
     userSecretsName: everest-secrets-mongodb-sharded
-    version: 7.0.15-9
+    version: 8.0.12-4
   monitoring:
     resources: {}
   proxy:
