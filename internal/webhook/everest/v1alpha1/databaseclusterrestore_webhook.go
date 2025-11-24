@@ -120,7 +120,7 @@ func (v *DatabaseClusterRestoreCustomValidator) ValidateCreate(ctx context.Conte
 		}
 
 		// check that the target DatabaseCluster is ready for restoring from backup.
-		if !targetDb.Status.Status.CanRestoreFromBackup() {
+		if !targetDb.CanRestoreFromBackup() {
 			allErrs = append(allErrs, field.Forbidden(dbcrDbClusterNamePath, "the target DatabaseCluster's state does not allow restoration from backup"))
 		}
 	}

@@ -119,18 +119,6 @@ func (s AppState) WithCreatingState() AppState {
 	return s
 }
 
-// CanRestoreFromBackup returns true if the cluster can be restored from a backup in the given state.
-func (s AppState) CanRestoreFromBackup() bool {
-	switch s.WithCreatingState() {
-	case AppStateCreating, AppStatePaused,
-		AppStateRestoring, AppStateDeleting, AppStateUpgrading,
-		AppStateResizingVolumes, AppStateImporting:
-		return false
-	default:
-		return true
-	}
-}
-
 // Applier provides methods for specifying how to apply a DatabaseCluster CR
 // onto the CR(s) provided by the underlying DB operators (e.g. PerconaXtraDBCluster, PerconaServerMongoDB, PerconaPGCluster, etc.)
 //
@@ -538,6 +526,18 @@ type DatabaseCluster struct {
 
 	Spec   DatabaseClusterSpec   `json:"spec,omitempty"`
 	Status DatabaseClusterStatus `json:"status,omitempty"`
+}
+
+// CanRestoreFromBackup returns true if the cluster can be restored from a backup in the current state.
+func (dbc *DatabaseCluster) CanRestoreFromBackup() bool {
+	switch dbc.Status.Status.WithCreatingState() {
+	case AppStateCreating, AppStatePaused,
+		AppStateRestoring, AppStateDeleting, AppStateUpgrading,
+		AppStateResizingVolumes, AppStateImporting:
+		return false
+	default:
+		return true
+	}
 }
 
 // +kubebuilder:object:root=true
