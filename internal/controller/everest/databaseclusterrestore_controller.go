@@ -357,34 +357,10 @@ func (r *DatabaseClusterRestoreReconciler) ensureOwnerReference(
 	return nil
 }
 
-func (r *DatabaseClusterRestoreReconciler) ensureClusterIsReady(ctx context.Context, restore *everestv1alpha1.DatabaseClusterRestore) error {
-	timeoutCtx, cancel := context.WithTimeout(ctx, clusterReadyTimeout)
-	defer cancel()
-	for {
-		select {
-		case <-timeoutCtx.Done():
-			return errors.New("wait timeout exceeded")
-		default:
-			cluster := &everestv1alpha1.DatabaseCluster{}
-			err := r.Get(ctx, types.NamespacedName{Name: restore.Spec.DBClusterName, Namespace: restore.Namespace}, cluster)
-			if err != nil {
-				return err
-			}
-			if cluster.Status.Status == everestv1alpha1.AppStateReady ||
-				cluster.Status.Status == everestv1alpha1.AppStateRestoring {
-				return nil
-			}
-		}
-	}
-}
-
 func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 	ctx context.Context, restore *everestv1alpha1.DatabaseClusterRestore,
 ) error {
 	logger := log.FromContext(ctx)
-	if err := r.ensureClusterIsReady(ctx, restore); err != nil {
-		return err
-	}
 
 	// We need to check if the storage used by the backup is defined in the
 	// PerconaServerMongoDB CR. If not, we requeue the restore to give the
@@ -433,10 +409,6 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, psmdbCR, func() error {
-		if err := controllerutil.SetControllerReference(restore, psmdbCR, r.Client.Scheme()); err != nil {
-			return err
-		}
-
 		psmdbCR.Spec.ClusterName = restore.Spec.DBClusterName
 		if restore.Spec.DataSource.DBClusterBackupName != "" {
 			psmdbCR.Spec.BackupName = restore.Spec.DataSource.DBClusterBackupName
@@ -482,7 +454,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 			}
 		}
 
-		return nil
+		return controllerutil.SetControllerReference(restore, psmdbCR, r.Client.Scheme())
 	})
 	if err != nil {
 		return err
@@ -504,10 +476,6 @@ func (r *DatabaseClusterRestoreReconciler) restorePXC(
 	}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, pxcCR, func() error {
-		if err := controllerutil.SetControllerReference(restore, pxcCR, r.Client.Scheme()); err != nil {
-			return err
-		}
-
 		pxcCR.Spec.PXCCluster = restore.Spec.DBClusterName
 		if restore.Spec.DataSource.DBClusterBackupName != "" {
 			pxcCR.Spec.BackupName = restore.Spec.DataSource.DBClusterBackupName
@@ -562,7 +530,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePXC(
 			}
 			pxcCR.Spec.PITR = spec
 		}
-		return nil
+		return controllerutil.SetControllerReference(restore, pxcCR, r.Client.Scheme())
 	})
 	if err != nil {
 		return err
@@ -631,10 +599,6 @@ func (r *DatabaseClusterRestoreReconciler) restorePG(ctx context.Context, restor
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, pgCR, func() error {
-		if err := controllerutil.SetControllerReference(restore, pgCR, r.Client.Scheme()); err != nil {
-			return err
-		}
-
 		pgCR.Spec.PGCluster = restore.Spec.DBClusterName
 		pgCR.Spec.RepoName = repoName
 		pgCR.Spec.Options, err = getPGRestoreOptions(restore.Spec.DataSource, backupBaseName)
