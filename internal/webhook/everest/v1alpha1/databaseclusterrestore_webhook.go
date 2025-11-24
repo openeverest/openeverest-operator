@@ -264,6 +264,12 @@ func (v *DatabaseClusterRestoreCustomValidator) validateDBClusterBackup(
 		return append(allErrs, field.NotFound(dbcrDbClusterBackupNamePath, msg))
 	}
 
+	if !dbb.GetDeletionTimestamp().IsZero() {
+		// the DatabaseClusterBackup is being deleted and cannot be used for restoration.
+		return append(allErrs, field.Forbidden(dbcrDbClusterBackupNamePath,
+			fmt.Sprintf("DatabaseClusterBackup='%s' is being deleted and cannot be used for restoration", dbClusterBackupName)))
+	}
+
 	// check that the DatabaseClusterBackup is in Succeeded state, otherwise it cannot be used for restoration.
 	if dbb.Status.State != everestv1alpha1.BackupSucceeded {
 		// the DatabaseClusterBackup cannot be used for restoration.

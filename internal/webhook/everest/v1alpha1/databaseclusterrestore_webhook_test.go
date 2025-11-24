@@ -440,6 +440,61 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 				errRequiredField(dbcrBackupSourcePathPath),
 			}),
 		},
+		// restore from backup that already marked for deletion
+		{
+			name: "restore from backup that already marked for deletion",
+			objs: []ctrlclient.Object{
+				// target DB
+				&everestv1alpha1.DatabaseCluster{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      dbcrTargetDbName,
+						Namespace: dbcrNamespace,
+					},
+					Spec: everestv1alpha1.DatabaseClusterSpec{
+						Engine: everestv1alpha1.Engine{
+							Type: everestv1alpha1.DatabaseEnginePostgresql,
+						},
+					},
+					Status: everestv1alpha1.DatabaseClusterStatus{
+						Status: everestv1alpha1.AppStateReady,
+					},
+				},
+				&everestv1alpha1.DatabaseClusterBackup{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:              dbcrBackupName,
+						Namespace:         dbcrNamespace,
+						DeletionTimestamp: &metav1.Time{Time: metav1.Now().UTC()},
+						// Fake-client requires at least one finalizer to consider the object as "being deleted"
+						Finalizers: []string{"finalizer.everest.percona.com/dbclusterbackup"},
+					},
+					Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+						DBClusterName: dbcrTargetDbName,
+					},
+					Status: everestv1alpha1.DatabaseClusterBackupStatus{
+						State: everestv1alpha1.BackupSucceeded,
+					},
+				},
+			},
+			dbcrToCreate: &everestv1alpha1.DatabaseClusterRestore{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      dbcrName,
+					Namespace: dbcrNamespace,
+				},
+				Spec: everestv1alpha1.DatabaseClusterRestoreSpec{
+					DBClusterName: dbcrTargetDbName,
+					DataSource: everestv1alpha1.DatabaseClusterRestoreDataSource{
+						DBClusterBackupName: dbcrBackupName,
+					},
+				},
+			},
+			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+				field.Forbidden(dbcrDbClusterBackupNamePath,
+					fmt.Sprintf("DatabaseClusterBackup='%s' is being deleted and cannot be used for restoration", types.NamespacedName{
+						Name:      dbcrBackupName,
+						Namespace: dbcrNamespace,
+					})),
+			}),
+		},
 		// restore from backup of another DatabaseCluster
 		// dbEngine mismatch
 		{
@@ -885,7 +940,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateUpdate(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              dbcrName,
 					Namespace:         dbcrNamespace,
-					DeletionTimestamp: &metav1.Time{},
+					DeletionTimestamp: &metav1.Time{Time: metav1.Now().UTC()},
 				},
 				Spec: everestv1alpha1.DatabaseClusterRestoreSpec{
 					DBClusterName: dbcrTargetDbName,
