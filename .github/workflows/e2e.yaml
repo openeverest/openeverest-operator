@@ -33,7 +33,7 @@ jobs:
       KUBECONFIG: "/home/runner/.kube/config"
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Go release
         uses: actions/setup-go@v6
