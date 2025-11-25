@@ -57,6 +57,7 @@ import (
 )
 
 const (
+	backupRetryAfter = 1 * time.Minute
 	databaseClusterBackupKind = "DatabaseClusterBackup"
 	everestAPIVersion         = "everest.percona.com/v1alpha1"
 
@@ -115,6 +116,7 @@ func (r *DatabaseClusterBackupReconciler) Reconcile(ctx context.Context, req ctr
 	backup := &everestv1alpha1.DatabaseClusterBackup{}
 
 	if err := r.Get(ctx, req.NamespacedName, backup); err != nil {
+		logger.Error(err, fmt.Sprintf("unable to fetch DatabaseClusterBackup='%s'", req.NamespacedName))
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
@@ -131,7 +133,8 @@ func (r *DatabaseClusterBackupReconciler) Reconcile(ctx context.Context, req ctr
 	err := r.Get(ctx, types.NamespacedName{Name: backup.Spec.DBClusterName, Namespace: backup.Namespace}, cluster)
 	if err != nil {
 		if err = client.IgnoreNotFound(err); err != nil {
-			logger.Error(err, "unable to fetch DatabaseCluster")
+			logger.Error(err, fmt.Sprintf("unable to fetch DatabaseCluster='%s'",
+				types.NamespacedName{Name: backup.Spec.DBClusterName, Namespace: backup.Namespace}))
 		}
 		return ctrl.Result{}, err
 	}
@@ -147,12 +150,16 @@ func (r *DatabaseClusterBackupReconciler) Reconcile(ctx context.Context, req ctr
 	}, storage)
 	if err != nil {
 		if err = client.IgnoreNotFound(err); err != nil {
-			logger.Error(err, "unable to fetch BackupStorage")
+			logger.Error(err, fmt.Sprintf("unable to fetch BackupStorage='%s'", types.NamespacedName{
+				Name:      backup.Spec.BackupStorageName,
+				Namespace: backup.GetNamespace(),
+			}))
 		}
 		return ctrl.Result{}, err
 	}
 
 	// By default, we must always verify TLS.
+	// TODO: move to defaulter webhook.
 	if verifyTLS := storage.Spec.VerifyTLS; verifyTLS == nil {
 		storage.Spec.VerifyTLS = pointer.To(true)
 	}
@@ -174,20 +181,26 @@ func (r *DatabaseClusterBackupReconciler) Reconcile(ctx context.Context, req ctr
 	// upstream DB cluster CR.
 	if errors.Is(err, ErrBackupStorageUndefined) {
 		logger.Info(
-			fmt.Sprintf("Backup storage %s is not defined in the %s cluster %s, requeuing",
+			fmt.Sprintf("BackupStorage='%s' is not defined in the %s DatabaseCluster='%s', requeuing",
 				backup.Spec.BackupStorageName,
 				cluster.Spec.Engine.Type,
 				backup.Spec.DBClusterName),
 		)
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: backupRetryAfter}, nil
 	}
 
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("failed to reconcile %s backup", cluster.Spec.Engine.Type))
+		logger.Error(err, fmt.Sprintf("failed to reconcile backup for %s DatabaseCluster='%s'",
+			cluster.Spec.Engine.Type,
+			backup.Spec.DBClusterName))
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{Requeue: requeue}, nil
+	if requeue {
+		return ctrl.Result{RequeueAfter: backupRetryAfter}, nil
+	} else {
+		return ctrl.Result{}, nil
+	}
 }
 
 // ReconcileWatchers reconciles the watchers for the DatabaseClusterBackup controller.
