@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  - command: kubectl -n $NAMESPACE delete backupstorage/test-storage-s3 --wait=false

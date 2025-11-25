@@ -1,0 +1,18 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: src-psmdb-cluster
+spec:
+  engine:
+    crVersion: 1.21.0
+    type: psmdb
+    replicas: 1
+    storage:
+      size: 1G
+  proxy:
+    type: mongos
+    replicas: 1
