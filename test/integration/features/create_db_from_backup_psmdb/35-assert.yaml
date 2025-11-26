@@ -43,11 +43,8 @@ apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
   name: trg-psmdb-cluster
-spec:
-  dataSource:
-    dbClusterBackupName: src-db-backup-s3
 status:
-  status: restoring
+  status: ready
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDB
