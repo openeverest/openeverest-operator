@@ -1,0 +1,20 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 100
+collectors:
+  - command: kubectl get psmdb/src-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl wait --for=jsonpath='{.status.backupConfigHash}'=some_hash_string psmdb/src-psmdb-cluster -n ${NAMESPACE}
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: src-psmdb-cluster
+    ref: psmdb
+commands:
+  - command: kubectl wait --for=jsonpath='{.spec.engine.crVersion}'=${PSMDB_OPERATOR_VERSION} dbc/src-psmdb-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PSMDB_OPERATOR_VERSION} psmdb/src-psmdb-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=jsonpath='{.status.backupConfigHash}'=some_hash_string psmdb/src-psmdb-cluster -n ${NAMESPACE}

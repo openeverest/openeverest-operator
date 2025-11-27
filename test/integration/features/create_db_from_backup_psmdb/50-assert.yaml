@@ -1,0 +1,14 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get backupstorage/test-storage-s3 -n ${NAMESPACE} -o yaml
+  - command: kubectl get secret/test-psmdb-cluster-backup-s3 -n ${NAMESPACE} -o yaml
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+commands:
+  - command: kubectl wait --for=delete secret/test-psmdb-cluster-backup-s3 -n ${NAMESPACE}
+  - command: kubectl wait --for=delete backupstorage/test-storage-s3 -n ${NAMESPACE}
