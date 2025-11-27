@@ -1,0 +1,27 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  - command: kubectl patch psmdb/src-psmdb-cluster  --subresource status -n $NAMESPACE -p '{"status":{"state":"ready", "size":1, "ready":1}}' --type=merge
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  labels:
+    app.kubernetes.io/instance: src-psmdb-cluster
+    app.kubernetes.io/managed-by: percona-server-mongodb-operator
+    app.kubernetes.io/name: percona-server-mongodb
+    app.kubernetes.io/part-of: percona-server-mongodb
+  name: everest-secrets-src-psmdb-cluster
+data:
+  MONGODB_BACKUP_PASSWORD: cloxbUI5OVlPclNPbldTUlln
+  MONGODB_BACKUP_USER: YmFja3Vw
+  MONGODB_CLUSTER_ADMIN_PASSWORD: VFpoN0JBeVpHOUE0R3FjU1VXVw==
+  MONGODB_CLUSTER_ADMIN_USER: Y2x1c3RlckFkbWlu
+  MONGODB_CLUSTER_MONITOR_PASSWORD: TXRZWnRRbVVYdkRFUUlwTDI=
+  MONGODB_CLUSTER_MONITOR_USER: Y2x1c3Rlck1vbml0b3I=
+  MONGODB_DATABASE_ADMIN_PASSWORD: SlcwZEFmVzFyOXNONmx0bkROeg==
+  MONGODB_DATABASE_ADMIN_USER: ZGF0YWJhc2VBZG1pbg==
+  MONGODB_USER_ADMIN_PASSWORD: MlZmNFVHS3JyTTFrUnpUY1RTNw==
+  MONGODB_USER_ADMIN_USER: dXNlckFkbWlu

@@ -1,0 +1,12 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  #  must be set on DatabaseClusterBackup to ensure that storage is NOT cleaned up.
+  - command: kubectl patch dbb/src-db-backup-s3 -n $NAMESPACE -p '{"metadata":{"finalizers":["everest.percona.com/dbb-storage-protection", "foregroundDeletion"]}}' --type merge
+  - command: kubectl delete dbb/src-db-backup-s3 -n $NAMESPACE --wait=false
+  - command: kubectl delete dbrestore/trg-psmdb-cluster -n $NAMESPACE --wait=false
+  - script: kubectl -n $NAMESPACE delete db/src-psmdb-cluster --wait=false && sleep 3
+  - command: kubectl patch psmdb/src-psmdb-cluster -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge
+  - script: kubectl -n $NAMESPACE delete db/trg-psmdb-cluster --wait=false && sleep 3
+  - command: kubectl patch psmdb/trg-psmdb-cluster -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge
