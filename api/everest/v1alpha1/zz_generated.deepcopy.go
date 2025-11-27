@@ -22,7 +22,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	enginefeatures_everestv1alpha1 "github.com/percona/everest-operator/api/enginefeatures.everest/v1alpha1"
