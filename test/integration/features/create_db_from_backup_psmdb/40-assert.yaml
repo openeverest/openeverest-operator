@@ -1,0 +1,67 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get backupstorage/test-storage-s3 -n ${NAMESPACE} -o yaml
+  - command: kubectl get secret/test-psmdb-cluster-backup-s3 -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get db/src-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/src-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get db/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get dbrestore/trg-db-restore-s3 -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb-restore/trg-db-restore-s3 -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+commands:
+  - command: kubectl wait --for=delete psmdb/src-psmdb-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=delete db/src-psmdb-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=delete psmdb/trg-psmdb-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=delete db/trg-psmdb-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=delete psmdb-restore/trg-db-restore-s3 -n ${NAMESPACE}
+  - command: kubectl wait --for=delete dbrestore/trg-db-restore-s3 -n ${NAMESPACE}
+  - command: kubectl wait --for=delete psmdb-backup/src-db-backup-s3 -n ${NAMESPACE}
+  - command: kubectl wait --for=delete dbbackup/src-db-backup-s3 -n ${NAMESPACE}
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: BackupStorage
+    name: test-storage-s3
+    ref: bs_s3
+assertAll:
+  - celExpr: "!has(bs_s3.metadata.finalizers)"
+    message: "bs_s3 has unexpected finalizers"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-psmdb-cluster-backup-s3
+  ownerReferences:
+    - apiVersion: everest.percona.com/v1alpha1
+      kind: BackupStorage
+      blockOwnerDeletion: true
+      controller: true
+      name: test-storage-s3
+type: Opaque
+data:
+  AWS_ACCESS_KEY_ID: UkVQTEFDRS1XSVRILUFXUy1BQ0NFU1MtS0VZ
+  AWS_SECRET_ACCESS_KEY: UkVQTEFDRS1XSVRILUFXUy1TRUNSRVQtS0VZ
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: BackupStorage
+metadata:
+  name: test-storage-s3
+spec:
+  type: s3
+  bucket: test-backup-bucket
+  credentialsSecretName: test-psmdb-cluster-backup-s3
+  region: us-east-2
+  endpointURL: s3.amazonaws.com
+  verifyTLS: false
+status:
+  inUse: false
