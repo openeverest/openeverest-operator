@@ -1,0 +1,71 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get backupstorage/test-storage-s3 -n ${NAMESPACE} -o yaml
+  - command: kubectl get secret/test-psmdb-cluster-backup-s3 -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get secret/everest-secrets-src-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get db/src-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/src-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get db/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get dbb/src-db-backup-s3 -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb-backup/src-db-backup-s3 -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get dbrestore/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb-restore/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: trg-psmdb-cluster
+    ref: db_trg
+assertAll:
+  - celExpr: "has(db_trg.metadata.finalizers)"
+    message: "db_trg doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db_trg.metadata.finalizers"
+    message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db_trg.metadata.finalizers"
+
+  - celExpr: "'foregroundDeletion' in db_trg.metadata.finalizers"
+    message: "foregroundDeletion' is absent in db_trg.metadata.finalizers"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: trg-psmdb-cluster
+status:
+  status: ready
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: trg-psmdb-cluster
+status:
+  backupVersion: 2.11.0
+  state: ready
+  size: 1
+  ready: 1
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseClusterRestore
+metadata:
+  name: trg-psmdb-cluster
+status:
+  state: Succeeded
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDBRestore
+metadata:
+  name: trg-psmdb-cluster
+status:
+  state: ready
