@@ -238,6 +238,9 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 		return err, false
 	}
 
+	// Workaround to give the additional time for pbm initializing which sometimes continues after the db is ready.
+	// https://perconadev.atlassian.net/browse/K8SPSMDB-1527
+	// So we wait this timeout before creating the psmdb-restore CR to avoid restoration failures.
 	if timeoutAfterReadyNotComplete(psmdbDBCR.Status.Conditions) {
 		return nil, true
 	}
