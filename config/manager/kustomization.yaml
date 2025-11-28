@@ -4,5 +4,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: docker.io/perconalab/everest-operator
-  newTag: 1.10.0-rc5
+  newName: docker.io/percona/everest-operator
+  newTag: 1.10.0
