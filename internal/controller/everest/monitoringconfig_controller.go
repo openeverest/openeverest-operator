@@ -90,6 +90,8 @@ func (r *MonitoringConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, errors.Join(err, fetchErr)
 	}
 
+	credentialsSecret := &corev1.Secret{}
+
 	// Update the status and finalizers of the MonitoringConfig object after the reconciliation.
 	defer func() {
 		// Nothing to process on delete events
@@ -99,6 +101,12 @@ func (r *MonitoringConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 
 		mc.Status.InUse = len(dbList.Items) > 0
 		mc.Status.LastObservedGeneration = mc.GetGeneration()
+		v, vErr := mc.GetPMMServerVersion(ctx, credentialsSecret)
+		if vErr != nil {
+			logger.Error(err, "Failed to get PMM server version "+vErr.Error())
+		}
+		mc.Status.PMMServerVersion = v
+
 		if err = r.Client.Status().Update(ctx, mc); err != nil {
 			rr = ctrl.Result{}
 			logger.Error(err, fmt.Sprintf("failed to update status for monitoring config='%s'", mcName))
@@ -123,7 +131,6 @@ func (r *MonitoringConfigReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, r.cleanupSecrets(ctx, mc)
 	}
 
-	credentialsSecret := &corev1.Secret{}
 	if err := r.Get(ctx, types.NamespacedName{
 		Name:      mc.Spec.CredentialsSecretName,
 		Namespace: mc.GetNamespace(),

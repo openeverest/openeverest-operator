@@ -109,7 +109,7 @@ metadata:
   name: everest-secrets-pxc-mc
 type: Opaque
 data:
-  pmmserverkey: YXNkZmcxMjM=
+  pmmservertoken: YXNkZmcxMjM=
 ---
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAgent

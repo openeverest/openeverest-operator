@@ -361,8 +361,11 @@ func (p *applier) DataSource() error {
 		// Nothing to do.
 		return nil
 	}
-	if database.Status.Status != everestv1alpha1.AppStateReady {
+	if database.Status.Status != everestv1alpha1.AppStateReady ||
+		p.PerconaServerMongoDB.Status.BackupVersion == "" {
 		// Wait for the cluster to be ready.
+		// NOTE: .status.backupVersion is set after psmdb cluster is fully ready and takes some time after that.
+		// We need to wait for it to be set to ensure that restores from backups (pbm) work correctly.
 		return nil
 	}
 	return common.ReconcileDBRestoreFromDataSource(p.ctx, p.C, p.DB)
@@ -469,7 +472,7 @@ func (p *applier) applyPMMCfg(monitoring *everestv1alpha1.MonitoringConfig) erro
 
 	psmdb.Spec.PMM = psmdbv1.PMMSpec{
 		Enabled: true,
-		Image:   common.DefaultPMMClientImage,
+		Image:   monitoring.Status.PMMServerVersion.DefaultPMMClientImage(),
 		Resources: getPMMResources(common.IsNewDatabaseCluster(p.DB.Status.Status),
 			&p.DB.Spec, &p.currentPSMDBSpec),
 	}
@@ -497,7 +500,7 @@ func (p *applier) applyPMMCfg(monitoring *everestv1alpha1.MonitoringConfig) erro
 	setControllerRef := false
 	if err := common.CreateOrUpdateSecretData(ctx, c, database, psmdb.Spec.Secrets.Users,
 		map[string][]byte{
-			"PMM_SERVER_API_KEY": []byte(apiKey),
+			monitoring.Status.PMMServerVersion.PMMSecretKeyName(p.DB.Spec.Engine.Type): []byte(apiKey),
 		},
 		setControllerRef,
 	); err != nil {

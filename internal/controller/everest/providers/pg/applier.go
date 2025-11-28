@@ -379,7 +379,7 @@ func (p *applier) applyPMMCfg(monitoring *everestv1alpha1.MonitoringConfig) erro
 		Resources: getPMMResources(common.IsNewDatabaseCluster(p.DB.Status.Status),
 			&p.DB.Spec, &p.currentPGSpec),
 		Secret:          fmt.Sprintf("%s%s-pmm", consts.EverestSecretsPrefix, database.GetName()),
-		Image:           common.DefaultPMMClientImage,
+		Image:           monitoring.Status.PMMServerVersion.DefaultPMMClientImage(),
 		ImagePullPolicy: p.getPMMImagePullPolicy(),
 	}
 
@@ -399,7 +399,7 @@ func (p *applier) applyPMMCfg(monitoring *everestv1alpha1.MonitoringConfig) erro
 
 	if err := common.CreateOrUpdateSecretData(ctx, c, database, pg.Spec.PMM.Secret,
 		map[string][]byte{
-			"PMM_SERVER_KEY": []byte(apiKey),
+			monitoring.Status.PMMServerVersion.PMMSecretKeyName(p.DB.Spec.Engine.Type): []byte(apiKey),
 		},
 		true,
 	); err != nil {

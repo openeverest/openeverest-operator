@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  - command: kubectl patch psmdb-restore/trg-psmdb-cluster  --subresource status -n $NAMESPACE -p '{"status":{"state":"running"}}' --type=merge

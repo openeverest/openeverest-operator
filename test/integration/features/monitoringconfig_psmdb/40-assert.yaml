@@ -120,7 +120,7 @@ metadata:
   name: everest-secrets-psmdb-mc
 type: Opaque
 data:
-  PMM_SERVER_API_KEY: YXNkZmcxMjM=
+  PMM_SERVER_TOKEN: YXNkZmcxMjM=
 ---
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAgent

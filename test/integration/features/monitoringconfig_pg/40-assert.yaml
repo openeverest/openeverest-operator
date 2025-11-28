@@ -111,7 +111,7 @@ metadata:
       name: pg-mc
 type: Opaque
 data:
-  PMM_SERVER_KEY: YXNkZmcxMjM=
+  PMM_SERVER_TOKEN: YXNkZmcxMjM=
 ---
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAgent
