@@ -57,7 +57,7 @@ import (
 )
 
 const (
-	backupRetryAfter = 1 * time.Minute
+	backupRetryAfter          = 1 * time.Minute
 	databaseClusterBackupKind = "DatabaseClusterBackup"
 	everestAPIVersion         = "everest.percona.com/v1alpha1"
 
@@ -198,9 +198,8 @@ func (r *DatabaseClusterBackupReconciler) Reconcile(ctx context.Context, req ctr
 
 	if requeue {
 		return ctrl.Result{RequeueAfter: backupRetryAfter}, nil
-	} else {
-		return ctrl.Result{}, nil
 	}
+	return ctrl.Result{}, nil
 }
 
 // ReconcileWatchers reconciles the watchers for the DatabaseClusterBackup controller.
@@ -700,10 +699,13 @@ func (r *DatabaseClusterBackupReconciler) reconcilePSMDB(
 		return false, err
 	}
 
+	logger := log.FromContext(ctx)
+
 	// the .Status.BackupConfigHash field appeared in psmdb 1.20.0 so
 	// we need to check the CR version when we check if the field is populated
 	versionCheck, err := isCRVersionGreaterOrEqual(psmdbCluster.Spec.CRVersion, "1.20.0")
 	if err != nil {
+		logger.Error(err, "failed to compare PSMDB CR version")
 		return false, err
 	}
 	// Requeue if the pbm is not configured yet in psmdb 1.20.0+.
@@ -711,6 +713,7 @@ func (r *DatabaseClusterBackupReconciler) reconcilePSMDB(
 	// NOTE: in the future, to add support for multiple storages we would need not only to check the BackupConfigHash but also understand if
 	// it has changed to be able to create on-demand backups to a new storage.
 	if psmdbCluster.Status.BackupConfigHash == "" && versionCheck {
+		logger.Info("PSMDB backup configuration is not ready yet, requeuing")
 		return true, nil
 	}
 
@@ -741,9 +744,11 @@ func (r *DatabaseClusterBackupReconciler) reconcilePSMDB(
 	// If the backup storage is not defined in the PerconaServerMongoDB CR, we
 	// cannot proceed
 	if psmdbDBCR.Spec.Backup.Storages == nil {
+		logger.Info("backup storage is not defined in the PerconaServerMongoDB CR")
 		return false, ErrBackupStorageUndefined
 	}
 	if _, ok := psmdbDBCR.Spec.Backup.Storages[backup.Spec.BackupStorageName]; !ok {
+		logger.Info("requested backup storage in backup CR is not defined in the PerconaServerMongoDB CR")
 		return false, ErrBackupStorageUndefined
 	}
 

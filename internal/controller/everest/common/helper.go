@@ -346,15 +346,12 @@ func ReconcileDBRestoreFromDataSource(
 			Namespace: database.Namespace,
 		},
 	}
-	if err := controllerutil.SetControllerReference(database, dbRestore, c.Scheme()); err != nil {
-		return err
-	}
+
 	_, err = controllerutil.CreateOrUpdate(ctx, c, dbRestore, func() error {
 		dbRestore.Spec.DBClusterName = database.Name
 		dbRestore.Spec.DataSource = getRestoreDataSource(ctx, c, database)
-		return nil
+		return controllerutil.SetControllerReference(database, dbRestore, c.Scheme())
 	})
-
 	return err
 }
 

@@ -24,10 +24,6 @@ import (
 	"time"
 
 	"github.com/AlekSi/pointer"
-	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
-	"github.com/percona/everest-operator/internal/consts"
-	"github.com/percona/everest-operator/internal/controller/everest/common"
-	"github.com/percona/everest-operator/internal/predicates"
 	pgv2 "github.com/percona/percona-postgresql-operator/pkg/apis/pgv2.percona.com/v2"
 	psmdbv1 "github.com/percona/percona-server-mongodb-operator/pkg/apis/psmdb/v1"
 	pxcv1 "github.com/percona/percona-xtradb-cluster-operator/pkg/apis/pxc/v1"
@@ -48,6 +44,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
+	"github.com/percona/everest-operator/internal/consts"
+	"github.com/percona/everest-operator/internal/controller/everest/common"
+	"github.com/percona/everest-operator/internal/predicates"
 )
 
 const (
@@ -146,7 +147,7 @@ func (r *DatabaseClusterRestoreReconciler) Reconcile(ctx context.Context, req ct
 			return ctrl.Result{}, err
 		}
 	case everestv1alpha1.DatabaseEnginePSMDB:
-		if err, needRequeue = r.restorePSMDB(ctx, dbcr); err != nil {
+		if needRequeue, err = r.restorePSMDB(ctx, dbcr); err != nil {
 			// The DatabaseCluster controller is responsible for updating the
 			// upstream DB cluster with the necessary storage definition. If
 			// the storage is not defined in the upstream DB cluster CR, we
@@ -365,21 +366,21 @@ func (r *DatabaseClusterRestoreReconciler) ensureOwnerReference(
 
 func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 	ctx context.Context, restore *everestv1alpha1.DatabaseClusterRestore,
-) (err error, needRequeue bool) {
+) (needRequeue bool, err error) {
 	logger := log.FromContext(ctx)
 
 	psmdbDBCR := &psmdbv1.PerconaServerMongoDB{}
 	err = r.Get(ctx, types.NamespacedName{Name: restore.Spec.DBClusterName, Namespace: restore.Namespace}, psmdbDBCR)
 	if err != nil {
 		logger.Error(err, "failed to fetch PerconaServerMongoDB")
-		return err, false
+		return false, err
 	}
 
 	// Workaround to give the additional time for pbm initializing which sometimes continues after the db is ready.
 	// https://perconadev.atlassian.net/browse/K8SPSMDB-1527
 	// So we wait this timeout before creating the psmdb-restore CR to avoid restoration failures.
 	if timeoutAfterReadyNotComplete(psmdbDBCR.Status.Conditions) {
-		return nil, true
+		return true, nil
 	}
 
 	// We need to check if the storage used by the backup is defined in the
@@ -395,7 +396,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 			},
 			backup); err != nil {
 			logger.Error(err, "failed to fetch DatabaseClusterBackup")
-			return err, false
+			return false, err
 		}
 
 		// If the backup storage is not defined in the PerconaServerMongoDB CR,
@@ -406,7 +407,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 					backup.Spec.BackupStorageName,
 					restore.Spec.DBClusterName),
 			)
-			return ErrBackupStorageUndefined, false
+			return false, ErrBackupStorageUndefined
 		}
 		if _, ok := psmdbDBCR.Spec.Backup.Storages[backup.Spec.BackupStorageName]; !ok {
 			logger.Info(
@@ -414,7 +415,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 					backup.Spec.BackupStorageName,
 					restore.Spec.DBClusterName),
 			)
-			return ErrBackupStorageUndefined, false
+			return false, ErrBackupStorageUndefined
 		}
 	}
 
@@ -474,10 +475,10 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 		return controllerutil.SetControllerReference(restore, psmdbCR, r.Client.Scheme())
 	})
 	if err != nil {
-		return err, false
+		return false, err
 	}
 
-	return nil, false
+	return false, nil
 }
 
 func timeoutAfterReadyNotComplete(conditions []psmdbv1.ClusterCondition) bool {
