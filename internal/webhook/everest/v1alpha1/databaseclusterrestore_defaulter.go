@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
@@ -35,10 +34,7 @@ import (
 //
 // NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
 // as it is used only for temporary operations and does not need to be deeply copied.
-type DatabaseClusterRestoreCustomDefaulter struct {
-	Client client.Client
-	Scheme *runtime.Scheme
-}
+type DatabaseClusterRestoreCustomDefaulter struct{}
 
 var _ webhook.CustomDefaulter = &DatabaseClusterRestoreCustomDefaulter{}
 

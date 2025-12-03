@@ -55,6 +55,9 @@ assertAll:
   - celExpr: "!has(dbb2_s3.status.completed)"
     message: "dbb2_s3 has unexpected status.completed field"
 
+  - celExpr: "'everest.percona.com/in-use-protection' in dbb2_s3.metadata.finalizers"
+    message: "'everest.percona.com/in-use-protection' absent in dbb2_s3.metadata.finalizers"
+
   - celExpr: "has(psmdbb2_s3.metadata.finalizers)"
     message: "psmdbb2_s3 doesn't have finalizers"
 
@@ -116,6 +119,7 @@ spec:
   dbClusterName: test-psmdb-cluster
 status:
   state: Succeeded
+  inUse: false
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDBBackup
@@ -149,6 +153,7 @@ spec:
   dbClusterName: test-psmdb-cluster
 status:
   state: Starting
+  inUse: true
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDBBackup

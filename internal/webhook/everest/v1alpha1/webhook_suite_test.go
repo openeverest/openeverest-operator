@@ -114,6 +114,9 @@ var _ = BeforeSuite(func() {
 	err = SetupDatabaseClusterRestoreWebhookWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
+	err = SetupDatabaseClusterBackupWebhookWithManager(mgr)
+	Expect(err).NotTo(HaveOccurred())
+
 	// +kubebuilder:scaffold:webhook
 
 	go func() {

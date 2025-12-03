@@ -137,6 +137,26 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
+      path: /validate-everest-percona-com-v1alpha1-databaseclusterbackup
+  failurePolicy: Fail
+  name: vdatabaseclusterbackup-v1alpha1.everest.percona.com
+  rules:
+  - apiGroups:
+    - everest.percona.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - databaseclusterbackups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
       path: /validate-everest-percona-com-v1alpha1-databaseclusterrestore
   failurePolicy: Fail
   name: vdatabaseclusterrestore-v1alpha1.everest.percona.com

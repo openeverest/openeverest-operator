@@ -61,10 +61,7 @@ func SetupDatabaseClusterRestoreWebhookWithManager(mgr ctrl.Manager) error {
 		WithValidator(&DatabaseClusterRestoreCustomValidator{
 			Client: mgr.GetClient(),
 		}).
-		WithDefaulter(&DatabaseClusterRestoreCustomDefaulter{
-			Client: mgr.GetClient(),
-			Scheme: mgr.GetScheme(),
-		}).
+		WithDefaulter(&DatabaseClusterRestoreCustomDefaulter{}).
 		Complete()
 }
 
@@ -83,8 +80,8 @@ type DatabaseClusterRestoreCustomValidator struct {
 }
 
 var (
-	_         webhook.CustomValidator = &DatabaseClusterRestoreCustomValidator{}
-	groupKind                         = everestv1alpha1.GroupVersion.WithKind("DatabaseClusterRestore").GroupKind()
+	_                               webhook.CustomValidator = &DatabaseClusterRestoreCustomValidator{}
+	databaseClusterRestoreGroupKind                         = everestv1alpha1.GroupVersion.WithKind("DatabaseClusterRestore").GroupKind()
 )
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterRestore.
@@ -116,7 +113,7 @@ func (v *DatabaseClusterRestoreCustomValidator) ValidateCreate(ctx context.Conte
 			logger.Error(err, msg)
 			allErrs = append(allErrs, field.NotFound(dbcrDbClusterNamePath, msg))
 			// without DatabaseCluster object, we cannot continue further validation
-			return nil, apierrors.NewInvalid(groupKind, dbcr.GetName(), allErrs)
+			return nil, apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcr.GetName(), allErrs)
 		}
 
 		// check that the target DatabaseCluster is ready for restoring from backup.
@@ -133,7 +130,7 @@ func (v *DatabaseClusterRestoreCustomValidator) ValidateCreate(ctx context.Conte
 		return nil, nil
 	}
 
-	return nil, apierrors.NewInvalid(groupKind, dbcr.GetName(), allErrs)
+	return nil, apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcr.GetName(), allErrs)
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterRestore.
@@ -167,7 +164,7 @@ func (v *DatabaseClusterRestoreCustomValidator) ValidateUpdate(ctx context.Conte
 		return nil, nil
 	}
 
-	return nil, apierrors.NewInvalid(groupKind, oldDbcr.GetName(), allErrs)
+	return nil, apierrors.NewInvalid(databaseClusterRestoreGroupKind, oldDbcr.GetName(), allErrs)
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterRestore.

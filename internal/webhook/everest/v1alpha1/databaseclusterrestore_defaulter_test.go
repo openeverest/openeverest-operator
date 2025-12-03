@@ -25,8 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	fakeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
 )
@@ -36,7 +34,6 @@ func TestDatabaseClusterRestoreCustomDefaulter_Default(t *testing.T) {
 
 	type testCase struct {
 		name         string
-		objs         []ctrlclient.Object
 		dbcrToCreate *everestv1alpha1.DatabaseClusterRestore
 		wantDbcr     *everestv1alpha1.DatabaseClusterRestore
 		wantErr      error
@@ -45,7 +42,6 @@ func TestDatabaseClusterRestoreCustomDefaulter_Default(t *testing.T) {
 	testCases := []testCase{
 		{
 			name: ".spec.dataSource.pitr.type is absent",
-			objs: []ctrlclient.Object{},
 			dbcrToCreate: &everestv1alpha1.DatabaseClusterRestore{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      dbcrName,
@@ -88,15 +84,7 @@ func TestDatabaseClusterRestoreCustomDefaulter_Default(t *testing.T) {
 			scheme := runtime.NewScheme()
 			utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-			mockClient := fakeclient.NewClientBuilder().
-				WithScheme(scheme).
-				WithObjects(tc.objs...).
-				Build()
-
-			defaulter := DatabaseClusterRestoreCustomDefaulter{
-				Client: mockClient,
-				Scheme: scheme,
-			}
+			defaulter := DatabaseClusterRestoreCustomDefaulter{}
 
 			err := defaulter.Default(context.TODO(), tc.dbcrToCreate)
 			if tc.wantErr == nil {

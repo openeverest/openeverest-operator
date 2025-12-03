@@ -65,6 +65,9 @@ type DatabaseClusterBackupStatus struct {
 	Gaps bool `json:"gaps"`
 	// LatestRestorableTime is the latest time that can be used for PITR restore
 	LatestRestorableTime *metav1.Time `json:"latestRestorableTime,omitempty"`
+	// InUse is a flag that indicates if this restore resource is being used to restore DB cluster from backup.
+	// +kubebuilder:default=false
+	InUse bool `json:"inUse,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -111,6 +114,11 @@ func (b *DatabaseClusterBackup) HasFailed() bool {
 // HasCompleted returns true if the backup has completed.
 func (b *DatabaseClusterBackup) HasCompleted() bool {
 	return (b.HasSucceeded() || b.HasFailed()) && b.GetDeletionTimestamp().IsZero()
+}
+
+// IsInProgress returns true if the backup process is in progress.
+func (b *DatabaseClusterBackup) IsInProgress() bool {
+	return b.Status.State == BackupStarting || b.Status.State == BackupRunning
 }
 
 // GetDBBackupState returns the backup state from the upstream backup object.

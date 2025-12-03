@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -870,6 +871,13 @@ func EnqueueObjectsInNamespace(c client.Client, list client.ObjectList) handler.
 		}
 		return requests
 	})
+}
+
+// ReconcileRequestFromObject creates a reconcile.Request from a client.Object.
+func ReconcileRequestFromObject(obj client.Object) ctrl.Request {
+	return ctrl.Request{
+		NamespacedName: client.ObjectKeyFromObject(obj),
+	}
 }
 
 func toUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {

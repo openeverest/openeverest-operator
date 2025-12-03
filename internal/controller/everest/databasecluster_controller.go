@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -259,21 +260,34 @@ func (r *DatabaseClusterReconciler) reconcileDBStatus( //nolint:funcorder
 		logger.Error(err, "failed to get status")
 		return ctrl.Result{}, err
 	}
-	db.Status = status
-	db.Status.ObservedGeneration = db.GetGeneration()
 
+	status.ObservedGeneration = db.GetGeneration()
+	// need to set status to DB because r.observeDataImportState enriches it.
+	db.Status = status
 	// if data import is set, we need to observe the state of the data import job.
 	if pointer.Get(db.Spec.DataSource).DataImport != nil {
-		if err := r.observeDataImportState(ctx, db); err != nil {
+		if err = r.observeDataImportState(ctx, db); err != nil {
 			logger.Error(err, "failed to observe data import state")
 			return ctrl.Result{}, err
 		}
 	}
 
-	if err := r.Client.Status().Update(ctx, db); err != nil {
-		logger.Error(err, "failed to update status")
-		return ctrl.Result{}, err
+	// make a copy to use later in the update
+	status = db.Status
+
+	dbClusterName := client.ObjectKeyFromObject(db)
+	if updErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if cErr := r.Client.Get(ctx, dbClusterName, db); cErr != nil {
+			return cErr
+		}
+
+		db.Status = status
+
+		return r.Client.Status().Update(ctx, db)
+	}); client.IgnoreNotFound(updErr) != nil {
+		return ctrl.Result{}, updErr
 	}
+
 	// DB is not ready, check again soon.
 	if status.Status != everestv1alpha1.AppStateReady || !statusReady {
 		return ctrl.Result{RequeueAfter: defaultRequeueAfter}, nil

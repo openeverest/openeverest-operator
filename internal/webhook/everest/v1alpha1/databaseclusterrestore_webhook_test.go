@@ -67,7 +67,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 				},
 				Spec: everestv1alpha1.DatabaseClusterRestoreSpec{},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				errRequiredField(dbcrDbClusterNamePath),
 				field.Invalid(dbcDataSourcePath, "",
 					fmt.Sprintf("either %s or %s must be specified", dbcrDbClusterBackupNamePath, dbcrBackupSourcePath)),
@@ -85,7 +85,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					DBClusterName: dbcrTargetDbName,
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				field.NotFound(dbcrDbClusterNamePath,
 					fmt.Sprintf("failed to fetch target DatabaseCluster='%s'", types.NamespacedName{
 						Name:      dbcrTargetDbName,
@@ -138,7 +138,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				field.Invalid(dbcDataSourcePath, "",
 					fmt.Sprintf("either %s or %s must be specified, but not both", dbcrDbClusterBackupNamePath, dbcrBackupSourcePath)),
 			}),
@@ -169,7 +169,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				field.NotFound(dbcrDbClusterBackupNamePath, fmt.Sprintf("failed to fetch DatabaseClusterBackup='%s'", types.NamespacedName{
 					Name:      dbcrBackupName,
 					Namespace: dbcrNamespace,
@@ -214,7 +214,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				field.Forbidden(dbcrDbClusterBackupNamePath, "DatabaseClusterBackup must be in Succeeded state"),
 			}),
 		},
@@ -256,7 +256,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				errRequiredField(dbcrDataSourcePitrDatePath),
 			}),
 		},
@@ -298,7 +298,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				field.NotSupported(dbcrDataSourcePitrTypePath, everestv1alpha1.PITRTypeLatest, []everestv1alpha1.PITRType{everestv1alpha1.PITRTypeDate}),
 			}),
 		},
@@ -328,7 +328,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				errRequiredField(dbcrBackupSourcePathPath),
 				errRequiredField(dbcrBackupSourceStorageNamePath),
 			}),
@@ -361,7 +361,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				errRequiredField(dbcrBackupSourceStorageNamePath),
 			}),
 		},
@@ -394,7 +394,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				field.NotFound(dbcrBackupSourceStorageNamePath,
 					fmt.Sprintf("failed to fetch BackupStorage='%s'", types.NamespacedName{
 						Name:      dbcrBackupStorageName,
@@ -436,7 +436,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				errRequiredField(dbcrBackupSourcePathPath),
 			}),
 		},
@@ -487,7 +487,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				field.Forbidden(dbcrDbClusterBackupNamePath,
 					fmt.Sprintf("DatabaseClusterBackup='%s' is being deleted and cannot be used for restoration", types.NamespacedName{
 						Name:      dbcrBackupName,
@@ -552,7 +552,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				field.Invalid(dbcrDbClusterBackupNamePath, dbcrBackupName,
 					fmt.Sprintf("the engine of the target DatabaseCluster %s (%s) and the engine of the backup source DatabaseCluster %s (%s) do not match",
 						dbcrTargetDbName, everestv1alpha1.DatabaseEnginePostgresql, dbcrBackupSourceDbName, everestv1alpha1.DatabaseEnginePSMDB)),
@@ -596,7 +596,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateCreate(t *testing.T) { //
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				field.Forbidden(dbcrDbClusterNamePath, "the target DatabaseCluster's state does not allow restoration from backup"),
 			}),
 		},
@@ -979,7 +979,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(groupKind, dbcrName, field.ErrorList{
+			wantErr: apierrors.NewInvalid(databaseClusterRestoreGroupKind, dbcrName, field.ErrorList{
 				errImmutableField(specPath),
 			}),
 		},
