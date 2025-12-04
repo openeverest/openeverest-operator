@@ -144,7 +144,7 @@ minikube-cluster-up: ## Create a local minikube cluster
 	kubectl apply -f ./dev/kubevirt-hostpath-provisioner.yaml
 
 .PHONY: prepare-pr
-prepare-pr: manifests generate static-check format build ## Prepare the code for creating PR.
+prepare-pr: manifests generate static-check format bundle build ## Prepare the code for creating PR.
 
 ##@ Testing
 

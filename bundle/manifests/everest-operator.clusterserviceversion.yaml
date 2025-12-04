@@ -90,7 +90,7 @@ metadata:
         }
       ]
     capabilities: Basic Install
-    createdAt: "2025-11-19T11:45:34Z"
+    createdAt: "2025-12-04T14:23:59Z"
     operators.operatorframework.io/builder: operator-sdk-v1.40.0
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
   name: everest-operator.v0.0.0
@@ -619,6 +619,26 @@ spec:
     containerPort: 443
     deploymentName: everest-operator-controller-manager
     failurePolicy: Fail
+    generateName: mdatabaseclusterrestore-v1alpha1.everest.percona.com
+    rules:
+    - apiGroups:
+      - everest.percona.com
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - databaseclusterrestores
+    sideEffects: None
+    targetPort: 9443
+    type: MutatingAdmissionWebhook
+    webhookPath: /mutate-everest-percona-com-v1alpha1-databaseclusterrestore
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    deploymentName: everest-operator-controller-manager
+    failurePolicy: Fail
     generateName: mdataimportjobs-v1akpha1.everest.percona.com
     rules:
     - apiGroups:
@@ -674,6 +694,48 @@ spec:
     targetPort: 9443
     type: ValidatingAdmissionWebhook
     webhookPath: /validate-everest-percona-com-v1alpha1-databasecluster
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    deploymentName: everest-operator-controller-manager
+    failurePolicy: Fail
+    generateName: vdatabaseclusterbackup-v1alpha1.everest.percona.com
+    rules:
+    - apiGroups:
+      - everest.percona.com
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      - DELETE
+      resources:
+      - databaseclusterbackups
+    sideEffects: None
+    targetPort: 9443
+    type: ValidatingAdmissionWebhook
+    webhookPath: /validate-everest-percona-com-v1alpha1-databaseclusterbackup
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    deploymentName: everest-operator-controller-manager
+    failurePolicy: Fail
+    generateName: vdatabaseclusterrestore-v1alpha1.everest.percona.com
+    rules:
+    - apiGroups:
+      - everest.percona.com
+      apiVersions:
+      - v1alpha1
+      operations:
+      - CREATE
+      - UPDATE
+      - DELETE
+      resources:
+      - databaseclusterrestores
+    sideEffects: None
+    targetPort: 9443
+    type: ValidatingAdmissionWebhook
+    webhookPath: /validate-everest-percona-com-v1alpha1-databaseclusterrestore
   - admissionReviewVersions:
     - v1
     containerPort: 443
