@@ -88,11 +88,12 @@ func (r *DatabaseClusterRestoreReconciler) Reconcile(ctx context.Context, req ct
 		// NotFound cannot be fixed by re-queuing so ignore it. During background
 		// deletion, we receive delete events from cluster's dependents after
 		// cluster is deleted.
-		if err = client.IgnoreNotFound(err); err != nil {
+		if client.IgnoreNotFound(err) != nil {
 			logger.Error(err, fmt.Sprintf("failed to fetch DatabaseClusterRestore='%s'",
 				req.NamespacedName))
+			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	dbCRNamespacedName := types.NamespacedName{
@@ -104,7 +105,7 @@ func (r *DatabaseClusterRestoreReconciler) Reconcile(ctx context.Context, req ct
 		// NotFound cannot be fixed by re-queuing so ignore it. During background
 		// deletion, we receive delete events from cluster's dependents after
 		// cluster is deleted.
-		if err = client.IgnoreNotFound(err); err != nil {
+		if client.IgnoreNotFound(err) != nil {
 			msg := fmt.Sprintf("failed to fetch DatabaseCluster='%s'",
 				dbCRNamespacedName)
 			logger.Error(err, msg)
@@ -266,7 +267,7 @@ func (r *DatabaseClusterRestoreReconciler) reconcileStatus(
 	case everestv1alpha1.DatabaseEnginePXC:
 		pxcCR := &pxcv1.PerconaXtraDBClusterRestore{}
 		if err = r.Get(ctx, upstreamRestoreName, pxcCR); err != nil {
-			if !k8serrors.IsNotFound(err) {
+			if client.IgnoreNotFound(err) != nil {
 				msg := fmt.Sprintf("failed to fetch PerconaXtraDBClusterRestore='%s' to update status",
 					upstreamRestoreName)
 				logger.Error(err, msg)
@@ -280,7 +281,7 @@ func (r *DatabaseClusterRestoreReconciler) reconcileStatus(
 	case everestv1alpha1.DatabaseEnginePSMDB:
 		psmdbCR := &psmdbv1.PerconaServerMongoDBRestore{}
 		if err = r.Get(ctx, upstreamRestoreName, psmdbCR); err != nil {
-			if !k8serrors.IsNotFound(err) {
+			if client.IgnoreNotFound(err) != nil {
 				msg := fmt.Sprintf("failed to fetch PerconaServerMongoDBRestore='%s' to update status",
 					upstreamRestoreName)
 				logger.Error(err, msg)
@@ -294,7 +295,7 @@ func (r *DatabaseClusterRestoreReconciler) reconcileStatus(
 	case everestv1alpha1.DatabaseEnginePostgresql:
 		pgCR := &pgv2.PerconaPGRestore{}
 		if err = r.Get(ctx, upstreamRestoreName, pgCR); err != nil {
-			if !k8serrors.IsNotFound(err) {
+			if client.IgnoreNotFound(err) != nil {
 				msg := fmt.Sprintf("failed to fetch PerconaPGRestore='%s' to update status",
 					upstreamRestoreName)
 				logger.Error(err, msg)

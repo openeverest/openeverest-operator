@@ -98,26 +98,29 @@ func (r *DatabaseClusterBackupReconciler) Reconcile(ctx context.Context, req ctr
 		logger.Info("Reconciled")
 	}()
 
+	var err error
 	backup := &everestv1alpha1.DatabaseClusterBackup{}
-	if err := r.Get(ctx, req.NamespacedName, backup); err != nil {
-		logger.Error(err, fmt.Sprintf("failed to fetch DatabaseClusterBackup='%s'", req.NamespacedName))
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+	if err = r.Get(ctx, req.NamespacedName, backup); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			logger.Error(err, fmt.Sprintf("failed to fetch DatabaseClusterBackup='%s'", req.NamespacedName))
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
 	}
 
 	cluster := &everestv1alpha1.DatabaseCluster{}
-	err := r.Get(ctx, types.NamespacedName{Name: backup.Spec.DBClusterName, Namespace: backup.Namespace}, cluster)
-	if err != nil {
-		if err = client.IgnoreNotFound(err); err != nil {
+	if err = r.Get(ctx, types.NamespacedName{Name: backup.Spec.DBClusterName, Namespace: backup.Namespace}, cluster); err != nil {
+		if client.IgnoreNotFound(err) != nil {
 			logger.Error(err, fmt.Sprintf("failed to fetch DatabaseCluster='%s'",
 				types.NamespacedName{Name: backup.Spec.DBClusterName, Namespace: backup.Namespace}))
+			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, nil
 	}
 
 	defer func() {
 		// Update the status and finalizers of the DatabaseClusterBackup object after the reconciliation.
-		err = r.reconcileStatus(ctx, backup, cluster.Spec.Engine.Type)
-		if err != nil {
+		if err = r.reconcileStatus(ctx, backup, cluster.Spec.Engine.Type); err != nil {
 			logger.Error(err, "failed to update DatabaseClusterBackup status")
 		}
 	}()
@@ -361,7 +364,7 @@ func (r *DatabaseClusterBackupReconciler) getBackupStatus(
 			},
 		}
 		if err = r.Get(ctx, namespacedName, pxcCR); err != nil {
-			if !k8serrors.IsNotFound(err) {
+			if client.IgnoreNotFound(err) != nil {
 				msg := fmt.Sprintf("failed to fetch PerconaXtraDBClusterBackup='%s' to update status",
 					namespacedName)
 				logger.Error(err, msg)
@@ -387,7 +390,7 @@ func (r *DatabaseClusterBackupReconciler) getBackupStatus(
 			},
 		}
 		if err = r.Get(ctx, namespacedName, psmdbCR); err != nil {
-			if !k8serrors.IsNotFound(err) {
+			if client.IgnoreNotFound(err) != nil {
 				msg := fmt.Sprintf("failed to fetch PerconaServerMongoDBBackup='%s' to update status",
 					namespacedName)
 				logger.Error(err, msg)
@@ -408,7 +411,7 @@ func (r *DatabaseClusterBackupReconciler) getBackupStatus(
 			},
 		}
 		if err = r.Get(ctx, namespacedName, pgCR); err != nil {
-			if !k8serrors.IsNotFound(err) {
+			if client.IgnoreNotFound(err) != nil {
 				msg := fmt.Sprintf("failed to fetch PerconaPGBackup='%s' to update status",
 					namespacedName)
 				logger.Error(err, msg)
