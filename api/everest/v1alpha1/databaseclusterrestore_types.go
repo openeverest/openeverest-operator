@@ -155,6 +155,7 @@ func (t *RestoreDate) UnmarshalJSON(b []byte) error {
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Job status"
 // +kubebuilder:printcolumn:name="Completed",type="date",JSONPath=".status.completed",description="Completed time"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:printcolumn:name="InUse",type="string",JSONPath=".status.inUse",description="Indicates if the restore is used by any DB cluster"
 
 // DatabaseClusterRestore is the Schema for the databaseclusterrestores API.
 type DatabaseClusterRestore struct {

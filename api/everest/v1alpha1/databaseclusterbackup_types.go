@@ -78,6 +78,7 @@ type DatabaseClusterBackupStatus struct {
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Job status"
 // +kubebuilder:printcolumn:name="Completed",type="date",JSONPath=".status.completed",description="Time the job was completed"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".status.created",description="Age of the resource"
+// +kubebuilder:printcolumn:name="InUse",type="string",JSONPath=".status.inUse",description="Indicates if the backup is used by any DB cluster"
 
 // DatabaseClusterBackup is the Schema for the databaseclusterbackups API.
 type DatabaseClusterBackup struct {
