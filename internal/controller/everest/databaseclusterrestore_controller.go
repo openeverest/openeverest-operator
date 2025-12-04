@@ -75,7 +75,7 @@ type DatabaseClusterRestoreReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *DatabaseClusterRestoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) { //nolint:nonamedreturns
+func (r *DatabaseClusterRestoreReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	logger.Info("Reconciling", "request", req)
 	defer func() {
@@ -308,7 +308,7 @@ func (r *DatabaseClusterRestoreReconciler) reconcileStatus(
 
 	dbcrStatus.InUse = dbcr.IsInProgress()
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if cErr := r.Client.Get(ctx, upstreamRestoreName, dbcr); cErr != nil {
+		if cErr := r.Get(ctx, upstreamRestoreName, dbcr); cErr != nil {
 			return cErr
 		}
 

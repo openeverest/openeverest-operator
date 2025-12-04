@@ -134,7 +134,7 @@ func (r *BackupStorageReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 
 		if updErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			if cErr := r.Client.Get(ctx, req.NamespacedName, bs); cErr != nil {
+			if cErr := r.Get(ctx, req.NamespacedName, bs); cErr != nil {
 				return cErr
 			}
 

@@ -121,7 +121,7 @@ func TestDatabaseClusterBackupCustomValidator_ValidateCreate(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:              dbcbBackupStorageName,
 						Namespace:         dbcbNamespace,
-						DeletionTimestamp: &metav1.Time{Time: metav1.Now().Time.UTC()},
+						DeletionTimestamp: &metav1.Time{Time: metav1.Now().UTC()},
 						Finalizers:        []string{"some-finalizer"},
 					},
 				},
@@ -224,7 +224,7 @@ func TestDatabaseClusterBackupCustomValidator_ValidateCreate(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:              dbcbSourceDbName,
 						Namespace:         dbcbNamespace,
-						DeletionTimestamp: &metav1.Time{Time: metav1.Now().Time.UTC()},
+						DeletionTimestamp: &metav1.Time{Time: metav1.Now().UTC()},
 						Finalizers:        []string{"some-finalizer"},
 					},
 				},
@@ -438,7 +438,7 @@ func TestDatabaseClusterBackupCustomValidator_ValidateUpdate(t *testing.T) {
 	}
 }
 
-func TestDatabaseClusterBackupCustomValidator_ValidateDelete(t *testing.T) {
+func TestDatabaseClusterBackupCustomValidator_ValidateDelete(t *testing.T) { //nolint:dupl
 	t.Parallel()
 
 	type testCase struct {

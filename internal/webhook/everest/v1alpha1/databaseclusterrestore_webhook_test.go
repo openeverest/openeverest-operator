@@ -1057,7 +1057,7 @@ func TestDatabaseClusterRestoreCustomValidator_ValidateUpdate(t *testing.T) {
 	}
 }
 
-func TestDatabaseClusterRestoreCustomValidator_ValidateDelete(t *testing.T) {
+func TestDatabaseClusterRestoreCustomValidator_ValidateDelete(t *testing.T) { //nolint:dupl
 	t.Parallel()
 
 	type testCase struct {

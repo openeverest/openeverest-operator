@@ -189,8 +189,6 @@ func (v *DatabaseClusterBackupCustomValidator) ValidateDelete(ctx context.Contex
 		"name", dbcb.GetName(),
 		"namespace", dbcb.GetNamespace(),
 	)
-	ctx = logf.IntoContext(ctx, logger)
-
 	logger.Info("Validation for DatabaseClusterBackup upon deletion")
 
 	if !dbcb.DeletionTimestamp.IsZero() {

@@ -232,7 +232,7 @@ func (r *DatabaseClusterBackupReconciler) SetupWithManager(mgr ctrl.Manager) err
 	}
 
 	// Predicate to trigger reconciliation only on .spec.dataSource.dbClusterBackupName changes in the DatabaseCluster resource.
-	dbClusterEventsPredicate := predicate.Funcs{
+	dbClusterEventsPredicate := predicate.Funcs{ //nolint:dupl
 		// Allow create events only if the .spec.dataSource.dbClusterBackupName is set
 		CreateFunc: func(e event.CreateEvent) bool {
 			db, ok := e.Object.(*everestv1alpha1.DatabaseCluster)
@@ -337,11 +337,11 @@ func (r *DatabaseClusterBackupReconciler) SetupWithManager(mgr ctrl.Manager) err
 	return nil
 }
 
-func (r *DatabaseClusterBackupReconciler) reconcileStatus(
+func (r *DatabaseClusterBackupReconciler) getBackupStatus(
 	ctx context.Context,
 	backup *everestv1alpha1.DatabaseClusterBackup,
 	engineType everestv1alpha1.EngineType,
-) error {
+) (everestv1alpha1.DatabaseClusterBackupStatus, error) {
 	var err error
 	logger := log.FromContext(ctx)
 	namespacedName := client.ObjectKeyFromObject(backup)
@@ -349,78 +349,98 @@ func (r *DatabaseClusterBackupReconciler) reconcileStatus(
 	backupStatus := everestv1alpha1.DatabaseClusterBackupStatus{}
 	if !backup.GetDeletionTimestamp().IsZero() {
 		backupStatus.State = everestv1alpha1.BackupDeleting
-	} else {
-		switch engineType {
-		case everestv1alpha1.DatabaseEnginePXC:
-			pxcCR := &pxcv1.PerconaXtraDBClusterBackup{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      namespacedName.Name,
-					Namespace: namespacedName.Namespace,
-				},
-			}
-			if err = r.Get(ctx, namespacedName, pxcCR); err != nil {
-				if !k8serrors.IsNotFound(err) {
-					msg := fmt.Sprintf("failed to fetch PerconaXtraDBClusterBackup='%s' to update status",
-						namespacedName)
-					logger.Error(err, msg)
-					return fmt.Errorf("%s: %w", msg, err)
-				}
-				return nil
-			}
-			backupStatus.State = everestv1alpha1.GetDBBackupState(pxcCR)
-			backupStatus.CompletedAt = pxcCR.Status.CompletedAt
-			backupStatus.CreatedAt = &pxcCR.CreationTimestamp
-			backupStatus.Destination = pointer.To(string(pxcCR.Status.Destination))
-			for _, condition := range pxcCR.Status.Conditions {
-				if condition.Reason == pxcGapsReasonString {
-					backupStatus.Gaps = true
-				}
-			}
-			backupStatus.LatestRestorableTime = pxcCR.Status.LatestRestorableTime
-		case everestv1alpha1.DatabaseEnginePSMDB:
-			psmdbCR := &psmdbv1.PerconaServerMongoDBBackup{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      namespacedName.Name,
-					Namespace: namespacedName.Namespace,
-				},
-			}
-			if err = r.Get(ctx, namespacedName, psmdbCR); err != nil {
-				if !k8serrors.IsNotFound(err) {
-					msg := fmt.Sprintf("failed to fetch PerconaServerMongoDBBackup='%s' to update status",
-						namespacedName)
-					logger.Error(err, msg)
-					return fmt.Errorf("%s: %w", msg, err)
-				}
-				return nil
-			}
-			backupStatus.State = everestv1alpha1.GetDBBackupState(psmdbCR)
-			backupStatus.CompletedAt = psmdbCR.Status.CompletedAt
-			backupStatus.CreatedAt = &psmdbCR.CreationTimestamp
-			backupStatus.Destination = &psmdbCR.Status.Destination
-			backupStatus.LatestRestorableTime = psmdbCR.Status.LatestRestorableTime
-		case everestv1alpha1.DatabaseEnginePostgresql:
-			pgCR := &pgv2.PerconaPGBackup{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      namespacedName.Name,
-					Namespace: namespacedName.Namespace,
-				},
-			}
-			if err = r.Get(ctx, namespacedName, pgCR); err != nil {
-				if !k8serrors.IsNotFound(err) {
-					msg := fmt.Sprintf("failed to fetch PerconaPGBackup='%s' to update status",
-						namespacedName)
-					logger.Error(err, msg)
-					return fmt.Errorf("%s: %w", msg, err)
-				}
-				return nil
-			}
-			backupStatus.State = everestv1alpha1.GetDBBackupState(pgCR)
-			backupStatus.CompletedAt = pgCR.Status.CompletedAt
-			backupStatus.CreatedAt = &pgCR.CreationTimestamp
-			backupStatus.Destination = &pgCR.Status.Destination
-			backupStatus.LatestRestorableTime = pgCR.Status.LatestRestorableTime.Time
-		}
+		return backupStatus, nil
 	}
+
+	switch engineType {
+	case everestv1alpha1.DatabaseEnginePXC:
+		pxcCR := &pxcv1.PerconaXtraDBClusterBackup{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      namespacedName.Name,
+				Namespace: namespacedName.Namespace,
+			},
+		}
+		if err = r.Get(ctx, namespacedName, pxcCR); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				msg := fmt.Sprintf("failed to fetch PerconaXtraDBClusterBackup='%s' to update status",
+					namespacedName)
+				logger.Error(err, msg)
+				return backupStatus, fmt.Errorf("%s: %w", msg, err)
+			}
+			return backupStatus, nil
+		}
+		backupStatus.State = everestv1alpha1.GetDBBackupState(pxcCR)
+		backupStatus.CompletedAt = pxcCR.Status.CompletedAt
+		backupStatus.CreatedAt = &pxcCR.CreationTimestamp
+		backupStatus.Destination = pointer.To(string(pxcCR.Status.Destination))
+		for _, condition := range pxcCR.Status.Conditions {
+			if condition.Reason == pxcGapsReasonString {
+				backupStatus.Gaps = true
+			}
+		}
+		backupStatus.LatestRestorableTime = pxcCR.Status.LatestRestorableTime
+	case everestv1alpha1.DatabaseEnginePSMDB:
+		psmdbCR := &psmdbv1.PerconaServerMongoDBBackup{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      namespacedName.Name,
+				Namespace: namespacedName.Namespace,
+			},
+		}
+		if err = r.Get(ctx, namespacedName, psmdbCR); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				msg := fmt.Sprintf("failed to fetch PerconaServerMongoDBBackup='%s' to update status",
+					namespacedName)
+				logger.Error(err, msg)
+				return backupStatus, fmt.Errorf("%s: %w", msg, err)
+			}
+			return backupStatus, nil
+		}
+		backupStatus.State = everestv1alpha1.GetDBBackupState(psmdbCR)
+		backupStatus.CompletedAt = psmdbCR.Status.CompletedAt
+		backupStatus.CreatedAt = &psmdbCR.CreationTimestamp
+		backupStatus.Destination = &psmdbCR.Status.Destination
+		backupStatus.LatestRestorableTime = psmdbCR.Status.LatestRestorableTime
+	case everestv1alpha1.DatabaseEnginePostgresql:
+		pgCR := &pgv2.PerconaPGBackup{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      namespacedName.Name,
+				Namespace: namespacedName.Namespace,
+			},
+		}
+		if err = r.Get(ctx, namespacedName, pgCR); err != nil {
+			if !k8serrors.IsNotFound(err) {
+				msg := fmt.Sprintf("failed to fetch PerconaPGBackup='%s' to update status",
+					namespacedName)
+				logger.Error(err, msg)
+				return backupStatus, fmt.Errorf("%s: %w", msg, err)
+			}
+			return backupStatus, nil
+		}
+		backupStatus.State = everestv1alpha1.GetDBBackupState(pgCR)
+		backupStatus.CompletedAt = pgCR.Status.CompletedAt
+		backupStatus.CreatedAt = &pgCR.CreationTimestamp
+		backupStatus.Destination = &pgCR.Status.Destination
+		backupStatus.LatestRestorableTime = pgCR.Status.LatestRestorableTime.Time
+	}
+
+	return backupStatus, nil
+}
+
+func (r *DatabaseClusterBackupReconciler) reconcileStatus(
+	ctx context.Context,
+	backup *everestv1alpha1.DatabaseClusterBackup,
+	engineType everestv1alpha1.EngineType,
+) error {
+	// var err error
+	logger := log.FromContext(ctx)
+	namespacedName := client.ObjectKeyFromObject(backup)
+
+	backupStatus, err := r.getBackupStatus(ctx, backup, engineType)
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("failed to get status for DatabaseClusterBackup='%s'", namespacedName))
+		return err
+	}
+
 	// backup can be used in the following cases:
 	// - DB cluster restoration from this backup is in progress
 	// - DB cluster creation from this backup is in progress
@@ -478,7 +498,7 @@ func (r *DatabaseClusterBackupReconciler) reconcileStatus(
 		isDbCreationFromBackupInProgress()
 
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if cErr := r.Client.Get(ctx, namespacedName, backup); cErr != nil {
+		if cErr := r.Get(ctx, namespacedName, backup); cErr != nil {
 			return cErr
 		}
 

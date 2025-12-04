@@ -278,7 +278,7 @@ func (r *DatabaseClusterReconciler) reconcileDBStatus( //nolint:funcorder
 
 	dbClusterName := client.ObjectKeyFromObject(db)
 	if updErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if cErr := r.Client.Get(ctx, dbClusterName, db); cErr != nil {
+		if cErr := r.Get(ctx, dbClusterName, db); cErr != nil {
 			return cErr
 		}
 
