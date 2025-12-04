@@ -55,8 +55,8 @@ assertAll:
   - celExpr: "'foregroundDeletion' in dbb2_s3.metadata.finalizers"
     message: "foregroundDeletion' is absent in dbb2_s3.metadata.finalizers"
 
-  - celExpr: "!('everest.percona.com/in-use-protection' in dbb2_s3.metadata.finalizers)"
-    message: "'everest.percona.com/in-use-protection' presents in dbb2_s3.metadata.finalizers"
+  - celExpr: "'everest.percona.com/in-use-protection' in dbb2_s3.metadata.finalizers"
+    message: "'everest.percona.com/in-use-protection' absent in dbb2_s3.metadata.finalizers"
 
   - celExpr: "has(bs_s3.metadata.finalizers)"
     message: "bs_s3 doesn't have finalizers"
@@ -154,7 +154,7 @@ spec:
   backupStorageName: test-storage-s3
   dbClusterName: test-psmdb-cluster
 status:
-  inUse: false
+  inUse: true
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDBBackup

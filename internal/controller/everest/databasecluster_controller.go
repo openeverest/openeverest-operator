@@ -62,6 +62,7 @@ const (
 	monitoringConfigNameField       = ".spec.monitoring.monitoringConfigName"
 	monitoringConfigSecretNameField = ".spec.credentialsSecretName" //nolint:gosec
 	backupStorageNameField          = ".spec.backup.schedules.backupStorageName"
+	dbClusterBackupNameField        = ".spec.dataSource.dbClusterBackupName"
 	pitrBackupStorageNameField      = ".spec.backup.pitr.backupStorageName"
 	credentialsSecretNameField      = ".spec.credentialsSecretName" //nolint:gosec
 	podSchedulingPolicyNameField    = ".spec.podSchedulingPolicyName"
@@ -731,6 +732,21 @@ func (r *DatabaseClusterReconciler) initIndexers(ctx context.Context, mgr ctrl.M
 	if err != nil {
 		return err
 	}
+
+	err = mgr.GetFieldIndexer().IndexField(
+		ctx, &everestv1alpha1.DatabaseCluster{}, dbClusterBackupNameField,
+		func(rawObj client.Object) []string {
+			var res []string
+			db, ok := rawObj.(*everestv1alpha1.DatabaseCluster)
+			if !ok {
+				return res
+			}
+			if pointer.Get(db.Spec.DataSource).DBClusterBackupName != "" {
+				res = append(res, db.Spec.DataSource.DBClusterBackupName)
+			}
+			return res
+		},
+	)
 
 	return err
 }

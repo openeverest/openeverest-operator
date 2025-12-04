@@ -54,6 +54,7 @@ const (
 	pgBackupTypeImmediate             = "immediate"
 	timeoutWaitingAfterClusterIsReady = 30 * time.Second
 	restoreRetryAfter                 = 10 * time.Second
+	dbClusterRestoreBackupNameField   = ".spec.dataSource.dbClusterBackupName"
 )
 
 // DatabaseClusterRestoreReconciler reconciles a DatabaseClusterRestore object.
@@ -675,6 +676,24 @@ func (r *DatabaseClusterRestoreReconciler) initIndexers(ctx context.Context, mgr
 			}
 			if pointer.Get(dbr.Spec.DataSource.BackupSource).BackupStorageName != "" {
 				res = append(res, dbr.Spec.DataSource.BackupSource.BackupStorageName)
+			}
+			return res
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	err = mgr.GetFieldIndexer().IndexField(
+		ctx, &everestv1alpha1.DatabaseClusterRestore{}, dbClusterRestoreBackupNameField,
+		func(rawObj client.Object) []string {
+			var res []string
+			dbr, ok := rawObj.(*everestv1alpha1.DatabaseClusterRestore)
+			if !ok {
+				return res
+			}
+			if dbr.Spec.DataSource.DBClusterBackupName != "" {
+				res = append(res, dbr.Spec.DataSource.DBClusterBackupName)
 			}
 			return res
 		},

@@ -70,8 +70,8 @@ type DatabaseClusterBackupStatus struct {
 	InUse bool `json:"inUse,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=dbbackup;dbb
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".spec.dbClusterName",description="The original database cluster name"
 // +kubebuilder:printcolumn:name="Destination",type="string",JSONPath=".status.destination",description="Backup destination"
@@ -88,7 +88,7 @@ type DatabaseClusterBackup struct {
 	Status DatabaseClusterBackupStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // DatabaseClusterBackupList contains a list of DatabaseClusterBackup.
 type DatabaseClusterBackupList struct {
@@ -118,7 +118,9 @@ func (b *DatabaseClusterBackup) HasCompleted() bool {
 
 // IsInProgress returns true if the backup process is in progress.
 func (b *DatabaseClusterBackup) IsInProgress() bool {
-	return b.Status.State == BackupStarting || b.Status.State == BackupRunning
+	return b.Status.State == BackupNew ||
+		b.Status.State == BackupStarting ||
+		b.Status.State == BackupRunning
 }
 
 // GetDBBackupState returns the backup state from the upstream backup object.

@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -43,12 +44,14 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
@@ -193,13 +196,134 @@ func (r *DatabaseClusterBackupReconciler) SetupWithManager(mgr ctrl.Manager) err
 		return err
 	}
 
+	// Predicate to trigger reconciliation only on .spec.dataSource.dbClusterBackupName changes in the DatabaseClusterRestore resource.
+	dbClusterRestoreEventsPredicate := predicate.Funcs{
+		// Allow create events only if the .spec.dataSource.dbClusterBackupName is set
+		CreateFunc: func(e event.CreateEvent) bool {
+			dbcr, ok := e.Object.(*everestv1alpha1.DatabaseClusterRestore)
+			if !ok {
+				return false
+			}
+			return dbcr.Spec.DataSource.DBClusterBackupName != ""
+		},
+
+		// DatabaseClusterRestore resources don't support updates to the .spec.dataSource.dbClusterBackupName field
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			dbcr, ok := e.ObjectOld.(*everestv1alpha1.DatabaseClusterRestore)
+			if !ok {
+				return false
+			}
+			return dbcr.Spec.DataSource.DBClusterBackupName != ""
+		},
+
+		// Allow delete events only if the .spec.dataSource.dbClusterBackupName is set
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			dbcr, ok := e.Object.(*everestv1alpha1.DatabaseClusterRestore)
+			if !ok {
+				return false
+			}
+			return dbcr.Spec.DataSource.DBClusterBackupName != ""
+		},
+
+		// Nothing to process on generic events
+		GenericFunc: func(_ event.GenericEvent) bool {
+			return false
+		},
+	}
+
+	// Predicate to trigger reconciliation only on .spec.dataSource.dbClusterBackupName changes in the DatabaseCluster resource.
+	dbClusterEventsPredicate := predicate.Funcs{
+		// Allow create events only if the .spec.dataSource.dbClusterBackupName is set
+		CreateFunc: func(e event.CreateEvent) bool {
+			db, ok := e.Object.(*everestv1alpha1.DatabaseCluster)
+			if !ok {
+				return false
+			}
+			return pointer.Get(db.Spec.DataSource).DBClusterBackupName != ""
+		},
+
+		// DatabaseClusterRestore resources don't support updates to the .spec.dataSource.dbClusterBackupName field
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldDB, oldOk := e.ObjectOld.(*everestv1alpha1.DatabaseCluster)
+			newDB, newOk := e.ObjectNew.(*everestv1alpha1.DatabaseCluster)
+			if !oldOk || !newOk {
+				return false
+			}
+
+			// Trigger reconciliation only if the .spec.dataSource.dbClusterBackupName field has changed
+			return pointer.Get(oldDB.Spec.DataSource).DBClusterBackupName !=
+				pointer.Get(newDB.Spec.DataSource).DBClusterBackupName
+		},
+
+		// Allow delete events only if the .spec.dataSource.dbClusterBackupName is set
+		DeleteFunc: func(e event.DeleteEvent) bool {
+			db, ok := e.Object.(*everestv1alpha1.DatabaseCluster)
+			if !ok {
+				return false
+			}
+			return pointer.Get(db.Spec.DataSource).DBClusterBackupName != ""
+		},
+
+		// Nothing to process on generic events
+		GenericFunc: func(_ event.GenericEvent) bool {
+			return false
+		},
+	}
+
 	ctrlBuilder := ctrl.NewControllerManagedBy(mgr).
 		Named("DatabaseClusterBackup").
 		For(&everestv1alpha1.DatabaseClusterBackup{})
 	ctrlBuilder.Watches(
 		&corev1.Namespace{},
 		common.EnqueueObjectsInNamespace(r.Client, &everestv1alpha1.DatabaseClusterBackupList{}),
-	)
+	).
+		Watches(
+			// Watch for DatabaseClusterRestore resources that reference DatabaseClusterBackup
+			&everestv1alpha1.DatabaseClusterRestore{},
+			handler.EnqueueRequestsFromMapFunc(func(_ context.Context, obj client.Object) []reconcile.Request {
+				dbcr, ok := obj.(*everestv1alpha1.DatabaseClusterRestore)
+				if !ok {
+					return []reconcile.Request{}
+				}
+				return []reconcile.Request{
+					{
+						NamespacedName: types.NamespacedName{
+							// dbClusterRestoreEventsPredicate events filter allows only DBRestores
+							// with the .spec.dataSource.dbClusterBackupName set
+							Name:      dbcr.Spec.DataSource.DBClusterBackupName,
+							Namespace: dbcr.Namespace,
+						},
+					},
+				}
+			}),
+			builder.WithPredicates(dbClusterRestoreEventsPredicate),
+		).
+		Watches(
+			// Watch for DatabaseCluster resources that reference DatabaseClusterBackup
+			&everestv1alpha1.DatabaseCluster{},
+			handler.EnqueueRequestsFromMapFunc(func(_ context.Context, obj client.Object) []reconcile.Request {
+				db, ok := obj.(*everestv1alpha1.DatabaseCluster)
+				if !ok {
+					return []reconcile.Request{}
+				}
+
+				if pointer.Get(db.Spec.DataSource).DBClusterBackupName == "" {
+					return []reconcile.Request{}
+				}
+
+				return []reconcile.Request{
+					{
+						NamespacedName: types.NamespacedName{
+							// dbClusterEventsPredicate events filter allows only DBRestores
+							// with the .spec.dataSource.dbClusterBackupName set
+							Name:      db.Spec.DataSource.DBClusterBackupName,
+							Namespace: db.Namespace,
+						},
+					},
+				}
+			}),
+			builder.WithPredicates(predicate.GenerationChangedPredicate{}, dbClusterEventsPredicate),
+		)
 	ctrlBuilder.WithEventFilter(common.DefaultNamespaceFilter)
 
 	// Normally we would call `Complete()`, however, with `Build()`, we get a handle to the underlying controller,
@@ -297,13 +421,67 @@ func (r *DatabaseClusterBackupReconciler) reconcileStatus(
 			backupStatus.LatestRestorableTime = pgCR.Status.LatestRestorableTime.Time
 		}
 	}
+	// backup can be used in the following cases:
+	// - DB cluster restoration from this backup is in progress
+	// - DB cluster creation from this backup is in progress
+	// - backup itself is in progress
+
+	isRestoreInProgress := func() bool {
+		// Check if any DatabaseClusterRestore resources are using this backup and are in progress.
+		dbRestores, err := common.DatabaseClusterRestoresThatReferenceObject(
+			ctx,
+			r.Client,
+			dbClusterRestoreBackupNameField,
+			namespacedName.Namespace,
+			namespacedName.Name,
+		)
+		if err != nil {
+			msg := fmt.Sprintf("failed to fetch DatabaseClusterRestores that use DatabaseClusterBackup='%s'", namespacedName)
+			logger.Error(err, msg)
+			return false
+		}
+
+		return slices.ContainsFunc(dbRestores.Items, func(restore everestv1alpha1.DatabaseClusterRestore) bool {
+			return restore.IsInProgress()
+		})
+	}
+
+	isDbCreationFromBackupInProgress := func() bool {
+		// Check if any DatabaseCluster resources are using this backup and are in creation progress.
+		dbList, err := common.DatabaseClustersThatReferenceObject(
+			ctx,
+			r.Client,
+			dbClusterRestoreBackupNameField,
+			namespacedName.Namespace,
+			namespacedName.Name,
+		)
+		if err != nil {
+			msg := fmt.Sprintf("failed to fetch DatabaseClusters that use DatabaseClusterBackup='%s'", namespacedName)
+			logger.Error(err, msg)
+			return false
+		}
+
+		return slices.ContainsFunc(dbList.Items, func(db everestv1alpha1.DatabaseCluster) bool {
+			switch db.Status.Status.WithCreatingState() {
+			case everestv1alpha1.AppStateCreating,
+				everestv1alpha1.AppStateInit,
+				everestv1alpha1.AppStateRestoring:
+				return true
+			default:
+				return false
+			}
+		})
+	}
+
+	backupStatus.InUse = backup.IsInProgress() ||
+		isRestoreInProgress() ||
+		isDbCreationFromBackupInProgress()
 
 	if err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		if cErr := r.Client.Get(ctx, namespacedName, backup); cErr != nil {
 			return cErr
 		}
 
-		backupStatus.InUse = backup.IsInProgress()
 		backup.Status = backupStatus
 
 		if err = common.EnsureInUseFinalizer(ctx, r.Client, backup.Status.InUse, backup); err != nil {
