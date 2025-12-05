@@ -434,7 +434,6 @@ func (r *DatabaseClusterBackupReconciler) reconcileStatus(
 	backup *everestv1alpha1.DatabaseClusterBackup,
 	engineType everestv1alpha1.EngineType,
 ) error {
-	// var err error
 	logger := log.FromContext(ctx)
 	namespacedName := client.ObjectKeyFromObject(backup)
 

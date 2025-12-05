@@ -255,34 +255,34 @@ func (r *DatabaseClusterReconciler) reconcileDBStatus( //nolint:funcorder
 	p dbProvider,
 ) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	namespacedName := client.ObjectKeyFromObject(db)
 
-	status, statusReady, err := p.Status(ctx)
+	dbStatus, statusReady, err := p.Status(ctx)
 	if err != nil {
-		logger.Error(err, "failed to get status")
+		logger.Error(err, fmt.Sprintf("failed to get status for DatabaseCluster='%s'", namespacedName))
 		return ctrl.Result{}, err
 	}
 
-	status.ObservedGeneration = db.GetGeneration()
-	// need to set status to DB because r.observeDataImportState enriches it.
-	db.Status = status
+	dbStatus.ObservedGeneration = db.GetGeneration()
+	// need to set dbStatus to DB because r.observeDataImportState enriches it.
+	db.Status = dbStatus
 	// if data import is set, we need to observe the state of the data import job.
 	if pointer.Get(db.Spec.DataSource).DataImport != nil {
 		if err = r.observeDataImportState(ctx, db); err != nil {
-			logger.Error(err, "failed to observe data import state")
+			logger.Error(err, fmt.Sprintf("failed to get data import state for DatabaseCluster='%s'", namespacedName))
 			return ctrl.Result{}, err
 		}
 	}
 
 	// make a copy to use later in the update
-	status = db.Status
+	dbStatus = db.Status
 
-	dbClusterName := client.ObjectKeyFromObject(db)
 	if updErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if cErr := r.Get(ctx, dbClusterName, db); cErr != nil {
+		if cErr := r.Get(ctx, namespacedName, db); cErr != nil {
 			return cErr
 		}
 
-		db.Status = status
+		db.Status = dbStatus
 
 		return r.Client.Status().Update(ctx, db)
 	}); client.IgnoreNotFound(updErr) != nil {
@@ -290,7 +290,7 @@ func (r *DatabaseClusterReconciler) reconcileDBStatus( //nolint:funcorder
 	}
 
 	// DB is not ready, check again soon.
-	if status.Status != everestv1alpha1.AppStateReady || !statusReady {
+	if dbStatus.Status != everestv1alpha1.AppStateReady || !statusReady {
 		return ctrl.Result{RequeueAfter: defaultRequeueAfter}, nil
 	}
 
