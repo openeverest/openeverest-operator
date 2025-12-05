@@ -249,15 +249,15 @@ func (v *DatabaseClusterBackupCustomValidator) validatePGReposForBackup(ctx cont
 		return append(allErrs, field.Invalid(dbcbDBClusterNamePath, db.GetName(), err.Error()))
 	}
 
-	bs := make(map[string]bool)
+	bs := make(map[string]struct{})
 	for _, shed := range db.Spec.Backup.Schedules {
-		bs[shed.BackupStorageName] = true
+		bs[shed.BackupStorageName] = struct{}{}
 	}
 
 	for _, backup := range backupList.Items {
 		// repos count is increased only if there wasn't such a BS used
 		if _, ok := bs[backup.Spec.BackupStorageName]; !ok {
-			bs[backup.Spec.BackupStorageName] = true
+			bs[backup.Spec.BackupStorageName] = struct{}{}
 		}
 	}
 
