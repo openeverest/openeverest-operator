@@ -11,9 +11,6 @@ spec:
   jobSpec:
     image: "perconalab/everest-operator:0.0.0"
     command: ["/data-importer", "pxc"]
-  databaseClusterConstraints:
-    requiredFields:
-    - .spec.engine.userSecretsName
   permissions:
   - apiGroups:
     - everest.percona.com

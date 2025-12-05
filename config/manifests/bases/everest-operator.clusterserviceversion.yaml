@@ -37,10 +37,38 @@ spec:
       kind: DatabaseEngine
       name: databaseengines.everest.percona.com
       version: v1alpha1
+    - description: DataImporter defines a reusable strategy for importing data into
+        a DatabaseCluster.
+      displayName: Data Importer
+      kind: DataImporter
+      name: dataimporters.everest.percona.com
+      version: v1alpha1
+    - description: DataImportJob is the schema for the dataimportjobs API.
+      displayName: Data Import Job
+      kind: DataImportJob
+      name: dataimportjobs.everest.percona.com
+      version: v1alpha1
+    - description: LoadBalancerConfig is the Schema for the Load Balancer Config API.
+      displayName: Load Balancer Config
+      kind: LoadBalancerConfig
+      name: loadbalancerconfigs.everest.percona.com
+      version: v1alpha1
     - description: MonitoringConfig is the Schema for the monitoringconfigs API.
       displayName: Monitoring Config
       kind: MonitoringConfig
       name: monitoringconfigs.everest.percona.com
+      version: v1alpha1
+    - description: PodSchedulingPolicy is the Schema for the Pod Scheduling Policy
+        API.
+      displayName: Pod Scheduling Policy
+      kind: PodSchedulingPolicy
+      name: podschedulingpolicies.everest.percona.com
+      version: v1alpha1
+    - description: SplitHorizonDNSConfig is the Schema for the splithorizondnsconfigs
+        API.
+      displayName: Split Horizon DNSConfig
+      kind: SplitHorizonDNSConfig
+      name: splithorizondnsconfigs.enginefeatures.everest.percona.com
       version: v1alpha1
   description: Deploy database clusters easily with Everest operator
   displayName: Everest operator

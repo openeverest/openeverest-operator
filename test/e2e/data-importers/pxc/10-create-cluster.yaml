@@ -1,0 +1,37 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-pxc-cluster
+spec:
+  dataSource:
+    dataImport:
+      dataImporterName: everest-percona-pxc-operator
+      source:
+        path: "/pxc/test-pxc-2025-09-30-11:18:45-full"
+        s3:
+          bucket: everest-operator
+          region: us-east-1
+          endpointURL: https://minio.minio.svc
+          credentialsSecretName: test-s3-secret
+          verifyTLS: false
+          forcePathStyle: true
+          accessKeyId: minioadmin
+          secretAccessKey: minioadmin
+  engine:
+    type: pxc
+    replicas: 3
+    storage:
+      size: 1Gi
+    resources:
+      cpu: 600m
+      memory: 1G
+  proxy:
+    type: haproxy
+    replicas: 3
+    resources:
+      cpu: 600m
+      memory: 0.6G

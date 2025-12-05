@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1
+kind: TestSuite
+crdDir: config/crd/bases
+artifactsDir: /tmp/
+parallel: 3
+timeout: 180
+skipDelete: true
+testDirs:
+- test/e2e/operator-upgrade
+manifestDirs:
+- test/manifests

@@ -1,0 +1,56 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+---
+# NOTE: These credentials are required for the data importer to correcty restore.
+apiVersion: v1
+data:
+  MONGODB_BACKUP_PASSWORD: azgydGlnR0xONlNyS3pVODI=
+  MONGODB_BACKUP_USER: YmFja3Vw
+  MONGODB_CLUSTER_ADMIN_PASSWORD: QnkwVjU3RlprZnhJVE5LdTZhRQ==
+  MONGODB_CLUSTER_ADMIN_USER: Y2x1c3RlckFkbWlu
+  MONGODB_CLUSTER_MONITOR_PASSWORD: VzBYNlYydWZjQjRXQ21GWQ==
+  MONGODB_CLUSTER_MONITOR_USER: Y2x1c3Rlck1vbml0b3I=
+  MONGODB_DATABASE_ADMIN_PASSWORD: bUhZeVFNQ3RraGpNdUVlYw==
+  MONGODB_DATABASE_ADMIN_USER: ZGF0YWJhc2VBZG1pbg==
+  MONGODB_USER_ADMIN_PASSWORD: RlNGYmlKV2tSbU1NYzhTc3dF
+  MONGODB_USER_ADMIN_USER: dXNlckFkbWlu
+kind: Secret
+metadata:
+  name: everest-secrets-test-psmdb-cluster
+type: Opaque
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-cluster
+spec:
+  dataSource:
+    dataImport:
+      dataImporterName: everest-percona-psmdb-operator
+      source:
+        path: "/psmdb/2025-11-03T09:34:50Z"
+        s3:
+          bucket: everest-operator
+          region: us-east-1
+          endpointURL: https://minio.minio.svc
+          credentialsSecretName: test-s3-secret
+          verifyTLS: false
+          forcePathStyle: true
+          accessKeyId: minioadmin
+          secretAccessKey: minioadmin
+  engine:
+    type: psmdb
+    replicas: 3
+    storage:
+      size: 1Gi
+    resources:
+      cpu: 1
+      memory: 500M
+    userSecretsName: everest-secrets-test-psmdb-cluster
+  proxy:
+    type: mongos
+    replicas: 3
+    resources:
+      cpu: "1"
+      memory: 30M

@@ -7,6 +7,12 @@ on:
         description: 'Make target to execute'
         type: string
         required: true
+
+env:
+  GONOPROXY: 'github.com/percona'
+  GONOSUMDB: 'github.com/percona'
+  GOPRIVATE: 'github.com/percona'
+
 jobs:
   e2e-data-import-test:
     name: test

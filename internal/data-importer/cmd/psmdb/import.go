@@ -36,8 +36,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	everestv1alpha1 "github.com/percona/everest-operator/api/v1alpha1"
-	"github.com/percona/everest-operator/api/v1alpha1/dataimporterspec"
+	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
+	"github.com/percona/everest-operator/api/everest/v1alpha1/dataimporterspec"
 	"github.com/percona/everest-operator/internal/consts"
 	"github.com/percona/everest-operator/internal/data-importer/utils"
 )

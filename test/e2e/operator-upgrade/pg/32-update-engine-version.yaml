@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  - command: kubectl patch dbc/test-pg-cluster -n $NAMESPACE --type=merge -p '{"spec":{"engine":{"version":"${PG_DB_ENGINE_VERSION}"}}}'

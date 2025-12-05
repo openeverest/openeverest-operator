@@ -62,6 +62,7 @@ endif
 
 OS=$(shell go env GOHOSTOS)
 ARCH=$(shell go env GOHOSTARCH)
+CWD=$(shell pwd)
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -94,9 +95,10 @@ help: ## Display this help.
 init: cleanup-localbin  ## Install development tools
 	$(MAKE) kustomize
 	$(MAKE) controller-gen
-	$(MAKE) envtest
+	$(MAKE) setup-envtest
 	$(MAKE) operator-sdk
 	$(MAKE) opm
+	$(MAKE) kubebuilder
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
@@ -148,58 +150,72 @@ prepare-pr: manifests generate static-check format build ## Prepare the code for
 ##@ Testing
 
 .PHONY: test
-test: $(LOCALBIN) manifests generate format envtest ## Run unit tests.
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
+#test: $(LOCALBIN) manifests generate format setup-envtest ## Run unit tests.
+
+KUBECONFIG := $(CWD)/test/kubeconfig
+test: $(LOCALBIN) manifests generate format ## Run unit tests. Call `make k3d-cluster-up` beforehand to create a K8S cluster for tests that require it.
+	#KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
+	#KUBECONFIG=$(KUBECONFIG) go test ./... -coverprofile cover.out
+	#go test ./... -coverprofile cover.out
+	go test ./...
 
 .PHONY: test-integration-core
 test-integration-core: docker-build k3d-upload-image ## Run integration/core tests against K8S cluster
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/integration/kuttl-core.yaml
+	. ./test/vars.sh && kubectl kuttl test --config ./test/integration/kuttl-core.yaml
 
 .PHONY: test-integration-features
 test-integration-features: docker-build k3d-upload-image ## Run feature tests against K8S cluster
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/integration/kuttl-features.yaml
+	. ./test/vars.sh && kubectl kuttl test --config ./test/integration/kuttl-features.yaml
+
+.PHONY: test-integration-engine-features
+test-integration-engine-features: docker-build k3d-upload-image ## Run engine-features tests against K8S cluster
+	. ./test/vars.sh && kubectl kuttl test --config ./test/integration/kuttl-engine-features.yaml
 
 .PHONY: test-integration-operator-upgrade
 test-integration-operator-upgrade: docker-build k3d-upload-image ## Run operator upgrade tests against K8S cluster
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/integration/kuttl-operator-upgrade.yaml
+	. ./test/vars.sh && kubectl kuttl test --config ./test/integration/kuttl-operator-upgrade.yaml
 
 .PHONY: test-e2e-core
 test-e2e-core: docker-build ## Run e2e/core tests
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/e2e/kuttl-core.yaml
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-core.yaml
 
 .PHONY: test-e2e-db-upgrade
 test-e2e-db-upgrade: docker-build ## Run e2e/db-upgrade tests
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/e2e/kuttl-db-upgrade.yaml
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-db-upgrade.yaml
 
 .PHONY: test-e2e-operator-upgrade
 test-e2e-operator-upgrade: docker-build ## Run e2e/operator-upgrade tests
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/e2e/kuttl-operator-upgrade.yaml
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-operator-upgrade.yaml
 
 .PHONY: test-e2e-data-importer
 test-e2e-data-importer: docker-build k3d-upload-image ## Run e2e/data-importer tests
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/e2e/kuttl-data-importer.yaml
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-data-importer.yaml
 
 .PHONY: test-e2e-data-importer-pg
 test-e2e-data-importer-pg: docker-build k3d-upload-image ## Run e2e/data-importer PG test
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/e2e/kuttl-data-importer.yaml --test pg
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-data-importer.yaml --test pg
 
 .PHONY: test-e2e-data-importer-psmdb
 test-e2e-data-importer-psmdb: docker-build k3d-upload-image ## Run e2e/data-importer PSMDB test
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/e2e/kuttl-data-importer.yaml --test psmdb
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-data-importer.yaml --test psmdb
 
 .PHONY: test-e2e-data-importer-pxc
 test-e2e-data-importer-pxc: docker-build k3d-upload-image ## Run e2e/data-importer PXC test
-	. ./tests/vars.sh && kubectl kuttl test --config ./tests/e2e/kuttl-data-importer.yaml --test pxc
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-data-importer.yaml --test pxc
+
+.PHONY: test-e2e-engine-features
+test-e2e-engine-features: docker-build k3d-upload-image ## Run e2e/engine-features tests
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-engine-features.yaml
 
 .PHONY: k3d-cluster-up
 k3d-cluster-up: ## Create a K8S cluster for testing.
-	k3d cluster create --config ./tests/k3d_config.yaml
-	k3d kubeconfig get everest-operator-test > ./tests/kubeconfig
+	k3d cluster create --config ./test/k3d_config.yaml
+	k3d kubeconfig get everest-operator-test > ./test/kubeconfig
 
 .PHONY: k3d-cluster-up
 k3d-cluster-down: ## Create a K8S cluster for testing.
-	k3d cluster delete --config ./tests/k3d_config.yaml
-	rm -f ./tests/kubeconfig || true
+	k3d cluster delete --config ./test/k3d_config.yaml
+	rm -f ./test/kubeconfig || true
 
 .PHONY: k3d-cluster-reset
 k3d-cluster-reset: k3d-cluster-down k3d-cluster-up ## Recreate a K8S cluster for testing.
@@ -230,7 +246,7 @@ cluster-cleanup:
 	done
 	@namespaces=$$(kubectl get db -A -o jsonpath='{.items[*].metadata.namespace}'); \
 	for ns in $$namespaces; do \
-		kubectl -n $$ns delete -f ./tests/testdata/minio --ignore-not-found || true; \
+		kubectl -n $$ns delete -f ./test/testdata/minio --ignore-not-found || true; \
 	done
 	kubectl delete pvc --all-namespaces --all --ignore-not-found=true || true
 	kubectl delete backupstorage --all-namespaces --all --ignore-not-found=true || true
@@ -310,7 +326,7 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 ##@ Build Dependencies
 
 ## Location to install dependencies to
-LOCALBIN := $(shell pwd)/bin
+LOCALBIN := $(CWD)/bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
 
@@ -322,7 +338,9 @@ OPERATOR_SDK_VERSION ?= v1.40.0
 # Set the OPM version to use.
 OPM_VERSION ?= v1.56.0
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
-ENVTEST_K8S_VERSION = 1.29
+ENVTEST_K8S_VERSION = 1.30
+# Kubebuilder version to download.
+KUBEBUILDER_VERSION = v4.9.0
 
 .PHONY: kustomize
 KUSTOMIZE_INSTALL_SCRIPT = "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
@@ -341,9 +359,9 @@ ifeq (,$(wildcard $(CONTROLLER_GEN)))
 	mv $(LOCALBIN)/controller-gen $(CONTROLLER_GEN)
 endif
 
-.PHONY: envtest
+.PHONY: setup-envtest
 ENVTEST = $(LOCALBIN)/setup-envtest
-envtest: $(LOCALBIN) ## Download envtest-setup locally if necessary.
+setup-envtest: $(LOCALBIN) ## Download envtest-setup locally if necessary.
 ifeq (,$(wildcard $(ENVTEST)))
 	GOBIN=$(LOCALBIN) GOOS=$(OS) GOARCH=$(ARCH) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 endif
@@ -369,6 +387,18 @@ ifeq (,$(wildcard $(OPM)))
 	set -e ;\
 	curl -sSLo $(OPM) $(OPM_DL_URL)/$(OS)-$(ARCH)-opm ;\
 	chmod +x $(OPM) ;\
+	}
+endif
+
+.PHONY: kubebuilder
+KUBEBUILDER_DL_URL = https://github.com/kubernetes-sigs/kubebuilder/releases/download/$(KUBEBUILDER_VERSION)
+KUBEBUILDER = $(LOCALBIN)/kubebuilder-$(KUBEBUILDER_VERSION)
+kubebuilder: $(LOCALBIN) ## Download kubebuilder locally if necessary.
+ifeq (,$(wildcard $(KUBEBUILDER)))
+	@{ \
+	set -e ;\
+	curl -sSLo $(KUBEBUILDER) $(KUBEBUILDER_DL_URL)/kubebuilder_$(OS)_$(ARCH) ;\
+	chmod +x $(KUBEBUILDER) ;\
 	}
 endif
 

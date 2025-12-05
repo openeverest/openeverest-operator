@@ -12,6 +12,7 @@ resources:
 - bases/everest.percona.com_dataimporters.yaml
 - bases/everest.percona.com_podschedulingpolicies.yaml
 - bases/everest.percona.com_loadbalancerconfigs.yaml
+- bases/enginefeatures.everest.percona.com_splithorizondnsconfigs.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

@@ -36,4 +36,5 @@ resources:
 - databasecluster_viewer_role.yaml
 - podschedulingpolicy_editor_role.yaml
 - podschedulingpolicy_viewer_role.yaml
-
+- enginefeatures.everest_splithorizondnsconfig_editor_role.yaml
+- enginefeatures.everest_splithorizondnsconfig_viewer_role.yaml

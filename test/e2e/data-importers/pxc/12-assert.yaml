@@ -1,0 +1,67 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 300
+collectors:
+  - command: kubectl get db/test-pxc-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pxc/test-pxc-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get dataimportjob/data-import-test-pxc-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get job -n ${NAMESPACE} -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DataImportJob
+metadata:
+  labels:
+    clusterName: test-pxc-cluster
+  name: data-import-test-pxc-cluster
+  ownerReferences:
+    - apiVersion: everest.percona.com/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DatabaseCluster
+      name: test-pxc-cluster
+spec:
+  dataImporterName: everest-percona-pxc-operator
+  source:
+    path: "/pxc/test-pxc-2025-09-30-11:18:45-full"
+    s3:
+      endpointURL: https://minio.minio.svc
+      bucket: everest-operator
+      credentialsSecretName: test-s3-secret
+      forcePathStyle: true
+      region: us-east-1
+      verifyTLS: false
+  targetClusterName: test-pxc-cluster
+status:
+  state: Running
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  ownerReferences:
+    - apiVersion: everest.percona.com/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DataImportJob
+      name: data-import-test-pxc-cluster
+spec:
+  template:
+    spec:
+      containers:
+        - args:
+            - /payload/request.json
+          command:
+            - /data-importer
+            - pxc
+          image: perconalab/everest-operator:0.0.0
+          name: importer
+          volumeMounts:
+            - mountPath: /payload
+              name: payload
+              readOnly: true
+      serviceAccountName: data-import-test-pxc-cluster-sa
+      volumes:
+        - name: payload

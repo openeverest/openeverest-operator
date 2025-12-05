@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  # We expect an error when trying to update the engine version before the CRVersion update is applied.
+  - script: |
+      out=$(kubectl patch dbc/test-pg-cluster -n $NAMESPACE --type=merge -p '{"spec":{"engine":{"version":"${PG_DB_ENGINE_VERSION}"}}}' 2>&1)
+      expected="engine version may not be updated when a CRVersion update is pending"
+      if ! echo "$out" | grep -q "$expected"; then
+        exit 1
+      fi

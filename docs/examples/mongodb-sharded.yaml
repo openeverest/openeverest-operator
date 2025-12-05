@@ -23,7 +23,7 @@ spec:
       size: 25Gi
     type: psmdb
     userSecretsName: everest-secrets-mongodb-sharded
-    version: 7.0.15-9
+    version: 8.0.12-4
   monitoring:
     resources: {}
   proxy:

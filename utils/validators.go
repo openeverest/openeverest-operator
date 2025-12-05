@@ -16,9 +16,12 @@
 package utils
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/url"
 	"regexp"
+
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const (
@@ -65,4 +68,15 @@ func ValidateEverestResourceName(s, name string) error {
 func ValidateURL(urlStr string) bool {
 	_, err := url.ParseRequestURI(urlStr)
 	return err == nil
+}
+
+// ValidateDNSName checks if the given string is a valid DNS name.
+func ValidateDNSName(dnsName string) []string {
+	return validation.IsDNS1123Subdomain(dnsName)
+}
+
+// IsBase64Encoded checks if the given string is a valid base64 encoded string.
+func IsBase64Encoded(s string) bool {
+	_, err := base64.StdEncoding.DecodeString(s)
+	return len(s)%4 == 0 && len(s) > 0 && err == nil
 }

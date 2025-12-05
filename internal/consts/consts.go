@@ -63,6 +63,14 @@ const (
 	// LoadBalancerConfigKind is the kind for load balancer configs.
 	LoadBalancerConfigKind = "LoadBalancerConfig"
 
+	// DatabaseClusterKind is the kind for DatabaseClusterKind.
+	DatabaseClusterKind = "DatabaseCluster"
+
+	// Engine Features.
+
+	// SplitHorizonDNSConfigKind is the kind for SplitHorizonDNSConfig.
+	SplitHorizonDNSConfigKind = "SplitHorizonDNSConfig"
+
 	// ClusterTypeEKS represents the EKS cluster type.
 	ClusterTypeEKS ClusterType = "eks"
 	// ClusterTypeMinikube represents the Minikube cluster type.

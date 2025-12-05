@@ -1,0 +1,41 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 100
+commands:
+  - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PSMDB_OPERATOR_VERSION} psmdb/test-psmdb-cluster -n $NAMESPACE
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-cluster
+spec:
+  engine:
+    replicas: 3
+    storage:
+      size: 1Gi
+    type: psmdb
+  proxy:
+    expose:
+      type: internal
+    replicas: 3
+    type: mongos
+status:
+  status: initializing
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: test-psmdb-cluster
+spec:
+  replsets:
+    - expose:
+        enabled: true
+      name: rs0
+      size:        3
+      volumeSpec:
+        persistentVolumeClaim:
+          resources:
+            requests:
+              storage: 1Gi
+status:
+  state: initializing

@@ -23,5 +23,5 @@ testbin/*
 *.swo
 *~
 kubeconfig
-/tests/kubeconfig
+/test/kubeconfig
 .DS_Store

@@ -1,0 +1,226 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+collectors:
+  - command: kubectl get db/test-pxc-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pxc/test-pxc-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: test-pxc-cluster
+    ref: db
+  - apiVersion: pxc.percona.com/v1
+    kind: PerconaXtraDBCluster
+    name: test-pxc-cluster
+    ref: pxc
+assertAll:
+  - celExpr: "has(db.metadata.finalizers)"
+    message: "db doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
+    message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
+
+  - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
+    message: "foregroundDeletion' is absent in db.metadata.finalizers"
+
+  - celExpr: "has(pxc.metadata.finalizers)"
+    message: "pxc doesn't have finalizers"
+
+  - celExpr: "'percona.com/delete-pxc-pods-in-order' in pxc.metadata.finalizers"
+    message: "'percona.com/delete-pxc-pods-in-order' is absent in pxc.metadata.finalizers"
+
+  - celExpr: "'percona.com/delete-pxc-pvc' in pxc.metadata.finalizers"
+    message: "'percona.com/delete-pxc-pvc' is absent in pxc.metadata.finalizers"
+
+  - celExpr: "'percona.com/delete-ssl' in pxc.metadata.finalizers"
+    message: "'percona.com/delete-ssl' is absent in pxc.metadata.finalizers"
+
+  - celExpr: "!has(pxc.spec.pmm.serverHost)"
+    message: "pxc.spec.pmm.serverHost is not empty"
+
+  - celExpr: "!has(pxc.spec.pmm.image)"
+    message: "pxc.spec.pmm.image is not empty"
+
+  - celExpr: "!has(pxc.spec.pmm.resources.limits)"
+    message: "pxc.spec.pmm.resources.limits is not empty"
+
+  - celExpr: "!has(pxc.spec.pmm.resources.requests)"
+    message: "pxc.spec.pmm.resources.requests is not empty"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-pxc-cluster
+spec:
+  backup:
+    pitr:
+      enabled: false
+  engine:
+    replicas: 2
+    resources:
+      cpu: "1"
+      memory: 2G
+    storage:
+      size: 25Gi
+    type: pxc
+    userSecretsName: everest-secrets-test-pxc-cluster
+  proxy:
+    expose:
+      type: internal
+    replicas: 2
+    resources:
+      cpu: 200m
+      memory: 200M
+    type: haproxy
+status:
+  status: ready
+---
+apiVersion: pxc.percona.com/v1
+kind: PerconaXtraDBCluster
+metadata:
+  name: test-pxc-cluster
+spec:
+  backup:
+    pitr:
+      enabled: false
+      resources: {}
+      storageName: ""
+  haproxy:
+    imagePullPolicy: IfNotPresent
+    configuration: |2
+
+          global
+            log stdout format raw local0
+            maxconn 4048
+            external-check
+            insecure-fork-wanted
+            hard-stop-after 10s
+            stats socket /etc/haproxy/pxc/haproxy.sock mode 600 expose-fd listeners level admin
+
+          defaults
+            no option dontlognull
+            log-format '{"time":"%t", "client_ip": "%ci", "client_port":"%cp", "backend_source_ip": "%bi", "backend_source_port": "%bp",  "frontend_name": "%ft", "backend_name": "%b", "server_name":"%s", "tw": "%Tw", "tc": "%Tc", "Tt": "%Tt", "bytes_read": "%B", "termination_state": "%ts", "actconn": "%ac", "feconn" :"%fc", "beconn": "%bc", "srv_conn": "%sc", "retries": "%rc", "srv_queue": "%sq", "backend_queue": "%bq" }'
+            default-server init-addr last,libc,none
+            log global
+            mode tcp
+            retries 10
+            timeout client 28800s
+            timeout connect 100500
+            timeout server 28800s
+
+          resolvers kubernetes
+            parse-resolv-conf
+
+          frontend galera-in
+            bind *:3309 accept-proxy
+            bind *:3306
+            mode tcp
+            option clitcpka
+            default_backend galera-nodes
+
+          frontend galera-admin-in
+            bind *:33062
+            mode tcp
+            option clitcpka
+            default_backend galera-admin-nodes
+
+          frontend galera-replica-in
+            bind *:3307
+            mode tcp
+            option clitcpka
+            default_backend galera-replica-nodes
+
+          frontend galera-mysqlx-in
+            bind *:33060
+            mode tcp
+            option clitcpka
+            default_backend galera-mysqlx-nodes
+
+          frontend stats
+            bind *:8404
+            mode http
+            http-request use-service prometheus-exporter if { path /metrics }
+    enabled: true
+    envVarsSecret: haproxy-env-secret
+    exposePrimary: {}
+    lifecycle: {}
+    livenessProbes:
+      timeoutSeconds: 30
+    readinessProbes:
+      timeoutSeconds: 30
+    resources:
+      limits:
+        cpu: 200m
+        memory: 200M
+      requests:
+        cpu: 200m
+        memory: 200M
+    sidecarResources: {}
+    size: 2
+  initContainer: {}
+  proxysql:
+    expose: {}
+    lifecycle: {}
+    livenessProbes: {}
+    readinessProbes: {}
+    resources:
+      limits:
+        cpu: 600m
+        memory: 1G
+    sidecarResources: {}
+  pxc:
+    imagePullPolicy: IfNotPresent
+    configuration: "[mysqld]\nbinlog_cache_size = 131072\nbinlog_expire_logs_seconds
+      = 604800\nbinlog_format = ROW\nbinlog_stmt_cache_size = 131072\nglobal-connection-memory-limit
+      = 18446744073709551615\nglobal-connection-memory-tracking = false\ninnodb_adaptive_hash_index
+      = True\ninnodb_buffer_pool_chunk_size = 2097152\ninnodb_buffer_pool_instances
+      = 1\ninnodb_buffer_pool_size = 1398838681\ninnodb_ddl_threads = 2\ninnodb_flush_log_at_trx_commit
+      = 2\ninnodb_flush_method = O_DIRECT\ninnodb_io_capacity_max = 1800\ninnodb_monitor_enable
+      = ALL\ninnodb_page_cleaners = 1\ninnodb_parallel_read_threads = 1\ninnodb_purge_threads
+      = 4\ninnodb_redo_log_capacity = 415269664\njoin_buffer_size = 524288\nmax_connections
+      = 152\nmax_heap_table_size = 16777216\nread_rnd_buffer_size = 393216\nreplica_compressed_protocol
+      = 1\nreplica_exec_mode = STRICT\nreplica_parallel_type = LOGICAL_CLOCK\nreplica_parallel_workers
+      = 4\nreplica_preserve_commit_order = ON\nsort_buffer_size = 524288\nsql_mode
+      = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION,TRADITIONAL,STRICT_ALL_TABLES'\nsync_binlog
+      = 1\ntable_definition_cache = 4096\ntable_open_cache = 4096\ntable_open_cache_instances
+      = 4\ntablespace_definition_cache = 512\nthread_cache_size = 11\nthread_pool_size
+      = 4\nthread_stack = 1048576\ntmp_table_size = 16777216\nwsrep_slave_threads
+      = 1\nwsrep_sync_wait = 3\nwsrep_trx_fragment_size = 1048576\nwsrep_trx_fragment_unit
+      = bytes\nwsrep-provider-options = evs.delayed_keep_period=PT545S;evs.inactive_timeout=PT90S;gmcast.peer_timeout=PT11S;gmcast.time_wait=PT13S;pc.linger=PT45S;evs.delay_margin=PT22S;evs.suspect_timeout=PT45S;gcs.fc_limit=96;gcs.max_packet_size=98304;evs.send_window=768;evs.user_send_window=768;evs.join_retrans_period=PT3S;evs.inactive_check_period=PT3S;evs.stats_report_period=PT1M;evs.max_install_timeouts=3;pc.announce_timeout=PT45S;pc.recovery=true;gcache.size=477560113;gcache.recover=yes;\n
+      \   "
+    expose: {}
+    lifecycle: {}
+    livenessProbes:
+      timeoutSeconds: 450
+    podDisruptionBudget:
+      maxUnavailable: 1
+    readinessProbes:
+      timeoutSeconds: 450
+    resources:
+      limits:
+        cpu: "1"
+        memory: 2G
+      requests:
+        cpu: "1"
+        memory: 2G
+    serviceType: ClusterIP
+    sidecarResources: {}
+    size: 2
+    volumeSpec:
+      persistentVolumeClaim:
+        resources:
+          requests:
+            storage: 25Gi
+  secretsName: everest-secrets-test-pxc-cluster
+  unsafeFlags: {}
+  updateStrategy: SmartUpdate
+  upgradeOptions:
+    apply: never
+    schedule: 0 4 * * *
+status:
+  state: ready

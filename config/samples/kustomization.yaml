@@ -6,4 +6,5 @@ resources:
 - everest_v1alpha1_databaseclusterbackup.yaml
 - everest_v1alpha1_backupstorage.yaml
 - everest_v1alpha1_monitoringconfig.yaml
+- enginefeatures.everest_v1alpha1_splithorizondnsconfig.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

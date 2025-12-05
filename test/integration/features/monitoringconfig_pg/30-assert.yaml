@@ -1,0 +1,128 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 60
+collectors:
+  - command: kubectl get monitoringconfig/mc-pg -n ${NAMESPACE} -o yaml
+  - command: kubectl get secret/mc-pg-secret -n ${NAMESPACE} -o yaml
+  - command: kubectl get vmagent/everest-monitoring -n everest-monitoring -o yaml
+  - command: kubectl get dbc/pg-mc -n ${NAMESPACE} -o yaml
+  - command: kubectl get perconapgcluster/pg-mc -n ${NAMESPACE} -o yaml
+  - command: kubectl get secret/everest-secrets-pg-mc-pmm -n ${NAMESPACE} -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: MonitoringConfig
+    name: mc-pg
+    ref: mc
+  - apiVersion: operator.victoriametrics.com/v1beta1
+    kind: VMAgent
+    name: everest-monitoring
+    namespace: everest-monitoring
+    ref: vmagent
+assertAll:
+  - celExpr: "has(mc.metadata.finalizers)"
+    message: "mc doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/vmagent' in mc.metadata.finalizers"
+    message: "'everest.percona.com/vmagent' is absent in mc.metadata.finalizers"
+
+  - celExpr: "'everest.percona.com/cleanup-secrets' in mc.metadata.finalizers"
+    message: "'everest.percona.com/cleanup-secrets' is absent in mc.metadata.finalizers"
+
+  - celExpr: "'everest.percona.com/in-use-protection' in mc.metadata.finalizers"
+    message: "'everest.percona.com/in-use-protection' is absent in mc.metadata.finalizers"
+
+  - celExpr: "has(vmagent.spec.remoteWrite)"
+    message: "vmagent doesn't have .spec.remoteWrite"
+
+  - celExpr: "vmagent.spec.remoteWrite.exists(i, i.url == 'http://localhost-mc-pg-updated/victoriametrics/api/v1/write')"
+    message: "vmagent.spec.remoteWrite does not contain url 'http://localhost-mc-pg-updated/victoriametrics/api/v1/write'"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: pg-mc
+spec:
+  monitoring:
+    monitoringConfigName: mc-pg
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: MonitoringConfig
+metadata:
+  name: mc-pg
+spec:
+  type: pmm
+  credentialsSecretName: mc-pg-secret
+  verifyTLS: false
+  pmm:
+    url: http://localhost-mc-pg-updated
+    image: percona/pmm-client:updated
+status:
+  inUse: true
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mc-pg-secret
+  ownerReferences:
+    - apiVersion: everest.percona.com/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: MonitoringConfig
+      name: mc-pg
+type: Opaque
+data:
+  apiKey: YXNkZmcxMjM=
+---
+apiVersion: pgv2.percona.com/v2
+kind: PerconaPGCluster
+metadata:
+  name: pg-mc
+spec:
+  pmm:
+    enabled: true
+    serverHost: localhost-mc-pg-updated
+    secret: everest-secrets-pg-mc-pmm
+    imagePullPolicy: IfNotPresent
+    image: percona/pmm-client:updated
+    querySource: pgstatmonitor
+    resources:
+      requests:
+        memory: "64Mi"
+        cpu: "250m"
+      limits:
+        memory: "128Mi"
+        cpu: "500m"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: everest-secrets-pg-mc-pmm
+  ownerReferences:
+    - apiVersion: everest.percona.com/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: DatabaseCluster
+      name: pg-mc
+type: Opaque
+data:
+  PMM_SERVER_TOKEN: YXNkZmcxMjM=
+---
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
+metadata:
+  name: everest-monitoring
+  namespace: everest-monitoring
+  labels:
+    app.kubernetes.io/managed-by: everest
+    everest.percona.com/type: monitoring

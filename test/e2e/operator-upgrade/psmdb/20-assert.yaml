@@ -1,0 +1,64 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+# We use a very short timeout here because we already actively waited in this TestStep to ensure that the DB wasn't restarted so these manifest must be applied by now.
+timeout: 2
+commands:
+  - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PREVIOUS_PSMDB_OPERATOR_VERSION} psmdb/test-psmdb-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.status.recommendedCRVersion}'=${PSMDB_OPERATOR_VERSION} db/test-psmdb-cluster -n $NAMESPACE
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: percona-server-mongodb-operator
+status:
+  availableReplicas: 1
+  observedGeneration: 2
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-cluster
+spec:
+  engine:
+    replicas: 3
+    storage:
+      size: 1Gi
+    type: psmdb
+  proxy:
+    expose:
+      type: internal
+    replicas: 3
+    type: mongos
+status:
+  ready: 3
+  size: 3
+  status: ready
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: test-psmdb-cluster
+spec:
+  replsets:
+    - expose:
+        enabled: true
+      name: rs0
+      size:        3
+      volumeSpec:
+        persistentVolumeClaim:
+          resources:
+            requests:
+              storage: 1Gi
+status:
+  replsets:
+    rs0:
+      initialized: true
+      ready: 3
+      size: 3
+      status: ready
+  ready: 3
+  size: 3
+  state: ready
