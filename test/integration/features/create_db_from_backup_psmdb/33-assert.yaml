@@ -33,6 +33,10 @@ resourceRefs:
     kind: DatabaseCluster
     name: trg-psmdb-cluster
     ref: db_trg
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: trg-psmdb-cluster
+    ref: psmdb_trg
 assertAll:
   - celExpr: "has(dbb_s3.metadata.finalizers)"
     message: "dbb_s3 doesn't have finalizers"
@@ -51,6 +55,9 @@ assertAll:
 
   - celExpr: "'foregroundDeletion' in db_trg.metadata.finalizers"
     message: "foregroundDeletion' is absent in db_trg.metadata.finalizers"
+
+  - celExpr: "has(psmdb_trg.status.backupVersion)"
+    message: "psmdb_trg status doesn't have backupVersion field"
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseClusterBackup
@@ -86,7 +93,6 @@ kind: PerconaServerMongoDB
 metadata:
   name: trg-psmdb-cluster
 status:
-  backupVersion: 2.11.0
   state: ready
   size: 1
   ready: 1

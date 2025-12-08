@@ -25,6 +25,9 @@ commands:
   - command: kubectl wait --for condition=available --timeout=30s deploy/everest-controller-manager -n everest-system
   # Wait for Minio to be ready
   - command: kubectl wait pod/minio --for=condition=Ready -n minio --timeout=120s
+  # Need to restart Everest Operator to pick the latest image (in case it was rebuilt).
+  - command: kubectl delete pod -n everest-system -l control-plane=controller-manager
+  - command: kubectl wait --for condition=available --timeout=30s deploy/everest-controller-manager -n everest-system
   # Upload test data to Minio
   - script: |
       cat ${OPERATOR_ROOT_PATH}/test/testdata/backups/pg.tar | kubectl exec -i minio -n minio -c cp-helper -- tar xf - -C /shared
