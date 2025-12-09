@@ -1,0 +1,100 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get backupstorage/test-storage-s3 -n ${NAMESPACE} -o yaml
+  - command: kubectl get secret/test-psmdb-cluster-backup-s3 -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get secret/everest-secrets-src-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get db/src-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/src-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get db/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get dbb/src-db-backup-s3 -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb-backup/src-db-backup-s3 -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get dbrestore/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb-restore/trg-psmdb-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: trg-psmdb-cluster
+    ref: db_trg
+assertAll:
+  - celExpr: "has(db_trg.metadata.finalizers)"
+    message: "db_trg doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db_trg.metadata.finalizers"
+    message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db_trg.metadata.finalizers"
+
+  - celExpr: "'foregroundDeletion' in db_trg.metadata.finalizers"
+    message: "foregroundDeletion' is absent in db_trg.metadata.finalizers"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: trg-psmdb-cluster
+spec:
+  dataSource:
+    dbClusterBackupName: src-db-backup-s3
+status:
+  status: restoring
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: trg-psmdb-cluster
+status:
+  backupVersion: 2.11.0
+  state: ready
+  size: 1
+  ready: 1
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseClusterRestore
+metadata:
+  name: trg-psmdb-cluster
+  labels:
+    clusterName: trg-psmdb-cluster
+  ownerReferences:
+    - apiVersion: everest.percona.com/v1alpha1
+      kind: DatabaseCluster
+      blockOwnerDeletion: true
+      name: trg-psmdb-cluster
+spec:
+  dataSource:
+    backupSource:
+      backupStorageName: test-storage-s3
+      path: s3://test-storage-s3/src-psmdb-cluster/dee8317b-b24e-45f5-bd8d-bf2aff04819d/2025-01-01T01:02:03Z
+  dbClusterName: trg-psmdb-cluster
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDBRestore
+metadata:
+  name:  trg-psmdb-cluster
+  ownerReferences:
+    - apiVersion: everest.percona.com/v1alpha1
+      kind: DatabaseClusterRestore
+      blockOwnerDeletion: true
+      controller: true
+      name: trg-psmdb-cluster
+spec:
+  clusterName: trg-psmdb-cluster
+  backupSource:
+    destination: s3://test-storage-s3/src-psmdb-cluster/dee8317b-b24e-45f5-bd8d-bf2aff04819d/2025-01-01T01:02:03Z
+    s3:
+      bucket: test-backup-bucket
+      credentialsSecret: test-psmdb-cluster-backup-s3
+      endpointUrl: s3.amazonaws.com
+      insecureSkipTLSVerify: true
+      prefix: src-psmdb-cluster/dee8317b-b24e-45f5-bd8d-bf2aff04819d
+      region: us-east-2

@@ -55,6 +55,7 @@ const (
 	dbClusterRestoreDataSourceBackupStorageNameField = ".spec.dataSource.backupSource.backupStorageName"
 	pgBackupTypeDate                                 = "time"
 	pgBackupTypeImmediate                            = "immediate"
+	timeoutWaitingAfterClusterIsReady                = 30 * time.Second
 )
 
 var (
@@ -136,7 +137,7 @@ func (r *DatabaseClusterRestoreReconciler) Reconcile(ctx context.Context, req ct
 		logger.Error(err, "unable to set owner reference")
 		return reconcile.Result{}, err
 	}
-
+	var needRequeue bool
 	switch dbCR.Spec.Engine.Type {
 	case everestv1alpha1.DatabaseEnginePXC:
 		if err := r.restorePXC(ctx, cr, dbCR); err != nil {
@@ -144,7 +145,7 @@ func (r *DatabaseClusterRestoreReconciler) Reconcile(ctx context.Context, req ct
 			return reconcile.Result{}, err
 		}
 	case everestv1alpha1.DatabaseEnginePSMDB:
-		if err := r.restorePSMDB(ctx, cr); err != nil {
+		if err, needRequeue = r.restorePSMDB(ctx, cr); err != nil {
 			// The DatabaseCluster controller is responsible for updating the
 			// upstream DB cluster with the necessary storage definition. If
 			// the storage is not defined in the upstream DB cluster CR, we
@@ -171,6 +172,9 @@ func (r *DatabaseClusterRestoreReconciler) Reconcile(ctx context.Context, req ct
 			logger.Error(err, "unable to restore PG Cluster")
 			return reconcile.Result{}, err
 		}
+	}
+	if needRequeue {
+		return reconcile.Result{RequeueAfter: requeueAfter}, nil
 	}
 
 	return ctrl.Result{}, nil
@@ -221,10 +225,24 @@ func (r *DatabaseClusterRestoreReconciler) ensureClusterIsReady(ctx context.Cont
 
 func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 	ctx context.Context, restore *everestv1alpha1.DatabaseClusterRestore,
-) error {
+) (err error, needRequeue bool) {
 	logger := log.FromContext(ctx)
 	if err := r.ensureClusterIsReady(ctx, restore); err != nil {
-		return err
+		return err, false
+	}
+
+	psmdbDBCR := &psmdbv1.PerconaServerMongoDB{}
+	err = r.Get(ctx, types.NamespacedName{Name: restore.Spec.DBClusterName, Namespace: restore.Namespace}, psmdbDBCR)
+	if err != nil {
+		logger.Error(err, "unable to fetch PerconaServerMongoDB")
+		return err, false
+	}
+
+	// Workaround to give the additional time for pbm initializing which sometimes continues after the db is ready.
+	// https://perconadev.atlassian.net/browse/K8SPSMDB-1527
+	// So we wait this timeout before creating the psmdb-restore CR to avoid restoration failures.
+	if timeoutAfterReadyNotComplete(psmdbDBCR.Status.Conditions) {
+		return nil, true
 	}
 
 	// We need to check if the storage used by the backup is defined in the
@@ -236,14 +254,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 		err := r.Get(ctx, types.NamespacedName{Name: restore.Spec.DataSource.DBClusterBackupName, Namespace: restore.Namespace}, backup)
 		if err != nil {
 			logger.Error(err, "unable to fetch DatabaseClusterBackup")
-			return err
-		}
-
-		psmdbDBCR := &psmdbv1.PerconaServerMongoDB{}
-		err = r.Get(ctx, types.NamespacedName{Name: restore.Spec.DBClusterName, Namespace: restore.Namespace}, psmdbDBCR)
-		if err != nil {
-			logger.Error(err, "unable to fetch PerconaServerMongoDB")
-			return err
+			return err, false
 		}
 
 		// If the backup storage is not defined in the PerconaServerMongoDB CR,
@@ -254,7 +265,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 					backup.Spec.BackupStorageName,
 					restore.Spec.DBClusterName),
 			)
-			return ErrBackupStorageUndefined
+			return ErrBackupStorageUndefined, false
 		}
 		if _, ok := psmdbDBCR.Spec.Backup.Storages[backup.Spec.BackupStorageName]; !ok {
 			logger.Info(
@@ -262,7 +273,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 					backup.Spec.BackupStorageName,
 					restore.Spec.DBClusterName),
 			)
-			return ErrBackupStorageUndefined
+			return ErrBackupStorageUndefined, false
 		}
 	}
 
@@ -273,9 +284,9 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 		},
 	}
 	if err := controllerutil.SetControllerReference(restore, psmdbCR, r.Client.Scheme()); err != nil {
-		return err
+		return err, false
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.Client, psmdbCR, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, psmdbCR, func() error {
 		psmdbCR.Spec.ClusterName = restore.Spec.DBClusterName
 		if restore.Spec.DataSource.DBClusterBackupName != "" {
 			psmdbCR.Spec.BackupName = restore.Spec.DataSource.DBClusterBackupName
@@ -328,20 +339,29 @@ func (r *DatabaseClusterRestoreReconciler) restorePSMDB(
 		return nil
 	})
 	if err != nil {
-		return err
+		return err, false
 	}
 
 	psmdbCR = &psmdbv1.PerconaServerMongoDBRestore{}
 	err = r.Get(ctx, types.NamespacedName{Name: restore.Name, Namespace: restore.Namespace}, psmdbCR)
 	if err != nil {
-		return err
+		return err, false
 	}
 
 	restore.Status.State = everestv1alpha1.GetDBRestoreState(psmdbCR)
 	restore.Status.CompletedAt = psmdbCR.Status.CompletedAt
 	restore.Status.Message = psmdbCR.Status.Error
 
-	return r.Status().Update(ctx, restore)
+	return r.Status().Update(ctx, restore), false
+}
+
+func timeoutAfterReadyNotComplete(conditions []psmdbv1.ClusterCondition) bool {
+	for _, condition := range conditions {
+		if condition.Type == psmdbv1.AppStateReady && condition.Status == psmdbv1.ConditionTrue {
+			return time.Since(condition.LastTransitionTime.Time) < timeoutWaitingAfterClusterIsReady
+		}
+	}
+	return true
 }
 
 func (r *DatabaseClusterRestoreReconciler) restorePXC(
