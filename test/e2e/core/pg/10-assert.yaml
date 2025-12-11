@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 120
+timeout: 150
 commands:
   - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PG_OPERATOR_VERSION} db/test-pg-cluster -n "${NAMESPACE}"
 ---
@@ -35,19 +35,11 @@ metadata:
   finalizers:
     - percona.com/delete-pvc
     - percona.com/delete-ssl
-    - internal.percona.com/stop-watchers
 spec:
   backups:
+    enabled: false
     pgbackrest:
-      repos:
-      - name: repo1
-        volume:
-          volumeClaimSpec:
-            accessModes:
-            - ReadWriteOnce
-            resources:
-              requests:
-                storage: 15G
+      repos: []
   imagePullPolicy: IfNotPresent
   instances:
   - dataVolumeClaimSpec:

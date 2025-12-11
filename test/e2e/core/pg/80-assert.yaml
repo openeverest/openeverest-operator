@@ -29,16 +29,9 @@ metadata:
   name: test-single-node
 spec:
   backups:
+    enabled: false
     pgbackrest:
-      repos:
-      - name: repo1
-        volume:
-          volumeClaimSpec:
-            accessModes:
-            - ReadWriteOnce
-            resources:
-              requests:
-                storage: 15G
+      repos: []
   instances:
   - dataVolumeClaimSpec:
       accessModes:

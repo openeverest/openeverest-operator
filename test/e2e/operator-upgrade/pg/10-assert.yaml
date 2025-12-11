@@ -47,21 +47,9 @@ spec:
       expose:
         type: ClusterIP
   backups:
+    enabled: false
     pgbackrest:
-      configuration:
-      - secret:
-          name: test-pg-cluster-pgbackrest-secrets
-      global:
-        repo1-retention-full: "1"
-      repos:
-      - name: repo1
-        volume:
-          volumeClaimSpec:
-            accessModes:
-            - ReadWriteOnce
-            resources:
-              requests:
-                storage: 1Gi
+      repos: []
 status:
   pgbouncer:
     ready: 2
