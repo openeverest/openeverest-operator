@@ -1080,7 +1080,9 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 		Enabled: pointer.ToBool(false),
 	}
 
-	if newBackups.PGBackRest.Manual == nil {
+	isPVCRequired := checkPVCRequired(oldBackups.PGBackRest.Repos, engine.Status.OperatorVersion)
+
+	if newBackups.PGBackRest.Manual == nil && isPVCRequired {
 		// This field is required by the operator, but it doesn't impact
 		// our manual backup operation because we use the PerconaPGBackup
 		// CR to request on-demand backups which then changes the Manual field
@@ -1131,7 +1133,7 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 		backupStoragesSecrets,
 		database.Spec.Engine.Storage,
 		database,
-		checkPVCRequired(oldBackups.PGBackRest.Repos, engine.Status.OperatorVersion),
+		isPVCRequired,
 	)
 	if err != nil {
 		return pgv2.Backups{}, err

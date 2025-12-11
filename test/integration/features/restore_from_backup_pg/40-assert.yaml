@@ -57,21 +57,9 @@ metadata:
   name: test-pg-cluster
 spec:
   backups:
+    enabled: false
     pgbackrest:
-      configuration:
-        - secret:
-            name: test-pg-cluster-pgbackrest-secrets
-      global:
-        repo1-retention-full: "1"
-      repos:
-        - name: repo1
-          volume:
-            volumeClaimSpec:
-              accessModes:
-                - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 1G
+      repos: []
 status:
   state: ready
 ---
@@ -105,7 +93,7 @@ metadata:
       name: test-db-restore-s3
 spec:
   pgCluster: test-pg-cluster
-  repoName: repo2
+  repoName: repo1
 status:
   state: Succeeded
 ---
