@@ -61,14 +61,10 @@ spec:
       expose:
         type: ClusterIP
 status:
+  state: ready
   pgbouncer:
     ready: 1
     size: 1
   postgres:
-    instances:
-      - name: instance1
-        ready: 1
-        size: 1
     ready: 1
     size: 1
-  state: ready

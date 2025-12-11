@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  - command: kubectl patch db/test-pxc-cluster -n $NAMESPACE -p '{"spec":{"engine":{"storage":{"size":"2Gi"}}}}' --type merge

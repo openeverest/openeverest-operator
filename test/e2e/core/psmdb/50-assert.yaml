@@ -93,12 +93,6 @@ spec:
     replsetSize: true
     mongosSize: true
 status:
-  replsets:
-    rs0:
-      initialized: true
-      ready: 1
-      size: 1
-      status: ready
   ready: 1
   size: 1
   state: ready

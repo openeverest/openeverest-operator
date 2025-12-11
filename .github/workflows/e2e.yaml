@@ -10,20 +10,13 @@ env:
   GOPRIVATE: 'github.com/percona'
 
 jobs:
-  # Only the following E2E tests require EKS:
-  # - test/e2e
-  # - test/e2e-core
-  # - test/e2e-db-upgrade
-  # - test/e2e-operator-upgrade
-  # TODO: Review this condition once we have more tests running on K3D.
+  # Only the following E2E tests require EKS (requires StorageClass with resizing support):
+  # - test/e2e-resize-storage
   e2e-eks-tests:
     name: EKS tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-core') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
     timeout-minutes: 80
     concurrency: eks-e2e-tests
     strategy:
@@ -76,66 +69,14 @@ jobs:
 
       - name: Scale up cluster
         run: |
-          eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=10 "$NODEPOOL_NAME" --wait
+          eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=5 "$NODEPOOL_NAME" --wait
         env:
           CLUSTER_NAME: "everest-e2e-dev-eks-cluster"
           NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
 
-      - name: Run operator upgrade tests
-        if: |
-          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-          contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade')
+      - name: Run resize-storage tests
         run: |
-          make test-e2e-operator-upgrade
-
-      - name: Clean up custom resources
-        continue-on-error: true
-        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-        timeout-minutes: 10
-        run: |
-          make cluster-cleanup
-
-      - name: Run core tests
-        if: |
-          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-          contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
-        run: |
-          make test-e2e-core
-
-      - name: Clean up custom resources
-        continue-on-error: true
-        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-        timeout-minutes: 10
-        run: |
-          make cluster-cleanup
-
-      - name: Run engine features tests
-        if: |
-          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-          contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
-        run: |
-          make test-e2e-engine-features
-
-      - name: Clean up custom resources
-        continue-on-error: true
-        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-        timeout-minutes: 10
-        run: |
-          make cluster-cleanup
-
-      - name: Run db upgrade tests
-        if: |
-          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-          contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
-        run: |
-          make test-e2e-db-upgrade
-
-      - name: Clean up custom resources
-        continue-on-error: true
-        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-        timeout-minutes: 10
-        run: |
-          make cluster-cleanup
+          make test-e2e-resize-storage
 
       - name: Scale down cluster
         run: |
@@ -144,11 +85,67 @@ jobs:
           CLUSTER_NAME: "everest-e2e-dev-eks-cluster"
           NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
 
-      - name: Clean up resources and CRDs
-        run: |
-          make cluster-cleanup
+  e2e-core-flows:
+    name: Core tests
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
+    strategy:
+      fail-fast: false
+      matrix:
+        make_target:
+          - test-e2e-core
+    uses: ./.github/workflows/e2e-k3d.yaml
+    secrets: inherit
+    with:
+      make_target: ${{ matrix.make_target }}
 
-  e2e-data-importer-tests-flows:
+  e2e-db-upgrade-flows:
+    name: DB upgrade tests
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
+    strategy:
+      fail-fast: false
+      matrix:
+        make_target:
+          - test-e2e-db-upgrade
+    uses: ./.github/workflows/e2e-k3d.yaml
+    secrets: inherit
+    with:
+      make_target: ${{ matrix.make_target }}
+
+  e2e-db-operator-upgrade-flows:
+    name: DB operator upgrade tests
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade')
+    strategy:
+      fail-fast: false
+      matrix:
+        make_target:
+          - test-e2e-operator-upgrade
+    uses: ./.github/workflows/e2e-k3d.yaml
+    secrets: inherit
+    with:
+      make_target: ${{ matrix.make_target }}
+
+  e2e-engine-features-flows:
+    name: DB engine features tests
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
+    strategy:
+      fail-fast: false
+      matrix:
+        make_target:
+          - test-e2e-engine-features
+    uses: ./.github/workflows/e2e-k3d.yaml
+    secrets: inherit
+    with:
+      make_target: ${{ matrix.make_target }}
+
+  e2e-data-import-flows:
     name: Data importer tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
@@ -160,7 +157,7 @@ jobs:
           - test-e2e-data-importer-pg
           - test-e2e-data-importer-psmdb
           - test-e2e-data-importer-pxc
-    uses: ./.github/workflows/e2e-data-importer.yaml
+    uses: ./.github/workflows/e2e-k3d.yaml
     secrets: inherit
     with:
       make_target: ${{ matrix.make_target }}

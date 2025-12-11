@@ -26,12 +26,6 @@ spec:
     - name: rs0
       size: 3
 status:
-  replsets:
-    rs0:
-      initialized: true
-      ready: 3
-      size: 3
-      status: ready
   ready: 3
   size: 3
   state: ready

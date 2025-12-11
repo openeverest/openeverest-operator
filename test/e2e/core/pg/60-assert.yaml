@@ -29,3 +29,9 @@ spec:
           max_connections: "2840"
 status:
   state: ready
+  pgbouncer:
+    ready: 1
+    size: 1
+  postgres:
+    ready: 1
+    size: 1

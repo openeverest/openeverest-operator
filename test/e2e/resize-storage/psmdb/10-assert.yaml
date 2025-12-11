@@ -90,6 +90,12 @@ spec:
   sharding:
     enabled: false
 status:
+  replsets:
+    rs0:
+      initialized: true
+      ready: 3
+      size: 3
+      status: ready
   ready: 3
   size: 3
   state: ready

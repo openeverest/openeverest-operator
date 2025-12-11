@@ -1,0 +1,19 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-pg-cluster
+spec:
+  engine:
+    type: postgresql
+    replicas: 3
+    storage:
+      size: 1G
+    resources:
+      cpu: "1"
+      memory: 1G
+  proxy:
+    type: pgbouncer
+    replicas: 3

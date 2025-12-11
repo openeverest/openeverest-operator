@@ -180,6 +180,10 @@ test-e2e-db-upgrade: docker-build k3d-upload-image ## Run e2e/db-upgrade tests
 test-e2e-operator-upgrade: docker-build k3d-upload-image ## Run e2e/operator-upgrade tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-operator-upgrade.yaml
 
+.PHONY: test-e2e-resize-storage
+test-e2e-resize-storage: ## Run e2e/resize-storage tests
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-resize-storage.yaml
+
 .PHONY: test-e2e-data-importer
 test-e2e-data-importer: docker-build k3d-upload-image ## Run e2e/data-importer tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-data-importer.yaml

@@ -1,5 +1,5 @@
 ---
-name: Data importer test
+name: K3D test
 on:
   workflow_call:
     inputs:
@@ -14,7 +14,7 @@ env:
   GOPRIVATE: 'github.com/percona'
 
 jobs:
-  e2e-data-import-test:
+  e2e-test:
     name: test
     timeout-minutes: 80
     strategy:
@@ -49,7 +49,7 @@ jobs:
           sudo modprobe br_netfilter
           make k3d-cluster-up
 
-      - name: Run data importer tests
+      - name: Run tests
         run: |
           make ${{ inputs.make_target }}
         env:

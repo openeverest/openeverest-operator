@@ -1,0 +1,14 @@
+apiVersion: kuttl.dev/v1
+kind: TestSuite
+crdDir: config/crd/bases
+artifactsDir: /tmp/
+parallel: 1
+timeout: 180
+suppress:
+  - events
+skipDelete: false
+skipClusterDelete: true
+testDirs:
+  - test/e2e/resize-storage
+manifestDirs:
+  - test/manifests

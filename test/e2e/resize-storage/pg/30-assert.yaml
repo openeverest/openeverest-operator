@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+commands:
+  - command: kubectl wait --for=delete db/test-pg-cluster -n $NAMESPACE
+  - command: kubectl wait --for=delete pg/test-pg-cluster -n $NAMESPACE
+collectors:
+  - command: kubectl get db/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pg/test-pg-cluster -n ${NAMESPACE} -o yaml
