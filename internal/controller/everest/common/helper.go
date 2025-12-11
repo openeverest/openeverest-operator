@@ -901,7 +901,7 @@ func storageClassSupportsVolumeExpansion(ctx context.Context, c client.Client, c
 	if err != nil {
 		return false, fmt.Errorf("getStorageClassOrDefault failed: %w", err)
 	}
-	return *storageClass.AllowVolumeExpansion, nil
+	return pointer.Get(storageClass.AllowVolumeExpansion), nil
 }
 
 func getStorageClassOrDefault(ctx context.Context, c client.Client, scName *string) (*storagev1.StorageClass, error) {
