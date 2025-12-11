@@ -2,4 +2,4 @@ apiVersion: kuttl.dev/v1
 kind: TestStep
 timeout: 10
 commands:
-  - command: kubectl patch db test-single-node -n $NAMESPACE -p '{"spec":{"engine":{"storage":{"size":"20G"}}}}' --type merge 
+  - command: kubectl patch db/single-node -n $NAMESPACE -p '{"spec":{"engine":{"storage":{"size":"2G"}}}}' --type merge

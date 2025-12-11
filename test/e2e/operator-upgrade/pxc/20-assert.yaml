@@ -3,8 +3,14 @@ kind: TestAssert
 # We use a very short timeout here because we already actively waited in this TestStep to ensure that the DB wasn't restarted so these manifest must be applied by now.
 timeout: 2
 commands:
-  - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=$PREVIOUS_PXC_OPERATOR_VERSION pxc/test-pxc-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PREVIOUS_PXC_OPERATOR_VERSION} db/test-pxc-cluster -n $NAMESPACE
   - command: kubectl wait --for=jsonpath='{.status.recommendedCRVersion}'=$PXC_OPERATOR_VERSION db/test-pxc-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PREVIOUS_PXC_DB_ENGINE_VERSION} db/test-pxc-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PREVIOUS_PXC_OPERATOR_VERSION} pxc/test-pxc-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.status.pxc.version}'=${PREVIOUS_PXC_DB_ENGINE_VERSION} pxc/test-pxc-cluster -n $NAMESPACE
+collectors:
+  - command: kubectl get db/test-pxc-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pxc/test-pxc-cluster -n ${NAMESPACE} -o yaml
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,42 +27,12 @@ apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
   name: test-pxc-cluster
-spec:
-  engine:
-    replicas: 3
-    storage:
-      size: 1Gi
-    type: pxc
-  proxy:
-    expose:
-      type: internal
-    replicas: 3
-    type: haproxy
 status:
-  ready: 6
-  size: 6
   status: ready
 ---
 apiVersion: pxc.percona.com/v1
 kind: PerconaXtraDBCluster
 metadata:
   name: test-pxc-cluster
-spec:
-  haproxy:
-    enabled: true
-  updateStrategy: SmartUpdate
-  upgradeOptions:
-    apply: never
-    schedule: 0 4 * * *
 status:
-  haproxy:
-    ready: 3
-    size: 3
-    status: ready
-  pxc:
-    ready: 3
-    size: 3
-    status: ready
-  ready: 6
-  size: 6
   state: ready

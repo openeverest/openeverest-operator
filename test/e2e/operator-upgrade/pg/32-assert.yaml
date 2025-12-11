@@ -1,0 +1,22 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 300
+commands:
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PG_DB_ENGINE_VERSION} db/test-pg-cluster -n $NAMESPACE
+collectors:
+  - command: kubectl get db/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pg/test-pg-cluster -n ${NAMESPACE} -o yaml
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-pg-cluster
+status:
+  status: ready
+---
+apiVersion: pgv2.percona.com/v2
+kind: PerconaPGCluster
+metadata:
+  name: test-pg-cluster
+status:
+  state: ready

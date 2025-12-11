@@ -8,15 +8,3 @@ metadata:
   name: test-pg-cluster
   annotations:
     everest.percona.com/restart: "true"
-spec:
-  engine:
-    type: postgresql
-    replicas: 3
-    storage:
-      size: 15G
-    resources:
-      cpu: "1"
-      memory: 1G
-  proxy:
-    type: pgbouncer
-    replicas: 3

@@ -10,7 +10,7 @@ spec:
     type: postgresql
     replicas: 3
     storage:
-      size: 15G
+      size: 1G
     resources:
       cpu: "1"
       memory: 1G

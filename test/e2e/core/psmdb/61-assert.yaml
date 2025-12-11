@@ -1,6 +1,9 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
 timeout: 600
+collectors:
+  - command: kubectl get db/single-node -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/single-node -n ${NAMESPACE} -o yaml
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
@@ -21,6 +24,6 @@ spec:
         persistentVolumeClaim:
           resources:
             requests:
-              storage: 20G 
+              storage: 2G
 status:
   state: initializing

@@ -1,9 +1,44 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 500
+timeout: 300
 commands:
-  - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=$PREVIOUS_PXC_OPERATOR_VERSION pxc/test-pxc-cluster -n $NAMESPACE
-  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=$PREVIOUS_PXC_DB_ENGINE_VERSION db/test-pxc-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PREVIOUS_PXC_OPERATOR_VERSION} db/test-pxc-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PREVIOUS_PXC_OPERATOR_VERSION} pxc/test-pxc-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PREVIOUS_PXC_DB_ENGINE_VERSION} db/test-pxc-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.status.pxc.version}'=${PREVIOUS_PXC_DB_ENGINE_VERSION} pxc/test-pxc-cluster -n $NAMESPACE
+collectors:
+  - command: kubectl get db/test-pxc-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pxc/test-pxc-cluster -n ${NAMESPACE} -o yaml
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: test-pxc-cluster
+    ref: db
+  - apiVersion: pxc.percona.com/v1
+    kind: PerconaXtraDBCluster
+    name: test-pxc-cluster
+    ref: pxc
+assertAll:
+  - celExpr: "has(db.metadata.finalizers)"
+    message: "db doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
+    message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
+
+  - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
+    message: "foregroundDeletion' is absent in db.metadata.finalizers"
+
+  - celExpr: "has(pxc.metadata.finalizers)"
+    message: "pxc doesn't have finalizers"
+
+  - celExpr: "'percona.com/delete-pxc-pods-in-order' in pxc.metadata.finalizers"
+    message: "'percona.com/delete-pxc-pods-in-order' is absent in pxc.metadata.finalizers"
+
+  - celExpr: "'percona.com/delete-pxc-pvc' in pxc.metadata.finalizers"
+    message: "'percona.com/delete-pxc-pvc' is absent in pxc.metadata.finalizers"
+
+  - celExpr: "'percona.com/delete-ssl' in pxc.metadata.finalizers"
+    message: "'percona.com/delete-ssl' is absent in pxc.metadata.finalizers"
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
@@ -11,18 +46,24 @@ metadata:
   name: test-pxc-cluster
 spec:
   engine:
+    type: pxc
+    userSecretsName: everest-secrets-test-pxc-cluster
+    config: |
+      [mysqld]
+      wsrep_provider_options="debug=1;gcache.size=1G"
     replicas: 3
     storage:
       size: 1Gi
-    type: pxc
+    resources:
+      cpu: 600m
+      memory: 1G
   proxy:
-    expose:
-      type: internal
-    replicas: 3
     type: haproxy
+    replicas: 3
+    resources:
+      cpu: 600m
+      memory: 600M
 status:
-  ready: 6
-  size: 6
   status: ready
 ---
 apiVersion: pxc.percona.com/v1
@@ -31,7 +72,28 @@ metadata:
   name: test-pxc-cluster
 spec:
   haproxy:
+    imagePullPolicy: IfNotPresent
     enabled: true
+    size: 3
+  pxc:
+    imagePullPolicy: IfNotPresent
+    configuration: |
+      [mysqld]
+      wsrep_provider_options="debug=1;gcache.size=1G"
+    resources:
+      limits:
+        cpu: 600m
+        memory: 1G
+      requests:
+        cpu: 600m
+        memory: 1G
+    size: 3
+    volumeSpec:
+      persistentVolumeClaim:
+        resources:
+          requests:
+            storage: 1Gi
+  secretsName: everest-secrets-test-pxc-cluster
   updateStrategy: SmartUpdate
   upgradeOptions:
     apply: never

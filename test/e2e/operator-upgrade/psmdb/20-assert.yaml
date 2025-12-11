@@ -5,6 +5,9 @@ timeout: 2
 commands:
   - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PREVIOUS_PSMDB_OPERATOR_VERSION} psmdb/test-psmdb-cluster -n $NAMESPACE
   - command: kubectl wait --for=jsonpath='{.status.recommendedCRVersion}'=${PSMDB_OPERATOR_VERSION} db/test-psmdb-cluster -n $NAMESPACE
+collectors:
+  - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -21,44 +24,12 @@ apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
   name: test-psmdb-cluster
-spec:
-  engine:
-    replicas: 3
-    storage:
-      size: 1Gi
-    type: psmdb
-  proxy:
-    expose:
-      type: internal
-    replicas: 3
-    type: mongos
 status:
-  ready: 3
-  size: 3
   status: ready
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDB
 metadata:
   name: test-psmdb-cluster
-spec:
-  replsets:
-    - expose:
-        enabled: true
-      name: rs0
-      size:        3
-      volumeSpec:
-        persistentVolumeClaim:
-          resources:
-            requests:
-              storage: 1Gi
 status:
-  replsets:
-    rs0:
-      initialized: true
-      ready: 3
-      size: 3
-      status: ready
-  ready: 3
-  size: 3
   state: ready

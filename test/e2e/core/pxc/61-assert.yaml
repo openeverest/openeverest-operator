@@ -1,0 +1,27 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 600
+collectors:
+  - command: kubectl get db/single-node -n ${NAMESPACE} -o yaml
+  - command: kubectl get pxc/single-node -n ${NAMESPACE} -o yaml
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: single-node
+status:
+  status: resizingVolumes
+---
+apiVersion: pxc.percona.com/v1
+kind: PerconaXtraDBCluster
+metadata:
+  name: single-node
+spec:
+  enableVolumeExpansion: true
+  pxc:
+    size: 1
+    volumeSpec:
+      persistentVolumeClaim:
+        resources:
+          requests:
+            storage: 2Gi

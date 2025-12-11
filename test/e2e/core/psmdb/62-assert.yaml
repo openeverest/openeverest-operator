@@ -1,10 +1,20 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
 timeout: 600
+collectors:
+  - command: kubectl get db/single-node -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/single-node -n ${NAMESPACE} -o yaml
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
   name: single-node
 status:
-  status: ready 
+  status: ready
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: single-node
+status:
+  state: ready

@@ -169,15 +169,15 @@ test-integration-operator-upgrade: docker-build k3d-upload-image ## Run operator
 	. ./test/vars.sh && kubectl kuttl test --config ./test/integration/kuttl-operator-upgrade.yaml
 
 .PHONY: test-e2e-core
-test-e2e-core: docker-build ## Run e2e/core tests
+test-e2e-core: docker-build k3d-upload-image ## Run e2e/core tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-core.yaml
 
 .PHONY: test-e2e-db-upgrade
-test-e2e-db-upgrade: docker-build ## Run e2e/db-upgrade tests
+test-e2e-db-upgrade: docker-build k3d-upload-image ## Run e2e/db-upgrade tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-db-upgrade.yaml
 
 .PHONY: test-e2e-operator-upgrade
-test-e2e-operator-upgrade: docker-build ## Run e2e/operator-upgrade tests
+test-e2e-operator-upgrade: docker-build k3d-upload-image ## Run e2e/operator-upgrade tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-operator-upgrade.yaml
 
 .PHONY: test-e2e-data-importer

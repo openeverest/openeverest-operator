@@ -1,0 +1,27 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 400
+commands:
+  - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PSMDB_OPERATOR_VERSION} db/test-psmdb-cluster -n "${NAMESPACE}"
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PSMDB_DB_ENGINE_VERSION} db/test-psmdb-cluster -n "${NAMESPACE}"
+collectors:
+  - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+# XXX
+# In order to do a non-declarative test that validates the state transition of a restart action we split the test assertions in 2 parts.
+# In the test assertion 03 we assert that the cluster is stopped and in 04 we assert that the cluster is up and ready to use.
+# The test steps are still declarative so no operation is executed in 04.
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-cluster
+status:
+  status: ready
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: test-psmdb-cluster
+status:
+  state: ready

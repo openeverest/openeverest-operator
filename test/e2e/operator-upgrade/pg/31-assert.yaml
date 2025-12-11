@@ -3,37 +3,20 @@ kind: TestAssert
 timeout: 120
 commands:
   - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PG_OPERATOR_VERSION} pg/test-pg-cluster -n $NAMESPACE
+collectors:
+  - command: kubectl get db/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pg/test-pg-cluster -n ${NAMESPACE} -o yaml
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-pg-cluster
+status:
+  status: ready
 ---
 apiVersion: pgv2.percona.com/v2
 kind: PerconaPGCluster
 metadata:
   name: test-pg-cluster
-spec:
-  instances:
-    - dataVolumeClaimSpec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 1Gi
-      name: instance1
-      replicas: 2
-  port: 5432
-  proxy:
-    pgBouncer:
-      port: 5432
-      replicas: 2
-      expose:
-        type: ClusterIP
 status:
-  pgbouncer:
-    ready: 2
-    size: 2
-  postgres:
-    instances:
-    - name: instance1
-      ready: 2
-      size: 2
-    ready: 2
-    size: 2
   state: ready

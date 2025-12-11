@@ -3,8 +3,4 @@ kind: TestStep
 timeout: 10
 commands:
   - script: kubectl -n $NAMESPACE delete db test-pg-cluster --wait=false && sleep 5
-  - command: kubectl patch postgresclusters test-pg-cluster -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge
-    ignoreFailure: true
-  - command: kubectl patch pg test-pg-cluster -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge
-    ignoreFailure: true
-  - command: kubectl wait --for=delete db test-pg-cluster --timeout=60s -n $NAMESPACE
+

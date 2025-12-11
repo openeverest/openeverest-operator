@@ -3,73 +3,22 @@ kind: TestAssert
 timeout: 300
 commands:
   - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PSMDB_OPERATOR_VERSION} db/test-psmdb-cluster -n "${NAMESPACE}"
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PSMDB_DB_ENGINE_VERSION} db/test-psmdb-cluster -n "${NAMESPACE}"
+  - command: kubectl wait --for=jsonpath='{.status.mongoVersion}'=${PSMDB_DB_ENGINE_VERSION} psmdb/test-psmdb-cluster -n "${NAMESPACE}"
+collectors:
+  - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
   name: test-psmdb-cluster
-spec:
-  engine:
-    type: psmdb
-    version: 8.0.4-1
-    config: |
-     operationProfiling:
-        mode: slowOp
-    userSecretsName: psmdb-sample-secrets
-    replicas: 3
-    storage:
-      size: 15G
-    resources:
-      cpu: 300m
-      memory: 500M
-  proxy:
-    type: mongos
-    replicas: 3
 status:
-  ready: 3
-  size: 3
   status: ready
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDB
 metadata:
   name: test-psmdb-cluster
-  finalizers:
-    - percona.com/delete-psmdb-pods-in-order
-    - percona.com/delete-psmdb-pvc
-spec:
-  image: percona/percona-server-mongodb:8.0.4-1-multi
-  multiCluster:
-    enabled: false
-  replsets:
-    - configuration: |
-       operationProfiling:
-          mode: slowOp
-      expose:
-        enabled: true
-      name: rs0
-      resources:
-        limits:
-          cpu: 300m
-          memory:  500M
-      size:        3
-      volumeSpec:
-        persistentVolumeClaim:
-          resources:
-            requests:
-              storage: 15G
-  secrets:
-    users:  psmdb-sample-secrets
-  sharding:
-    enabled: false
 status:
-  mongoVersion: 8.0.4-1
-  replsets:
-    rs0:
-      initialized: true
-      ready: 3
-      size: 3
-      status: ready
-  ready: 3
-  size: 3
   state: ready

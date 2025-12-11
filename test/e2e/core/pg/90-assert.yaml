@@ -1,0 +1,9 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+commands:
+  - command: kubectl wait --for=delete db/single-node -n $NAMESPACE
+  - command: kubectl wait --for=delete pg/single-node -n $NAMESPACE
+collectors:
+  - command: kubectl get db/single-node -n ${NAMESPACE} -o yaml
+  - command: kubectl get pg/single-node -n ${NAMESPACE} -o yaml

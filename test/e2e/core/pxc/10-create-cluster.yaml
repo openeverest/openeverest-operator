@@ -8,16 +8,18 @@ metadata:
 spec:
   engine:
     type: pxc
-    userSecretsName: pxc-sample-secrets
     config: |
       [mysqld]
       wsrep_provider_options="debug=1;gcache.size=1G"
     replicas: 3
     storage:
-      size: 15G
+      size: 1Gi
     resources:
       cpu: 600m
       memory: 1G
   proxy:
     type: haproxy
     replicas: 3
+    resources:
+      cpu: 600m
+      memory: 600M

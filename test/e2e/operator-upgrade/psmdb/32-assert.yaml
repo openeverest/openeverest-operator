@@ -1,0 +1,23 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 300
+commands:
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PSMDB_DB_ENGINE_VERSION} db/test-psmdb-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.status.mongoVersion}'=${PSMDB_DB_ENGINE_VERSION} psmdb/test-psmdb-cluster -n "${NAMESPACE}"
+collectors:
+  - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-cluster
+status:
+  status: ready
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: test-psmdb-cluster
+status:
+  state: ready
