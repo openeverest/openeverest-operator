@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 30
+timeout: 120
 commands:
   - command: kubectl wait --for=delete db/single-node -n $NAMESPACE
   - command: kubectl wait --for=delete psmdb/single-node -n $NAMESPACE

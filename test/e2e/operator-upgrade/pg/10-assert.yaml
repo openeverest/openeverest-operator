@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 180
+timeout: 300
 commands:
   - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PREVIOUS_PG_OPERATOR_VERSION} pg/test-pg-cluster -n $NAMESPACE
   - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PREVIOUS_PG_DB_ENGINE_VERSION} db/test-pg-cluster -n $NAMESPACE

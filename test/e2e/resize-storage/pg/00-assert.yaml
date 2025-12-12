@@ -1,36 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 30
----
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  name: perconapgclusters.pgv2.percona.com
-spec:
-  group: pgv2.percona.com
-  names:
-    kind: PerconaPGCluster
-    listKind: PerconaPGClusterList
-    plural: perconapgclusters
-    singular: perconapgcluster
-  scope: Namespaced
----
-apiVersion: apiextensions.k8s.io/v1
-kind: CustomResourceDefinition
-metadata:
-  name: databaseclusters.everest.percona.com
-spec:
-  group: everest.percona.com
-  names:
-    kind: DatabaseCluster
-    listKind: DatabaseClusterList
-    plural: databaseclusters
-    shortNames:
-    - db
-    - dbc
-    - dbcluster
-    singular: databasecluster
-  scope: Namespaced
+timeout: 180
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -13,7 +13,7 @@ jobs:
   # Only the following E2E tests require EKS (requires StorageClass with resizing support):
   # - test/e2e-resize-storage
   e2e-eks-tests:
-    name: EKS tests
+    name: Storage resizing tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
@@ -85,8 +85,8 @@ jobs:
           CLUSTER_NAME: "everest-e2e-dev-eks-cluster"
           NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
 
-  e2e-core-flows:
-    name: Core tests
+  e2e-core-tests:
+    name: DB core tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
@@ -100,7 +100,7 @@ jobs:
     with:
       make_target: ${{ matrix.make_target }}
 
-  e2e-db-upgrade-flows:
+  e2e-db-upgrade-tests:
     name: DB upgrade tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
@@ -115,7 +115,7 @@ jobs:
     with:
       make_target: ${{ matrix.make_target }}
 
-  e2e-db-operator-upgrade-flows:
+  e2e-db-operator-upgrade-tests:
     name: DB operator upgrade tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
@@ -130,7 +130,7 @@ jobs:
     with:
       make_target: ${{ matrix.make_target }}
 
-  e2e-engine-features-flows:
+  e2e-engine-features-tests:
     name: DB engine features tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
@@ -145,7 +145,7 @@ jobs:
     with:
       make_target: ${{ matrix.make_target }}
 
-  e2e-data-import-flows:
+  e2e-data-import-tests:
     name: Data importer tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||

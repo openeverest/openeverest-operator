@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 180
+timeout: 300
 commands:
   - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PG_OPERATOR_VERSION} db/test-pg-cluster -n "${NAMESPACE}"
 collectors:

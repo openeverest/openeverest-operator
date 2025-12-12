@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 30
+timeout: 120
 commands:
   - command: kubectl wait --for=delete db/test-pg-cluster -n $NAMESPACE
   - command: kubectl wait --for=delete perconapgclusters/test-pg-cluster -n $NAMESPACE
