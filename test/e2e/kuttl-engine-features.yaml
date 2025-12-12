@@ -2,7 +2,7 @@ apiVersion: kuttl.dev/v1
 kind: TestSuite
 artifactsDir: /tmp/
 startKIND: false
-skipDelete: false
+skipDelete: true
 skipClusterDelete: true
 suppress:
   - events

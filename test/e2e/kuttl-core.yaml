@@ -6,7 +6,7 @@ timeout: 180
 suppress:
   - events
 startKIND: false
-skipDelete: false
+skipDelete: true
 skipClusterDelete: true
 commands:
   - command: sh -c "kubectl get namespace everest-monitoring || kubectl create namespace everest-monitoring"
