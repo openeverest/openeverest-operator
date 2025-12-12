@@ -78,7 +78,15 @@ jobs:
         run: |
           make test-e2e-resize-storage
 
+      - name: Clean up custom resources
+        continue-on-error: true
+        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
+        timeout-minutes: 10
+        run: |
+          make cluster-cleanup
+
       - name: Scale down cluster
+        continue-on-error: true
         run: |
           eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=0 "$NODEPOOL_NAME"
         env:
