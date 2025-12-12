@@ -12,7 +12,7 @@ metadata:
 spec:
   engine:
     storage:
-      size: 2G
+      size: 25G
 status:
   status: ready
 ---

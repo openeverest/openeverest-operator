@@ -13,7 +13,7 @@ spec:
       wsrep_provider_options="debug=1;gcache.size=1G"
     replicas: 3
     storage:
-      size: 1Gi
+      size: 15Gi
     resources:
       cpu: 600m
       memory: 1G

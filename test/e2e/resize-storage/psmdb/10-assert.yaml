@@ -51,7 +51,7 @@ spec:
     userSecretsName: everest-secrets-test-psmdb-cluster
     replicas: 3
     storage:
-      size: 1G
+      size: 15G
     resources:
       cpu: 300m
       memory: 500M
@@ -84,7 +84,7 @@ spec:
         persistentVolumeClaim:
           resources:
             requests:
-              storage: 1G
+              storage: 15G
   secrets:
     users: everest-secrets-test-psmdb-cluster
   sharding:

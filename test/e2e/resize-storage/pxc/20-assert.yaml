@@ -19,9 +19,8 @@ metadata:
 spec:
   enableVolumeExpansion: true
   pxc:
-    size: 1
     volumeSpec:
       persistentVolumeClaim:
         resources:
           requests:
-            storage: 2Gi
+            storage: 25Gi

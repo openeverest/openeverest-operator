@@ -13,7 +13,7 @@ spec:
         mode: slowOp
     replicas: 3
     storage:
-      size: 1G
+      size: 15G
     resources:
       cpu: 300m
       memory: 500M

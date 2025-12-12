@@ -22,4 +22,4 @@ spec:
       dataVolumeClaimSpec:
         resources:
           requests:
-            storage: 2G
+            storage: 25G

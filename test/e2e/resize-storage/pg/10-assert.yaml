@@ -43,7 +43,7 @@ spec:
     type: postgresql
     replicas: 3
     storage:
-      size: 1G
+      size: 15G
     resources:
       cpu: "1"
       memory: 1G
@@ -68,14 +68,14 @@ spec:
             - ReadWriteOnce
             resources:
               requests:
-                storage: 1G
+                storage: 15G
   instances:
   - dataVolumeClaimSpec:
       accessModes:
       - ReadWriteOnce
       resources:
         requests:
-          storage: 1G
+          storage: 15G
     resources:
       limits:
         cpu: "1"

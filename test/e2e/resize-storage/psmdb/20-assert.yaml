@@ -24,6 +24,6 @@ spec:
         persistentVolumeClaim:
           resources:
             requests:
-              storage: 2G
+              storage: 25G
 status:
   state: initializing
