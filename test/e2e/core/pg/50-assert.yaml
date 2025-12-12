@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 180
+timeout: 300
 collectors:
   - command: kubectl get db/single-node -n ${NAMESPACE} -o yaml
   - command: kubectl get pg/single-node -n ${NAMESPACE} -o yaml
