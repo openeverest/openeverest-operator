@@ -18,8 +18,5 @@ commands:
   - command: kubectl wait --for condition=established --timeout=10s crd perconapgclusters.pgv2.percona.com
   - command: kubectl wait --for condition=established --timeout=10s crd perconaservermongodbs.psmdb.percona.com
   - command: kubectl wait --for condition=established --timeout=10s crd perconaxtradbclusters.pxc.percona.com
-  - command: kubectl wait --for condition=established --timeout=10s crd vmagents.operator.victoriametrics.com
 testDirs:
   - test/e2e/resize-storage
-manifestDirs:
-  - test/manifests
