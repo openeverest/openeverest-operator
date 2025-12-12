@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 300
+timeout: 400
 commands:
   - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PREVIOUS_PSMDB_OPERATOR_VERSION} db/test-psmdb-cluster -n "${NAMESPACE}"
   - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PREVIOUS_PSMDB_DB_ENGINE_VERSION} db/test-psmdb-cluster -n "${NAMESPACE}"

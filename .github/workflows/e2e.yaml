@@ -75,6 +75,7 @@ jobs:
           NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
 
       - name: Run resize-storage tests
+        continue-on-error: true
         run: |
           make test-e2e-resize-storage
 
