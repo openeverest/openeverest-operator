@@ -17,14 +17,6 @@ kind: PerconaXtraDBCluster
 metadata:
   name: test-pxc-cluster
 status:
-  haproxy:
-    ready: 3
-    size: 3
-    status: ready
-  pxc:
-    ready: 3
-    size: 3
-    status: ready
   ready: 6
   size: 6
   state: ready

@@ -54,8 +54,8 @@ spec:
     storage:
       size: 1G
     resources:
-      cpu: 300m
-      memory: 500M
+      cpu: "1"
+      memory: 1G
   proxy:
     expose:
       type: internal
@@ -80,8 +80,8 @@ spec:
       name: rs0
       resources:
         limits:
-          cpu: 300m
-          memory: 500M
+          cpu: "1"
+          memory: 1G
       size: 3
       volumeSpec:
         persistentVolumeClaim:
@@ -93,12 +93,6 @@ spec:
   sharding:
     enabled: false
 status:
-  replsets:
-    rs0:
-      initialized: true
-      ready: 3
-      size: 3
-      status: ready
   ready: 3
   size: 3
   state: ready

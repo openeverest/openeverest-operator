@@ -16,8 +16,8 @@ spec:
     storage:
       size: 1G
     resources:
-      cpu: 300m
-      memory: 500M
+      cpu: "1"
+      memory: 1G
   proxy:
     expose:
       type: internal

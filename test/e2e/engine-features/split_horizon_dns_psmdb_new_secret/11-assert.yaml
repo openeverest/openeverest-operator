@@ -101,6 +101,8 @@ spec:
     ssl: psmdb-shdc-sh-cert
     sslInternal: psmdb-shdc-ssl-internal
 status:
+  ready: 3
+  size: 3
   state: ready
 ---
 apiVersion: v1

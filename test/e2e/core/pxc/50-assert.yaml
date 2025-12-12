@@ -52,7 +52,7 @@ spec:
     storage:
       size: 1Gi
     resources:
-      cpu: 600m
+      cpu: "1"
       memory: 1G
   proxy:
     type: haproxy
@@ -69,20 +69,18 @@ metadata:
   name: single-node
 spec:
   haproxy:
-    imagePullPolicy: IfNotPresent
     enabled: true
     size: 1
   pxc:
-    imagePullPolicy: IfNotPresent
     configuration: |
       [mysqld]
       wsrep_provider_options="debug=1;gcache.size=1G"
     resources:
       limits:
-        cpu: 600m
+        cpu: "1"
         memory: 1G
       requests:
-        cpu: 600m
+        cpu: "1"
         memory: 1G
     size: 1
     volumeSpec:
@@ -91,10 +89,6 @@ spec:
           requests:
             storage: 1Gi
   secretsName: everest-secrets-single-node
-  updateStrategy: SmartUpdate
-  upgradeOptions:
-    apply: never
-    schedule: 0 4 * * *
 status:
   ready: 2
   size: 2

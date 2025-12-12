@@ -41,14 +41,14 @@ metadata:
   name: test-pg-cluster
 spec:
   engine:
-    replicas: 2
+    replicas: 3
     storage:
       size: 1G
     type: postgresql
   proxy:
     expose:
       type: internal
-    replicas: 2
+    replicas: 3
     type: pgbouncer
 status:
   status: ready
@@ -66,12 +66,12 @@ spec:
           requests:
             storage: 1G
       name: instance1
-      replicas: 2
+      replicas: 3
   port: 5432
   proxy:
     pgBouncer:
       port: 5432
-      replicas: 2
+      replicas: 3
       expose:
         type: ClusterIP
   backups:
@@ -91,14 +91,10 @@ spec:
               requests:
                 storage: 1G
 status:
-  pgbouncer:
-    ready: 2
-    size: 2
-  postgres:
-    instances:
-    - name: instance1
-      ready: 2
-      size: 2
-    ready: 2
-    size: 2
   state: ready
+  pgbouncer:
+    ready: 3
+    size: 3
+  postgres:
+    ready: 3
+    size: 3

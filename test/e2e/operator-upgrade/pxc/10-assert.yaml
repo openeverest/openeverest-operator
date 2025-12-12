@@ -55,7 +55,7 @@ spec:
     storage:
       size: 1Gi
     resources:
-      cpu: 600m
+      cpu: "1"
       memory: 1G
   proxy:
     type: haproxy
@@ -81,10 +81,10 @@ spec:
       wsrep_provider_options="debug=1;gcache.size=1G"
     resources:
       limits:
-        cpu: 600m
+        cpu: "1"
         memory: 1G
       requests:
-        cpu: 600m
+        cpu: "1"
         memory: 1G
     size: 3
     volumeSpec:
@@ -94,14 +94,6 @@ spec:
             storage: 1Gi
   secretsName: everest-secrets-test-pxc-cluster
 status:
-  haproxy:
-    ready: 3
-    size: 3
-    status: ready
-  pxc:
-    ready: 3
-    size: 3
-    status: ready
   ready: 6
   size: 6
   state: ready

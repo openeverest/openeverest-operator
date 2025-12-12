@@ -8,9 +8,12 @@ metadata:
 spec:
   engine:
     type: postgresql
-    replicas: 2
+    replicas: 3
     storage:
       size: 1G
+    resources:
+      cpu: "1"
+      memory: 1G
   proxy:
     type: pgbouncer
-    replicas: 2
+    replicas: 3

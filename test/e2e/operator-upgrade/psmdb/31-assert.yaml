@@ -19,4 +19,6 @@ kind: PerconaServerMongoDB
 metadata:
   name: test-psmdb-cluster
 status:
+  ready: 3
+  size: 3
   state: ready

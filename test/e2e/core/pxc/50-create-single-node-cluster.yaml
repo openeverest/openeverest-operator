@@ -16,11 +16,11 @@ spec:
     storage:
       size: 1Gi
     resources:
-      cpu: 600m
+      cpu: "1"
       memory: 1G
   proxy:
     type: haproxy
     replicas: 1
     resources:
       cpu: 600m
-      memory: 0.6G
+      memory: 600M
