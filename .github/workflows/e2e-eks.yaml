@@ -13,6 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  TOOLS_PATH: "/opt/tools/bin"
   GONOPROXY: 'github.com/percona'
   GONOSUMDB: 'github.com/percona'
   GOPRIVATE: 'github.com/percona'
@@ -82,14 +83,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Clean up custom resources
-        continue-on-error: true
+        if: always()
         # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
         timeout-minutes: 10
         run: |
           make cluster-cleanup
 
       - name: Scale down cluster
-        continue-on-error: true
+        if: always()
         run: |
           eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=0 "$NODEPOOL_NAME"
         env:
