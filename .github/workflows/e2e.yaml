@@ -13,7 +13,7 @@ jobs:
   e2e-core-tests:
     name: DB core tests
     concurrency: eks-e2e-tests
-    if: ${{ сontains(fromJSON('["test/e2e", "test/e2e-core"]'), github.event.pull_request.labels.*.name) }}
+    if: ${{ contains(fromJSON('["test/e2e", "test/e2e-core"]'), github.event.pull_request.labels.*.name) }}
     uses: ./.github/workflows/e2e-eks.yaml
     secrets: inherit
     with:
