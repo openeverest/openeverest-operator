@@ -10,113 +10,63 @@ env:
   GOPRIVATE: 'github.com/percona'
 
 jobs:
-#  e2e-core-tests:
-#    name: DB core tests
-#    if: |
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        make_target:
-#          - test-e2e-core
-#    uses: ./.github/workflows/e2e-eks.yaml
-#    secrets: inherit
-#    with:
-#      make_target: ${{ matrix.make_target }}
-#
-#  e2e-db-upgrade-tests:
-#    name: DB upgrade tests
-#    if: |
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        make_target:
-#          - test-e2e-db-upgrade
-#    uses: ./.github/workflows/e2e-eks.yaml
-#    secrets: inherit
-#    with:
-#      make_target: ${{ matrix.make_target }}
-#
-#  e2e-db-operator-upgrade-tests:
-#    name: DB operator upgrade tests
-#    if: |
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade')
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        make_target:
-#          - test-e2e-operator-upgrade
-#    uses: ./.github/workflows/e2e-eks.yaml
-#    secrets: inherit
-#    with:
-#      make_target: ${{ matrix.make_target }}
-#
-#  e2e-engine-features-tests:
-#    name: DB engine features tests
-#    if: |
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        make_target:
-#          - test-e2e-engine-features
-#    uses: ./.github/workflows/e2e-eks.yaml
-#    secrets: inherit
-#    with:
-#      make_target: ${{ matrix.make_target }}
-#
-#  e2e-data-import-tests:
-#    name: Data importer tests
-#    if: |
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e-data-importer')
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        make_target:
-#          - test-e2e-data-importer-pg
-#          - test-e2e-data-importer-psmdb
-#          - test-e2e-data-importer-pxc
-#    uses: ./.github/workflows/e2e-eks.yaml
-#    secrets: inherit
-#    with:
-#      make_target: ${{ matrix.make_target }}
-#
-#  e2e-resize-storage-tests:
-#    name: Resize storage tests
-#    if: |
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        make_target:
-#          - test-e2e-resize-storage
-#    uses: ./.github/workflows/e2e-eks.yaml
-#    secrets: inherit
-#    with:
-#      make_target: ${{ matrix.make_target }}
+  e2e-core-tests:
+    name: DB core tests
+    concurrency: eks-e2e-tests
+    if: сontains(fromJSON('["test/e2e", "test/e2e-core"]'), github.event.pull_request.labels.*.name)
+    uses: ./.github/workflows/e2e-eks.yaml
+    secrets: inherit
+    with:
+      make_target: test-e2e-core
 
-  e2e-tests:
-    name: E2E tests
+  e2e-db-upgrade-tests:
+    name: DB upgrade tests
+    concurrency: eks-e2e-tests
+    if: contains(fromJSON('["test/e2e", "test/e2e-db-upgrade"]'), github.event.pull_request.labels.*.name)
+    uses: ./.github/workflows/e2e-eks.yaml
+    secrets: inherit
+    with:
+      make_target: test-e2e-db-upgrade
+
+  e2e-db-operator-upgrade-tests:
+    name: DB operator upgrade tests
+    concurrency: eks-e2e-tests
+    if: contains(fromJSON('["test/e2e", "test/e2e-operator-upgrade"]'), github.event.pull_request.labels.*.name)
+    uses: ./.github/workflows/e2e-eks.yaml
+    secrets: inherit
+    with:
+      make_target: test-e2e-operator-upgrade
+
+  e2e-engine-features-tests:
+    name: DB engine features tests
+    concurrency: eks-e2e-tests
+    if: contains(fromJSON('["test/e2e", "test/e2e-engine-features"]'), github.event.pull_request.labels.*.name)
+    uses: ./.github/workflows/e2e-eks.yaml
+    secrets: inherit
+    with:
+      make_target: test-e2e-engine-features
+
+  e2e-data-import-tests:
+    name: Data importer tests
+    concurrency: eks-e2e-tests
+    if: contains(fromJSON('["test/e2e", "test/e2e-data-import"]'), github.event.pull_request.labels.*.name)
     strategy:
       fail-fast: false
       matrix:
         make_target:
-          - ${{ contains(fromJSON('["test/e2e", "test/e2e-core"]'), github.event.pull_request.labels.*.name) && 'test-e2e-core' }}
-          - ${{ contains(fromJSON('["test/e2e", "test/e2e-db-upgrade"]'), github.event.pull_request.labels.*.name) && 'test-e2e-db-upgrade' }}
-          - ${{ contains(fromJSON('["test/e2e", "test/e2e-operator-upgrade"]'), github.event.pull_request.labels.*.name) && 'test-e2e-operator-upgrade' }}
-          - ${{ contains(fromJSON('["test/e2e", "test/e2e-engine-features"]'), github.event.pull_request.labels.*.name) && 'test-e2e-engine-features' }}
-          - ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-pg' }}
-          - ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-psmdb' }}
-          - ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-pxc' }}
-          - ${{ contains(fromJSON('["test/e2e", "test/e2e-resize-storage"]'), github.event.pull_request.labels.*.name) && 'test-e2e-resize-storage' }}
+          - test-e2e-data-importer-pg
+          - test-e2e-data-importer-psmdb
+          - test-e2e-data-importer-pxc
     uses: ./.github/workflows/e2e-eks.yaml
     secrets: inherit
     with:
       make_target: ${{ matrix.make_target }}
+
+  e2e-resize-storage-tests:
+    name: Resize storage tests
+    concurrency: eks-e2e-tests
+    if: contains(fromJSON('["test/e2e", "test/e2e-resize-storage"]'), github.event.pull_request.labels.*.name)
+    uses: ./.github/workflows/e2e-eks.yaml
+    secrets: inherit
+    with:
+      make_target: test-e2e-resize-storage
