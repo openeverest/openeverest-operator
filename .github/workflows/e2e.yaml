@@ -171,7 +171,7 @@ jobs:
           - test-e2e-data-importer-pg
           - test-e2e-data-importer-psmdb
           - test-e2e-data-importer-pxc
-    uses: ./.github/workflows/e2e-data-importer.yaml
+    uses: ./.github/workflows/e2e-k3d.yaml
     secrets: inherit
     with:
       make_target: ${{ matrix.make_target }}
