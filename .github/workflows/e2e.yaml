@@ -3,11 +3,6 @@ name: E2E
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
-
-concurrency:
-  group: eks-e2e-tests
-  cancel-in-progress: true
-
 env:
   TOOLS_PATH: "/opt/tools/bin"
   GONOPROXY: 'github.com/percona'
@@ -15,51 +10,160 @@ env:
   GOPRIVATE: 'github.com/percona'
 
 jobs:
-  e2e-core-tests:
-    name: DB core tests
+  e2e-eks-tests:
+    name: EKS tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
-    uses: ./.github/workflows/e2e-eks.yaml
-    secrets: inherit
-    with:
-      make_target: test-e2e-core
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-core') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
+    timeout-minutes: 80
+    concurrency: eks-e2e-tests
+    strategy:
+      fail-fast: true
+    runs-on: ubuntu-latest
+    env:
+      KUBECONFIG: "/home/runner/.kube/config"
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
 
-  e2e-db-upgrade-tests:
-    name: DB upgrade tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
-    uses: ./.github/workflows/e2e-eks.yaml
-    secrets: inherit
-    with:
-      make_target: test-e2e-db-upgrade
+      - name: Set up Go release
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: true
 
-  e2e-db-operator-upgrade-tests:
-    name: DB operator upgrade tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade')
-    uses: ./.github/workflows/e2e-eks.yaml
-    secrets: inherit
-    with:
-      make_target: test-e2e-operator-upgrade
+      - name: Build operator
+        run:
+          make build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  e2e-engine-features-tests:
-    name: DB engine features tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
-    uses: ./.github/workflows/e2e-eks.yaml
-    secrets: inherit
-    with:
-      make_target: test-e2e-engine-features
+      - name: Install Kubernetes tools
+        uses: ./.github/actions/install-kubernetes-tools
+        with:
+          install-kubectl: true
+          install-kuttl: true
+          install-k3d: false
 
-  e2e-data-import-tests:
+      - name: Install EKS tools
+        run: |
+          # Install EKSCTL
+          ARCH=amd64
+          PLATFORM=$(uname -s)_${ARCH}
+          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_${PLATFORM}.tar.gz"
+          tar -xzf eksctl_${PLATFORM}.tar.gz -C "${TOOLS_PATH}"
+          chmod +x "${TOOLS_PATH}"/eksctl
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.EVEREST_EKS_E2E_IAM_USER_ACCESS_KEY }}
+          aws-secret-access-key: ${{ secrets.EVEREST_EKS_E2E_IAM_USER_ACCESS_KEY_SECRET }}
+          aws-region: us-east-2
+
+      - name: Update EKS kubeconfig
+        run: |
+          aws eks update-kubeconfig --name everest-e2e-dev-eks-cluster
+
+      - name: Scale up cluster
+        run: |
+          eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=10 "$NODEPOOL_NAME" --wait
+        env:
+          CLUSTER_NAME: "everest-e2e-dev-eks-cluster"
+          NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
+
+      - name: Operator upgrade tests
+        continue-on-error: true
+        if: |
+          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade')
+        run: |
+          make test-e2e-operator-upgrade
+
+      - name: Clean up custom resources
+        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
+        timeout-minutes: 10
+        run: |
+          make cluster-cleanup
+
+      - name: Core tests
+        continue-on-error: true
+        if: |
+          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
+        run: |
+          make test-e2e-core
+
+      - name: Clean up custom resources
+        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
+        timeout-minutes: 10
+        run: |
+          make cluster-cleanup
+
+      - name: DB engine features tests
+        continue-on-error: true
+        if: |
+          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
+        run: |
+          make test-e2e-engine-features
+
+      - name: Clean up custom resources
+        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
+        timeout-minutes: 10
+        run: |
+          make cluster-cleanup
+
+      - name: DB upgrade tests
+        continue-on-error: true
+        if: |
+          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
+        run: |
+          make test-e2e-db-upgrade
+
+      - name: Clean up custom resources
+        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
+        timeout-minutes: 10
+        run: |
+          make cluster-cleanup
+
+      - name: Resize DB storage
+        continue-on-error: true
+        if: |
+          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
+        run: |
+          make test-e2e-resize-storage
+
+      - name: Clean up custom resources
+        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
+        timeout-minutes: 10
+        run: |
+          make cluster-cleanup
+
+      - name: Scale down cluster
+        if: always()
+        run: |
+          eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=0 "$NODEPOOL_NAME"
+        env:
+          CLUSTER_NAME: "everest-e2e-dev-eks-cluster"
+          NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
+
+      - name: Clean up resources and CRDs
+        if: always()
+        run: |
+          make cluster-cleanup
+
+  e2e-data-importer-tests-flows:
     name: Data importer tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-data-import')
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-data-importer')
     strategy:
       fail-fast: false
       matrix:
@@ -67,17 +171,7 @@ jobs:
           - test-e2e-data-importer-pg
           - test-e2e-data-importer-psmdb
           - test-e2e-data-importer-pxc
-    uses: ./.github/workflows/e2e-eks.yaml
+    uses: ./.github/workflows/e2e-data-importer.yaml
     secrets: inherit
     with:
       make_target: ${{ matrix.make_target }}
-
-  e2e-resize-storage-tests:
-    name: Resize storage tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
-    uses: ./.github/workflows/e2e-eks.yaml
-    secrets: inherit
-    with:
-      make_target: test-e2e-resize-storage
