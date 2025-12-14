@@ -107,16 +107,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        make_target: []
-        include:
-          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-core"]'), github.event.pull_request.labels.*.name) && 'test-e2e-core' }}
-          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-db-upgrade"]'), github.event.pull_request.labels.*.name) && 'test-e2e-db-upgrade' }}
-          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-operator-upgrade"]'), github.event.pull_request.labels.*.name) && 'test-e2e-operator-upgrade' }}
-          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-engine-features"]'), github.event.pull_request.labels.*.name) && 'test-e2e-engine-features' }}
-          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-pg' }}
-          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-psmdb' }}
-          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-pxc' }}
-          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-resize-storage"]'), github.event.pull_request.labels.*.name) && 'test-e2e-resize-storage' }}
+        make_target:
+          - ${{ contains(fromJSON('["test/e2e", "test/e2e-core"]'), github.event.pull_request.labels.*.name) && 'test-e2e-core' }}
+          - ${{ contains(fromJSON('["test/e2e", "test/e2e-db-upgrade"]'), github.event.pull_request.labels.*.name) && 'test-e2e-db-upgrade' }}
+          - ${{ contains(fromJSON('["test/e2e", "test/e2e-operator-upgrade"]'), github.event.pull_request.labels.*.name) && 'test-e2e-operator-upgrade' }}
+          - ${{ contains(fromJSON('["test/e2e", "test/e2e-engine-features"]'), github.event.pull_request.labels.*.name) && 'test-e2e-engine-features' }}
+          - ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-pg' }}
+          - ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-psmdb' }}
+          - ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-pxc' }}
+          - ${{ contains(fromJSON('["test/e2e", "test/e2e-resize-storage"]'), github.event.pull_request.labels.*.name) && 'test-e2e-resize-storage' }}
     uses: ./.github/workflows/e2e-eks.yaml
     secrets: inherit
     with:
