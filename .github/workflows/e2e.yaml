@@ -103,7 +103,7 @@ jobs:
 #      make_target: ${{ matrix.make_target }}
 
   e2e-tests:
-    name: E2E EKS tests
+    name: E2E tests
     strategy:
       fail-fast: false
       matrix:
