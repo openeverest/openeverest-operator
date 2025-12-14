@@ -13,7 +13,7 @@ jobs:
   e2e-core-tests:
     name: DB core tests
     concurrency: eks-e2e-tests
-    if: сontains(fromJSON('["test/e2e", "test/e2e-core"]'), github.event.pull_request.labels.*.name)
+    if: ${{ сontains(fromJSON('["test/e2e", "test/e2e-core"]'), github.event.pull_request.labels.*.name) }}
     uses: ./.github/workflows/e2e-eks.yaml
     secrets: inherit
     with:
@@ -22,7 +22,7 @@ jobs:
   e2e-db-upgrade-tests:
     name: DB upgrade tests
     concurrency: eks-e2e-tests
-    if: contains(fromJSON('["test/e2e", "test/e2e-db-upgrade"]'), github.event.pull_request.labels.*.name)
+    if: ${{ contains(fromJSON('["test/e2e", "test/e2e-db-upgrade"]'), github.event.pull_request.labels.*.name) }}
     uses: ./.github/workflows/e2e-eks.yaml
     secrets: inherit
     with:
@@ -31,7 +31,7 @@ jobs:
   e2e-db-operator-upgrade-tests:
     name: DB operator upgrade tests
     concurrency: eks-e2e-tests
-    if: contains(fromJSON('["test/e2e", "test/e2e-operator-upgrade"]'), github.event.pull_request.labels.*.name)
+    if: ${{ contains(fromJSON('["test/e2e", "test/e2e-operator-upgrade"]'), github.event.pull_request.labels.*.name) }}
     uses: ./.github/workflows/e2e-eks.yaml
     secrets: inherit
     with:
@@ -40,7 +40,7 @@ jobs:
   e2e-engine-features-tests:
     name: DB engine features tests
     concurrency: eks-e2e-tests
-    if: contains(fromJSON('["test/e2e", "test/e2e-engine-features"]'), github.event.pull_request.labels.*.name)
+    if: ${{ contains(fromJSON('["test/e2e", "test/e2e-engine-features"]'), github.event.pull_request.labels.*.name) }}
     uses: ./.github/workflows/e2e-eks.yaml
     secrets: inherit
     with:
@@ -49,7 +49,7 @@ jobs:
   e2e-data-import-tests:
     name: Data importer tests
     concurrency: eks-e2e-tests
-    if: contains(fromJSON('["test/e2e", "test/e2e-data-import"]'), github.event.pull_request.labels.*.name)
+    if: ${{ contains(fromJSON('["test/e2e", "test/e2e-data-import"]'), github.event.pull_request.labels.*.name) }}
     strategy:
       fail-fast: false
       matrix:
@@ -65,7 +65,7 @@ jobs:
   e2e-resize-storage-tests:
     name: Resize storage tests
     concurrency: eks-e2e-tests
-    if: contains(fromJSON('["test/e2e", "test/e2e-resize-storage"]'), github.event.pull_request.labels.*.name)
+    if: ${{ contains(fromJSON('["test/e2e", "test/e2e-resize-storage"]'), github.event.pull_request.labels.*.name) }}
     uses: ./.github/workflows/e2e-eks.yaml
     secrets: inherit
     with:
