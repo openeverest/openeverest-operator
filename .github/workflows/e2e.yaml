@@ -12,7 +12,6 @@ env:
 jobs:
   e2e-core-tests:
     name: DB core tests
-    concurrency: eks-e2e-tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
@@ -23,7 +22,6 @@ jobs:
 
   e2e-db-upgrade-tests:
     name: DB upgrade tests
-    concurrency: eks-e2e-tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
@@ -34,7 +32,6 @@ jobs:
 
   e2e-db-operator-upgrade-tests:
     name: DB operator upgrade tests
-    concurrency: eks-e2e-tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade')
@@ -45,7 +42,6 @@ jobs:
 
   e2e-engine-features-tests:
     name: DB engine features tests
-    concurrency: eks-e2e-tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
@@ -56,7 +52,6 @@ jobs:
 
   e2e-data-import-tests:
     name: Data importer tests
-    concurrency: eks-e2e-tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-data-import')
@@ -74,7 +69,6 @@ jobs:
 
   e2e-resize-storage-tests:
     name: Resize storage tests
-    concurrency: eks-e2e-tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
