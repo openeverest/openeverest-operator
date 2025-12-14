@@ -14,7 +14,7 @@ env:
   GOPRIVATE: 'github.com/percona'
 
 jobs:
-  e2e-test:
+  e2e-k3d-test:
     name: test
     timeout-minutes: 80
     strategy:

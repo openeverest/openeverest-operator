@@ -10,163 +10,114 @@ env:
   GOPRIVATE: 'github.com/percona'
 
 jobs:
-  # Only the following E2E tests require EKS (requires StorageClass with resizing support):
-  # - test/e2e-resize-storage
-  e2e-eks-tests:
-    name: Storage resizing tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
-    timeout-minutes: 80
-    concurrency: eks-e2e-tests
-    strategy:
-      fail-fast: true
-    runs-on: ubuntu-latest
-    env:
-      KUBECONFIG: "/home/runner/.kube/config"
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v5
+#  e2e-core-tests:
+#    name: DB core tests
+#    if: |
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        make_target:
+#          - test-e2e-core
+#    uses: ./.github/workflows/e2e-eks.yaml
+#    secrets: inherit
+#    with:
+#      make_target: ${{ matrix.make_target }}
+#
+#  e2e-db-upgrade-tests:
+#    name: DB upgrade tests
+#    if: |
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        make_target:
+#          - test-e2e-db-upgrade
+#    uses: ./.github/workflows/e2e-eks.yaml
+#    secrets: inherit
+#    with:
+#      make_target: ${{ matrix.make_target }}
+#
+#  e2e-db-operator-upgrade-tests:
+#    name: DB operator upgrade tests
+#    if: |
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade')
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        make_target:
+#          - test-e2e-operator-upgrade
+#    uses: ./.github/workflows/e2e-eks.yaml
+#    secrets: inherit
+#    with:
+#      make_target: ${{ matrix.make_target }}
+#
+#  e2e-engine-features-tests:
+#    name: DB engine features tests
+#    if: |
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        make_target:
+#          - test-e2e-engine-features
+#    uses: ./.github/workflows/e2e-eks.yaml
+#    secrets: inherit
+#    with:
+#      make_target: ${{ matrix.make_target }}
+#
+#  e2e-data-import-tests:
+#    name: Data importer tests
+#    if: |
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e-data-importer')
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        make_target:
+#          - test-e2e-data-importer-pg
+#          - test-e2e-data-importer-psmdb
+#          - test-e2e-data-importer-pxc
+#    uses: ./.github/workflows/e2e-eks.yaml
+#    secrets: inherit
+#    with:
+#      make_target: ${{ matrix.make_target }}
+#
+#  e2e-resize-storage-tests:
+#    name: Resize storage tests
+#    if: |
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+#      contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        make_target:
+#          - test-e2e-resize-storage
+#    uses: ./.github/workflows/e2e-eks.yaml
+#    secrets: inherit
+#    with:
+#      make_target: ${{ matrix.make_target }}
 
-      - name: Set up Go release
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-
-      - name: Build operator
-        run:
-          make build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Kubernetes tools
-        uses: ./.github/actions/install-kubernetes-tools
-        with:
-          install-kubectl: true
-          install-kuttl: true
-          install-k3d: false
-
-      - name: Install EKS tools
-        run: |
-          # Install EKSCTL
-          ARCH=amd64
-          PLATFORM=$(uname -s)_${ARCH}
-          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_${PLATFORM}.tar.gz"
-          tar -xzf eksctl_${PLATFORM}.tar.gz -C "${TOOLS_PATH}"
-          chmod +x "${TOOLS_PATH}"/eksctl
-
-      - name: Configure AWS
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          aws-access-key-id: ${{ secrets.EVEREST_EKS_E2E_IAM_USER_ACCESS_KEY }}
-          aws-secret-access-key: ${{ secrets.EVEREST_EKS_E2E_IAM_USER_ACCESS_KEY_SECRET }}
-          aws-region: us-east-2
-
-      - name: Update EKS kubeconfig
-        run: |
-          aws eks update-kubeconfig --name everest-e2e-dev-eks-cluster
-
-      - name: Scale up cluster
-        run: |
-          eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=5 "$NODEPOOL_NAME" --wait
-        env:
-          CLUSTER_NAME: "everest-e2e-dev-eks-cluster"
-          NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
-
-      - name: Run resize-storage tests
-        continue-on-error: true
-        run: |
-          make test-e2e-resize-storage
-
-      - name: Clean up custom resources
-        continue-on-error: true
-        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-        timeout-minutes: 10
-        run: |
-          make cluster-cleanup
-
-      - name: Scale down cluster
-        continue-on-error: true
-        run: |
-          eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=0 "$NODEPOOL_NAME"
-        env:
-          CLUSTER_NAME: "everest-e2e-dev-eks-cluster"
-          NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
-
-  e2e-core-tests:
-    name: DB core tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
-    strategy:
-      fail-fast: false
-      matrix:
-        make_target:
-          - test-e2e-core
-    uses: ./.github/workflows/e2e-k3d.yaml
-    secrets: inherit
-    with:
-      make_target: ${{ matrix.make_target }}
-
-  e2e-db-upgrade-tests:
-    name: DB upgrade tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
+  e2e-tests:
+    name: E2E EKS tests
     strategy:
       fail-fast: false
       matrix:
-        make_target:
-          - test-e2e-db-upgrade
-    uses: ./.github/workflows/e2e-k3d.yaml
-    secrets: inherit
-    with:
-      make_target: ${{ matrix.make_target }}
-
-  e2e-db-operator-upgrade-tests:
-    name: DB operator upgrade tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade')
-    strategy:
-      fail-fast: false
-      matrix:
-        make_target:
-          - test-e2e-operator-upgrade
-    uses: ./.github/workflows/e2e-k3d.yaml
-    secrets: inherit
-    with:
-      make_target: ${{ matrix.make_target }}
-
-  e2e-engine-features-tests:
-    name: DB engine features tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
-    strategy:
-      fail-fast: false
-      matrix:
-        make_target:
-          - test-e2e-engine-features
-    uses: ./.github/workflows/e2e-k3d.yaml
-    secrets: inherit
-    with:
-      make_target: ${{ matrix.make_target }}
-
-  e2e-data-import-tests:
-    name: Data importer tests
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-data-importer')
-    strategy:
-      fail-fast: false
-      matrix:
-        make_target:
-          - test-e2e-data-importer-pg
-          - test-e2e-data-importer-psmdb
-          - test-e2e-data-importer-pxc
-    uses: ./.github/workflows/e2e-k3d.yaml
+        make_target: []
+        include:
+          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-core"]'), github.event.pull_request.labels.*.name) && 'test-e2e-core' }}
+          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-db-upgrade"]'), github.event.pull_request.labels.*.name) && 'test-e2e-db-upgrade' }}
+          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-operator-upgrade"]'), github.event.pull_request.labels.*.name) && 'test-e2e-operator-upgrade' }}
+          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-engine-features"]'), github.event.pull_request.labels.*.name) && 'test-e2e-engine-features' }}
+          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-pg' }}
+          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-psmdb' }}
+          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-data-importe"]'), github.event.pull_request.labels.*.name) && 'test-e2e-data-importer-pxc' }}
+          - make_target: ${{ contains(fromJSON('["test/e2e", "test/e2e-resize-storage"]'), github.event.pull_request.labels.*.name) && 'test-e2e-resize-storage' }}
+    uses: ./.github/workflows/e2e-eks.yaml
     secrets: inherit
     with:
       make_target: ${{ matrix.make_target }}

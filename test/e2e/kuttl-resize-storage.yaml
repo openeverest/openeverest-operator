@@ -4,17 +4,12 @@ crdDir: config/crd/bases
 artifactsDir: /tmp/
 parallel: 1
 timeout: 180
-skipDelete: true
+skipDelete: false
 skipClusterDelete: true
 commands:
-  # Install upstream DB operators CRDs.
-  - command: kubectl apply --server-side --wait -f https://raw.githubusercontent.com/percona/percona-xtradb-cluster-operator/v${PXC_OPERATOR_VERSION}/deploy/crd.yaml
-  - command: kubectl apply --server-side --wait -f https://raw.githubusercontent.com/percona/percona-server-mongodb-operator/v${PSMDB_OPERATOR_VERSION}/deploy/crd.yaml
-  - command: kubectl apply --server-side --wait -f https://raw.githubusercontent.com/percona/percona-postgresql-operator/v${PG_OPERATOR_VERSION}/deploy/crd.yaml
-  # Check that upstream DB operators CRDs are installed.
-  - command: kubectl wait --for condition=established --timeout=30s crd databaseclusters.everest.percona.com
-  - command: kubectl wait --for condition=established --timeout=30s crd perconapgclusters.pgv2.percona.com
-  - command: kubectl wait --for condition=established --timeout=30s crd perconaxtradbclusters.pxc.percona.com
-  - command: kubectl wait --for condition=established --timeout=30s crd perconaservermongodbs.psmdb.percona.com
+  - command: kubectl wait --for condition=established --timeout=10s crd databaseclusters.everest.percona.com
+  - command: kubectl wait --for condition=established --timeout=10s crd vmagents.operator.victoriametrics.com
 testDirs:
   - test/e2e/resize-storage
+manifestDirs:
+  - test/manifests
