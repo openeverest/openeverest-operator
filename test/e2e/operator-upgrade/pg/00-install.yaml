@@ -6,5 +6,5 @@ commands:
   - command: kubectl patch ns ${NAMESPACE} -p '{"metadata":{"labels":{"app.kubernetes.io/managed-by":"everest"}}}' --type merge
   - command: kubectl apply --server-side -f https://raw.githubusercontent.com/percona/percona-postgresql-operator/v${PREVIOUS_PG_OPERATOR_VERSION}/deploy/bundle.yaml -n "${NAMESPACE}"
   - script: SYSTEM_NAMESPACE=$NAMESPACE MONITORING_NAMESPACE=$NAMESPACE DB_NAMESPACES=$NAMESPACE ${OPERATOR_ROOT_PATH}/bin/manager -metrics-bind-address :0 -health-probe-bind-address :0 -disable-webhook-server=true
-    background: false
+    background: true
     skipLogOutput: false

@@ -7,5 +7,5 @@ commands:
   - command: kubectl apply --server-side -f https://raw.githubusercontent.com/percona/percona-server-mongodb-operator/v${PSMDB_OPERATOR_VERSION}/deploy/bundle.yaml -n "${NAMESPACE}"
   - command: kubectl apply -f ${OPERATOR_ROOT_PATH}/internal/data-importer/deploy/psmdb
   - script: SYSTEM_NAMESPACE=$NAMESPACE MONITORING_NAMESPACE=$NAMESPACE DB_NAMESPACES=$NAMESPACE ${OPERATOR_ROOT_PATH}/bin/manager -metrics-bind-address :0 -health-probe-bind-address :0 -disable-webhook-server=true
-    background: false
+    background: true
     skipLogOutput: false

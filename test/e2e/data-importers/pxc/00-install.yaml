@@ -7,5 +7,5 @@ commands:
   - command: kubectl apply -f https://raw.githubusercontent.com/percona/percona-xtradb-cluster-operator/v${PXC_OPERATOR_VERSION}/deploy/bundle.yaml -n "${NAMESPACE}"
   - command: kubectl apply -f ${OPERATOR_ROOT_PATH}/internal/data-importer/deploy/pxc
   - script: SYSTEM_NAMESPACE=$NAMESPACE MONITORING_NAMESPACE=$NAMESPACE DB_NAMESPACES=$NAMESPACE ${OPERATOR_ROOT_PATH}/bin/manager -metrics-bind-address :0 -health-probe-bind-address :0 -disable-webhook-server=true
-    background: false
+    background: true
     skipLogOutput: false
