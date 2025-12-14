@@ -8,6 +8,10 @@ on:
         type: string
         required: true
 
+concurrency:
+  group: eks-e2e-tests
+  cancel-in-progress: false
+
 env:
   GONOPROXY: 'github.com/percona'
   GONOSUMDB: 'github.com/percona'
@@ -18,7 +22,6 @@ jobs:
   e2e-eks-tests:
     name: test
     timeout-minutes: 80
-    concurrency: eks-e2e-tests
     strategy:
       fail-fast: true
     runs-on: ubuntu-latest
