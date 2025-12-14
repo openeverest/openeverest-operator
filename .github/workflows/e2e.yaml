@@ -85,6 +85,7 @@ jobs:
           make test-e2e-operator-upgrade
 
       - name: Clean up custom resources
+        continue-on-error: true
         # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
         timeout-minutes: 10
         run: |
@@ -99,6 +100,7 @@ jobs:
           make test-e2e-core
 
       - name: Clean up custom resources
+        continue-on-error: true
         # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
         timeout-minutes: 10
         run: |
@@ -113,6 +115,7 @@ jobs:
           make test-e2e-engine-features
 
       - name: Clean up custom resources
+        continue-on-error: true
         # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
         timeout-minutes: 10
         run: |
@@ -127,6 +130,7 @@ jobs:
           make test-e2e-db-upgrade
 
       - name: Clean up custom resources
+        continue-on-error: true
         # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
         timeout-minutes: 10
         run: |
@@ -141,6 +145,7 @@ jobs:
           make test-e2e-resize-storage
 
       - name: Clean up custom resources
+        continue-on-error: true
         # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
         timeout-minutes: 10
         run: |
