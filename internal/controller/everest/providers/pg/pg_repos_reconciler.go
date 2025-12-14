@@ -402,7 +402,7 @@ func (p *pgReposReconciler) pgBackRestIniBytes() ([]byte, error) {
 	return pgBackrestSecretBuf.Bytes(), nil
 }
 
-func (p *pgReposReconciler) addDefaultRepo(engineStorage everestv1alpha1.Storage, pvcRequired bool) ([]crunchyv1beta1.PGBackRestRepo, error) {
+func (p *pgReposReconciler) addDefaultRepo(engineStorage everestv1alpha1.Storage, pvcRequired bool, dbState everestv1alpha1.AppState) ([]crunchyv1beta1.PGBackRestRepo, error) {
 	var newRepos []crunchyv1beta1.PGBackRestRepo
 
 	// The PG operator requires a repo to be set up in order to create
@@ -411,7 +411,9 @@ func (p *pgReposReconciler) addDefaultRepo(engineStorage everestv1alpha1.Storage
 	// repos. Moreover, we need to keep this repo in the list even if the user
 	// defines a cloud-based repo because the PG operator will restart the
 	// cluster if the only repo in the list is changed.
-	if pvcRequired {
+	// We also need to add the pvc repo if import is progressing to avoid the pg operator panic
+	// when there is no repos and the backups are disabled
+	if pvcRequired || dbState == everestv1alpha1.AppStateImporting {
 		newRepos = []crunchyv1beta1.PGBackRestRepo{
 			{
 				Name: "repo1",
