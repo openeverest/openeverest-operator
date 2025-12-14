@@ -3,6 +3,11 @@ name: E2E
 on:
   pull_request:
     types: [opened, synchronize, reopened, labeled, unlabeled]
+
+concurrency:
+  group: eks-e2e-tests
+  cancel-in-progress: true
+
 env:
   TOOLS_PATH: "/opt/tools/bin"
   GONOPROXY: 'github.com/percona'

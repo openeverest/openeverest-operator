@@ -8,10 +8,6 @@ on:
         type: string
         required: true
 
-concurrency:
-  group: eks-e2e-tests
-  cancel-in-progress: false
-
 env:
   TOOLS_PATH: "/opt/tools/bin"
   GONOPROXY: 'github.com/percona'
