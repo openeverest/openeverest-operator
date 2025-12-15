@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Enable /mnt (big volume) to be used by runner
         run: |
-          sudo chown -v runner:runner /mnt
+          sudo chown -vR runner:runner /mnt
 
       - name: Check out
         uses: actions/checkout@v5
