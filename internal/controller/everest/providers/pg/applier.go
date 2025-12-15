@@ -1083,7 +1083,7 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 		Enabled: pointer.ToBool(false),
 	}
 
-	isPVCRequired := checkPVCRequired(engine.Status.OperatorVersion, p.currentPGSpec.CRVersion)
+	isPVCRequired := checkPVCRequired(oldBackups.PGBackRest.Repos, engine.Status.OperatorVersion)
 
 	if newBackups.PGBackRest.Manual == nil && isPVCRequired {
 		// This field is required by the operator, but it doesn't impact
@@ -1175,12 +1175,16 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 	return newBackups, nil
 }
 
-// Keep the PVC storage if pg operator or CR version less than 2.8.0 is used
-func checkPVCRequired(operatorVersion, crVersion string) bool {
-	if operatorV, err := semver.NewVersion(operatorVersion); err == nil {
-		if crV, err := semver.NewVersion(crVersion); err == nil {
-			return operatorV.LessThan(semver.MustParse("2.8.0")) || crV.LessThan(semver.MustParse("2.8.0"))
+// Keep the PVC storage only if it was defined before or if PG less than 2.7.0 is used
+func checkPVCRequired(repos []crunchyv1beta1.PGBackRestRepo, v string) bool {
+	for _, repo := range repos {
+		if repo.Volume != nil {
+			return true
 		}
+	}
+
+	if version, err := semver.NewVersion(v); err == nil {
+		return version.LessThan(semver.MustParse("2.8.0"))
 	}
 
 	return false
@@ -1267,7 +1271,7 @@ func reconcilePGBackRestRepos(
 			errors.Join(err, errors.New("failed to add new backup schedules"))
 	}
 
-	newRepos, err := reposReconciler.addDefaultRepo(engineStorage, pvcRequired, db.Status.Status)
+	newRepos, err := reposReconciler.addDefaultRepo(engineStorage, pvcRequired)
 	if err != nil {
 		return []crunchyv1beta1.PGBackRestRepo{}, map[string]string{}, []byte{}, err
 	}
