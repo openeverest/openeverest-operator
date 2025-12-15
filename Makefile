@@ -170,7 +170,7 @@ test-integration-operator-upgrade: docker-build k3d-upload-image ## Run operator
 
 .PHONY: test-e2e-core
 test-e2e-core: docker-build k3d-upload-image ## Run e2e/core tests
-	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-core.yaml
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-core.yaml --test pxc
 
 .PHONY: test-e2e-db-upgrade
 test-e2e-db-upgrade: build ## Run e2e/db-upgrade tests
