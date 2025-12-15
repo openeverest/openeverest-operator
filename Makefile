@@ -152,7 +152,7 @@ prepare-pr: manifests generate static-check format build ## Prepare the code for
 .PHONY: test
 #test: $(LOCALBIN) manifests generate format setup-envtest ## Run unit tests.
 
-KUBECONFIG := $(CWD)/test/kubeconfig
+KUBECONFIG ?= $(CWD)/test/kubeconfig
 test: $(LOCALBIN) manifests generate format ## Run unit tests. Call `make k3d-cluster-up` beforehand to create a K8S cluster for tests that require it.
 	#KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
 	#KUBECONFIG=$(KUBECONFIG) go test ./... -coverprofile cover.out
