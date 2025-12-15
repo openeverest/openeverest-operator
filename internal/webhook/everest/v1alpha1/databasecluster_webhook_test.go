@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	apiSchema "k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -41,12 +40,12 @@ import (
 )
 
 const (
-	dbName         = "db-test"
-	dbNamespace    = "default"
-	userSecretName = "user-secret"
-	psmdbDbVersion = "7.0.15-9"
-	pgDbVersion    = "17.1"
-	pxcDbVersion   = "8.0.42-33.1"
+	dbcTestDbName         = "db-test"
+	dbcTestDbNamespace    = "default"
+	dbcTestUserSecretName = "user-secret"
+	dbcTestPsmdbDbVersion = "7.0.15-9"
+	dbcTestPgDbVersion    = "17.1"
+	dbcTestPxcDbVersion   = "8.0.42-33.1"
 )
 
 func TestCheckJSONKeyExists(t *testing.T) {
@@ -102,165 +101,13 @@ func TestCheckJSONKeyExists(t *testing.T) {
 	}
 }
 
-func TestDatabaseClusterDefaulter(t *testing.T) {
-	t.Parallel()
-
-	const (
-		secretName    = "s3-creds"
-		testAccessKey = "ZmFrZUFjY2Vzc0tleQ==" // base64 for "fakeAccessKey"
-		testSecretKey = "ZmFrZVNlY3JldEtleQ==" //nolint:gosec // base64 for "fakeSecretKey"
-	)
-
-	apiObjects := []ctrlclient.Object{
-		&everestv1alpha1.DatabaseEngine{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      consts.PSMDBDeploymentName,
-				Namespace: dbNamespace,
-			},
-			Spec: everestv1alpha1.DatabaseEngineSpec{
-				Type: everestv1alpha1.DatabaseEnginePSMDB,
-			},
-			Status: everestv1alpha1.DatabaseEngineStatus{
-				AvailableVersions: everestv1alpha1.Versions{
-					Engine: everestv1alpha1.ComponentsMap{
-						psmdbDbVersion: {
-							Status: everestv1alpha1.DBEngineComponentRecommended,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	type testCase struct {
-		name       string
-		objects    []ctrlclient.Object
-		dbToCreate *everestv1alpha1.DatabaseCluster
-		validate   func(*testing.T, ctrlclient.Client, *everestv1alpha1.DatabaseCluster)
-		wantError  error
-	}
-
-	testCases := []testCase{
-		// DB Engine Type
-		{
-			name: "unsupported DBEngine type",
-			dbToCreate: &everestv1alpha1.DatabaseCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
-				},
-				Spec: everestv1alpha1.DatabaseClusterSpec{
-					Engine: everestv1alpha1.Engine{
-						Type:    "unknown_type",
-						Version: psmdbDbVersion,
-					},
-				},
-			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				field.NotSupported(engineTypePath, "unknown_type", []everestv1alpha1.EngineType{everestv1alpha1.DatabaseEnginePSMDB}),
-			}),
-		},
-		{
-			name: "not installed in namespace DBEngine type",
-			dbToCreate: &everestv1alpha1.DatabaseCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
-				},
-				Spec: everestv1alpha1.DatabaseClusterSpec{
-					Engine: everestv1alpha1.Engine{
-						Type:    everestv1alpha1.DatabaseEnginePXC,
-						Version: psmdbDbVersion,
-					},
-				},
-			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				field.NotSupported(engineTypePath, everestv1alpha1.DatabaseEnginePXC, []everestv1alpha1.EngineType{everestv1alpha1.DatabaseEnginePSMDB}),
-			}),
-		},
-		// DataImporter
-		{
-			name: "move DataImporter sensitive data to Secret",
-			dbToCreate: &everestv1alpha1.DatabaseCluster{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
-				},
-				Spec: everestv1alpha1.DatabaseClusterSpec{
-					Engine: everestv1alpha1.Engine{
-						Type:    everestv1alpha1.DatabaseEnginePSMDB,
-						Version: psmdbDbVersion,
-					},
-					DataSource: &everestv1alpha1.DataSource{
-						DataImport: &everestv1alpha1.DataImportJobTemplate{
-							DataImporterName: "importer",
-							Source: &everestv1alpha1.DataImportJobSource{
-								S3: &everestv1alpha1.DataImportJobS3Source{
-									Bucket:                "bucket",
-									Region:                "region",
-									EndpointURL:           "https://s3.example.com",
-									CredentialsSecretName: secretName,
-									AccessKeyID:           testAccessKey,
-									SecretAccessKey:       testSecretKey,
-								},
-							},
-						},
-					},
-				},
-			},
-			validate: func(t *testing.T, c ctrlclient.Client, db *everestv1alpha1.DatabaseCluster) {
-				t.Helper()
-
-				// Check that the credentials are removed from the spec
-				assert.Empty(t, db.Spec.DataSource.DataImport.Source.S3.AccessKeyID)
-				assert.Empty(t, db.Spec.DataSource.DataImport.Source.S3.SecretAccessKey)
-
-				// Check that the secret was created and contains the expected data
-				secret := &corev1.Secret{}
-				err := c.Get(t.Context(), types.NamespacedName{Namespace: dbNamespace, Name: secretName}, secret)
-				require.NoError(t, err)
-				assert.Equal(t, testAccessKey, string(secret.Data[accessKeyIDSecretKey]))
-				assert.Equal(t, testSecretKey, string(secret.Data[secretAccessKeySecretKey]))
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			scheme := runtime.NewScheme()
-			utilruntime.Must(corev1.AddToScheme(scheme))
-			utilruntime.Must(everestv1alpha1.AddToScheme(scheme))
-
-			fakeClient := fakeclient.NewClientBuilder().
-				WithScheme(scheme).
-				WithObjects(apiObjects...).
-				WithObjects(tc.objects...).
-				Build()
-			defaulter := &DatabaseClusterDefaulter{Client: fakeClient}
-
-			err := defaulter.Default(t.Context(), tc.dbToCreate)
-			if tc.wantError == nil {
-				require.NoError(t, err)
-			} else {
-				assert.Equal(t, tc.wantError.Error(), err.Error())
-			}
-
-			if tc.validate != nil {
-				tc.validate(t, fakeClient, tc.dbToCreate)
-			}
-		})
-	}
-}
-
 func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:maintidx
 	t.Parallel()
 
 	userSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      userSecretName,
-			Namespace: dbNamespace,
+			Name:      dbcTestUserSecretName,
+			Namespace: dbcTestDbNamespace,
 		},
 	}
 	// Minimal OpenAPI schema for config with a required string field "foo"
@@ -292,7 +139,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 		&everestv1alpha1.DatabaseEngine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      consts.PSMDBDeploymentName,
-				Namespace: dbNamespace,
+				Namespace: dbcTestDbNamespace,
 			},
 			Spec: everestv1alpha1.DatabaseEngineSpec{
 				Type: everestv1alpha1.DatabaseEnginePSMDB,
@@ -300,7 +147,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 			Status: everestv1alpha1.DatabaseEngineStatus{
 				AvailableVersions: everestv1alpha1.Versions{
 					Engine: everestv1alpha1.ComponentsMap{
-						psmdbDbVersion: {
+						dbcTestPsmdbDbVersion: {
 							Status: everestv1alpha1.DBEngineComponentRecommended,
 						},
 					},
@@ -310,7 +157,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 		&everestv1alpha1.DatabaseEngine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      consts.PGDeploymentName,
-				Namespace: dbNamespace,
+				Namespace: dbcTestDbNamespace,
 			},
 			Spec: everestv1alpha1.DatabaseEngineSpec{
 				Type: everestv1alpha1.DatabaseEnginePostgresql,
@@ -318,7 +165,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 			Status: everestv1alpha1.DatabaseEngineStatus{
 				AvailableVersions: everestv1alpha1.Versions{
 					Engine: everestv1alpha1.ComponentsMap{
-						pgDbVersion: {
+						dbcTestPgDbVersion: {
 							Status: everestv1alpha1.DBEngineComponentRecommended,
 						},
 					},
@@ -328,7 +175,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 		&everestv1alpha1.DatabaseEngine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      consts.PXCDeploymentName,
-				Namespace: dbNamespace,
+				Namespace: dbcTestDbNamespace,
 			},
 			Spec: everestv1alpha1.DatabaseEngineSpec{
 				Type: everestv1alpha1.DatabaseEnginePXC,
@@ -336,7 +183,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 			Status: everestv1alpha1.DatabaseEngineStatus{
 				AvailableVersions: everestv1alpha1.Versions{
 					Engine: everestv1alpha1.ComponentsMap{
-						pxcDbVersion: {
+						dbcTestPxcDbVersion: {
 							Status: everestv1alpha1.DBEngineComponentRecommended,
 						},
 					},
@@ -361,22 +208,22 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePostgresql
 				db.Spec.Engine.Version = "17.100"
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				field.NotSupported(engineVersionPath, "17.100", []string{pgDbVersion}),
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				field.NotSupported(dbcEngineVersionPath, "17.100", []string{dbcTestPgDbVersion}),
 			}),
 		},
 		{
 			name:    "missing user secret",
 			objects: nil,
 			modify: func(db *everestv1alpha1.DatabaseCluster) {
-				db.Spec.Engine.UserSecretsName = userSecretName
+				db.Spec.Engine.UserSecretsName = dbcTestUserSecretName
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errInvalidField(userSecretsNamePath, userSecretName, apierrors.NewNotFound(apiSchema.GroupResource{
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errInvalidField(dbcUserSecretsNamePath, dbcTestUserSecretName, apierrors.NewNotFound(apiSchema.GroupResource{
 					Group:    corev1.SchemeGroupVersion.Group,
 					Resource: "secrets",
 				},
-					userSecretName,
+					dbcTestUserSecretName,
 				).Error()),
 			}),
 		},
@@ -384,7 +231,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 			name:    "present user secret",
 			objects: []ctrlclient.Object{userSecret},
 			modify: func(db *everestv1alpha1.DatabaseCluster) {
-				db.Spec.Engine.UserSecretsName = userSecretName
+				db.Spec.Engine.UserSecretsName = dbcTestUserSecretName
 			},
 			wantError: nil,
 		},
@@ -400,8 +247,8 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 					},
 				}
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errInvalidField(dataImportPath, "importer", apierrors.NewNotFound(apiSchema.GroupResource{
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errInvalidField(dbcDataImportPath, "importer", apierrors.NewNotFound(apiSchema.GroupResource{
 					Group:    everestv1alpha1.GroupVersion.Group,
 					Resource: "dataimporters",
 				},
@@ -421,10 +268,10 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 					},
 				}
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePostgresql
-				db.Spec.Engine.Version = pgDbVersion
+				db.Spec.Engine.Version = dbcTestPgDbVersion
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errInvalidField(dataImportPath, "importer",
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errInvalidField(dbcDataImportPath, "importer",
 					fmt.Sprintf("data importer %s does not support engine type %s", "importer", everestv1alpha1.DatabaseEnginePostgresql)),
 			}),
 		},
@@ -441,7 +288,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 				}
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePSMDB
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
 				errRequiredField(field.NewPath(".spec", "engine", "userSecretsName")),
 			}),
 		},
@@ -457,7 +304,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 					},
 				}
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePSMDB
-				db.Spec.Engine.UserSecretsName = userSecretName
+				db.Spec.Engine.UserSecretsName = dbcTestUserSecretName
 			},
 			wantError: nil,
 		},
@@ -469,8 +316,8 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 				db.Spec.Proxy.Expose.LoadBalancerConfigName = "lbc-test"
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePSMDB
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errInvalidField(proxyExposeLbcPath, "lbc-test", apierrors.NewNotFound(apiSchema.GroupResource{
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errInvalidField(dbcProxyExposeLbcPath, "lbc-test", apierrors.NewNotFound(apiSchema.GroupResource{
 					Group:    everestv1alpha1.GroupVersion.Group,
 					Resource: "loadbalancerconfigs",
 				},
@@ -504,10 +351,10 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 					},
 				}
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePXC
-				db.Spec.Engine.Version = pxcDbVersion
+				db.Spec.Engine.Version = dbcTestPxcDbVersion
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errInvalidField(psmdbShdcEngineFeaturePath, "",
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errInvalidField(dbcPsmdbShdcEngineFeaturePath, "",
 					fmt.Sprintf("PSMDB engine features are not applicable to engine type=%s", everestv1alpha1.DatabaseEnginePXC)),
 			}),
 		},
@@ -521,10 +368,10 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 					},
 				}
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePostgresql
-				db.Spec.Engine.Version = pgDbVersion
+				db.Spec.Engine.Version = dbcTestPgDbVersion
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errInvalidField(psmdbShdcEngineFeaturePath, "",
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errInvalidField(dbcPsmdbShdcEngineFeaturePath, "",
 					fmt.Sprintf("PSMDB engine features are not applicable to engine type=%s", everestv1alpha1.DatabaseEnginePostgresql)),
 			}),
 		},
@@ -540,8 +387,8 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 				}
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePSMDB
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errInvalidField(psmdbShdcEngineFeaturePath, "shdc-test", apierrors.NewNotFound(apiSchema.GroupResource{
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errInvalidField(dbcPsmdbShdcEngineFeaturePath, "shdc-test", apierrors.NewNotFound(apiSchema.GroupResource{
 					Group:    enginefeatureseverestv1alpha1.GroupVersion.Group,
 					Resource: "splithorizondnsconfigs",
 				},
@@ -563,8 +410,8 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 					Enabled: true,
 				}
 			},
-			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				field.Forbidden(psmdbShdcEngineFeaturePath, "SplitHorizonDNSConfig and Sharding configuration is not supported"),
+			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				field.Forbidden(dbcPsmdbShdcEngineFeaturePath, "SplitHorizonDNSConfig and Sharding configuration is not supported"),
 			}),
 		},
 		{
@@ -573,7 +420,7 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 				&enginefeatureseverestv1alpha1.SplitHorizonDNSConfig{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "shdc-test",
-						Namespace: dbNamespace,
+						Namespace: dbcTestDbNamespace,
 					},
 				},
 			},
@@ -600,13 +447,13 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 
 			db := &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePSMDB,
-						Version: psmdbDbVersion,
+						Version: dbcTestPsmdbDbVersion,
 					},
 				},
 			}
@@ -637,7 +484,7 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 		&everestv1alpha1.DatabaseEngine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      consts.PSMDBDeploymentName,
-				Namespace: dbNamespace,
+				Namespace: dbcTestDbNamespace,
 			},
 			Spec: everestv1alpha1.DatabaseEngineSpec{
 				Type: everestv1alpha1.DatabaseEnginePSMDB,
@@ -645,7 +492,7 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 			Status: everestv1alpha1.DatabaseEngineStatus{
 				AvailableVersions: everestv1alpha1.Versions{
 					Engine: everestv1alpha1.ComponentsMap{
-						psmdbDbVersion: {
+						dbcTestPsmdbDbVersion: {
 							Status: everestv1alpha1.DBEngineComponentRecommended,
 						},
 					},
@@ -655,7 +502,7 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 		&everestv1alpha1.DatabaseEngine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      consts.PGDeploymentName,
-				Namespace: dbNamespace,
+				Namespace: dbcTestDbNamespace,
 			},
 			Spec: everestv1alpha1.DatabaseEngineSpec{
 				Type: everestv1alpha1.DatabaseEnginePostgresql,
@@ -663,7 +510,7 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 			Status: everestv1alpha1.DatabaseEngineStatus{
 				AvailableVersions: everestv1alpha1.Versions{
 					Engine: everestv1alpha1.ComponentsMap{
-						pgDbVersion: {
+						dbcTestPgDbVersion: {
 							Status: everestv1alpha1.DBEngineComponentRecommended,
 						},
 					},
@@ -673,7 +520,7 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 		&everestv1alpha1.DatabaseEngine{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      consts.PXCDeploymentName,
-				Namespace: dbNamespace,
+				Namespace: dbcTestDbNamespace,
 			},
 			Spec: everestv1alpha1.DatabaseEngineSpec{
 				Type: everestv1alpha1.DatabaseEnginePXC,
@@ -681,7 +528,7 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 			Status: everestv1alpha1.DatabaseEngineStatus{
 				AvailableVersions: everestv1alpha1.Versions{
 					Engine: everestv1alpha1.ComponentsMap{
-						pxcDbVersion: {
+						dbcTestPxcDbVersion: {
 							Status: everestv1alpha1.DBEngineComponentRecommended,
 						},
 					},
@@ -705,30 +552,30 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 			name: "Change DB engine type from PSMDB to PXC",
 			oldDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePSMDB,
-						Version: psmdbDbVersion,
+						Version: dbcTestPsmdbDbVersion,
 					},
 				},
 			},
 			newDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePXC,
-						Version: pxcDbVersion,
+						Version: dbcTestPxcDbVersion,
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errImmutableField(engineTypePath),
+			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errImmutableField(dbcEngineTypePath),
 			}),
 		},
 
@@ -739,25 +586,25 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 			name: "Enable SplitHorizonDNSConfig PSMDB engine feature for existing cluster",
 			oldDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePSMDB,
-						Version: psmdbDbVersion,
+						Version: dbcTestPsmdbDbVersion,
 					},
 				},
 			},
 			newDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePSMDB,
-						Version: psmdbDbVersion,
+						Version: dbcTestPsmdbDbVersion,
 					},
 					EngineFeatures: &everestv1alpha1.EngineFeatures{
 						PSMDB: &everestv1alpha1.PSMDBEngineFeatures{
@@ -766,21 +613,21 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errImmutableField(psmdbShdcEngineFeaturePath),
+			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errImmutableField(dbcPsmdbShdcEngineFeaturePath),
 			}),
 		},
 		{
 			name: "Disable SplitHorizonDNSConfig PSMDB engine feature for existing cluster",
 			oldDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePSMDB,
-						Version: psmdbDbVersion,
+						Version: dbcTestPsmdbDbVersion,
 					},
 					EngineFeatures: &everestv1alpha1.EngineFeatures{
 						PSMDB: &everestv1alpha1.PSMDBEngineFeatures{
@@ -791,18 +638,18 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 			},
 			newDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePSMDB,
-						Version: psmdbDbVersion,
+						Version: dbcTestPsmdbDbVersion,
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errImmutableField(psmdbShdcEngineFeaturePath),
+			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errImmutableField(dbcPsmdbShdcEngineFeaturePath),
 			}),
 		},
 		// Enable PSMDB engine features with other engine type
@@ -810,25 +657,25 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 			name: "Enable PSMDB engine features for PXC cluster",
 			oldDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePXC,
-						Version: pxcDbVersion,
+						Version: dbcTestPxcDbVersion,
 					},
 				},
 			},
 			newDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePXC,
-						Version: pxcDbVersion,
+						Version: dbcTestPxcDbVersion,
 					},
 					EngineFeatures: &everestv1alpha1.EngineFeatures{
 						PSMDB: &everestv1alpha1.PSMDBEngineFeatures{
@@ -837,8 +684,8 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errInvalidField(psmdbShdcEngineFeaturePath, "",
+			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errInvalidField(dbcPsmdbShdcEngineFeaturePath, "",
 					fmt.Sprintf("PSMDB engine features are not applicable to engine type=%s", everestv1alpha1.DatabaseEnginePXC)),
 			}),
 		},
@@ -846,25 +693,25 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 			name: "Enable PSMDB engine features for Postgresql cluster",
 			oldDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePostgresql,
-						Version: pgDbVersion,
+						Version: dbcTestPgDbVersion,
 					},
 				},
 			},
 			newDb: &everestv1alpha1.DatabaseCluster{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dbName,
-					Namespace: dbNamespace,
+					Name:      dbcTestDbName,
+					Namespace: dbcTestDbNamespace,
 				},
 				Spec: everestv1alpha1.DatabaseClusterSpec{
 					Engine: everestv1alpha1.Engine{
 						Type:    everestv1alpha1.DatabaseEnginePostgresql,
-						Version: pgDbVersion,
+						Version: dbcTestPgDbVersion,
 					},
 					EngineFeatures: &everestv1alpha1.EngineFeatures{
 						PSMDB: &everestv1alpha1.PSMDBEngineFeatures{
@@ -873,8 +720,8 @@ func TestDatabaseClusterValidator_ValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbName, field.ErrorList{
-				errInvalidField(psmdbShdcEngineFeaturePath, "",
+			wantErr: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
+				errInvalidField(dbcPsmdbShdcEngineFeaturePath, "",
 					fmt.Sprintf("PSMDB engine features are not applicable to engine type=%s", everestv1alpha1.DatabaseEnginePostgresql)),
 			}),
 		},

@@ -12,7 +12,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package controllers
+
+package everest
 
 import (
 	"errors"
@@ -23,72 +24,6 @@ import (
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
 )
-
-func TestValidatePitrRestoreSpec(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name string
-		data everestv1alpha1.DatabaseClusterRestoreDataSource
-		err  error
-	}{
-		{
-			name: "empty date",
-			data: everestv1alpha1.DatabaseClusterRestoreDataSource{
-				PITR: &everestv1alpha1.PITR{},
-			},
-			err: errPitrEmptyDate,
-		},
-		{
-			name: "type latest",
-			data: everestv1alpha1.DatabaseClusterRestoreDataSource{
-				PITR: &everestv1alpha1.PITR{
-					Type: "latest",
-				},
-			},
-			err: errPitrTypeLatest,
-		},
-		{
-			name: "type unknown",
-			data: everestv1alpha1.DatabaseClusterRestoreDataSource{
-				PITR: &everestv1alpha1.PITR{
-					Type: "some-type",
-				},
-			},
-			err: errPitrTypeIsNotSupported,
-		},
-		{
-			name: "no error with type",
-			data: everestv1alpha1.DatabaseClusterRestoreDataSource{
-				PITR: &everestv1alpha1.PITR{
-					Type: "date",
-					Date: &everestv1alpha1.RestoreDate{},
-				},
-			},
-			err: nil,
-		},
-		{
-			name: "no error without type",
-			data: everestv1alpha1.DatabaseClusterRestoreDataSource{
-				PITR: &everestv1alpha1.PITR{
-					Date: &everestv1alpha1.RestoreDate{},
-				},
-			},
-			err: nil,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			err := validatePitrRestoreSpec(tc.data)
-			if tc.err == nil {
-				require.NoError(t, err)
-				return
-			}
-			require.Error(t, err)
-			assert.Equal(t, err.Error(), tc.err.Error())
-		})
-	}
-}
 
 func TestGetPGRestoreOptions(t *testing.T) {
 	t.Parallel()

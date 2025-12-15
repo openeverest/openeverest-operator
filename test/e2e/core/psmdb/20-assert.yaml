@@ -7,3 +7,6 @@ timeout: 300
 # The test steps are still declarative so no operation is executed in 04.
 commands:
   - command: kubectl wait --for=jsonpath='{.status.status}'=stopping db/test-psmdb-cluster -n "${NAMESPACE}"
+collectors:
+  - command: kubectl get dbc/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml

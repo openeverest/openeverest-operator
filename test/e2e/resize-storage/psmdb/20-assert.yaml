@@ -1,0 +1,29 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 300
+collectors:
+  - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-cluster
+status:
+  status: resizingVolumes
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: test-psmdb-cluster
+spec:
+  enableVolumeExpansion: true
+  replsets:
+    - name: rs0
+      volumeSpec:
+        persistentVolumeClaim:
+          resources:
+            requests:
+              storage: 25G
+status:
+  state: initializing

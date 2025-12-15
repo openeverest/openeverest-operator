@@ -1,8 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-timeout: 10
-commands:
-  - script: kubectl -n $NAMESPACE delete db single-node --wait=false && sleep 5
-  - command: kubectl patch psmdb single-node -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge
-    ignoreFailure: true
-  - command: kubectl wait --for=delete db single-node --timeout=60s -n $NAMESPACE

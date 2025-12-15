@@ -1,0 +1,56 @@
+---
+name: K3D test
+on:
+  workflow_call:
+    inputs:
+      make_target:
+        description: 'Make target to execute'
+        type: string
+        required: true
+
+env:
+  GONOPROXY: 'github.com/percona'
+  GONOSUMDB: 'github.com/percona'
+  GOPRIVATE: 'github.com/percona'
+
+jobs:
+  e2e-k3d-test:
+    name: test
+    timeout-minutes: 80
+    strategy:
+      fail-fast: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Go release
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Install Kubernetes tools
+        uses: ./.github/actions/install-kubernetes-tools
+        with:
+          install-kubectl: true
+          install-kuttl: true
+          install-k3d: true
+
+      - name: Adjust GitHub worker node
+        uses: ./.github/actions/adjust-github-node
+        with:
+          disable-apparmor: true
+          mount-docker-data: true
+
+      # https://github.com/NixOS/nixpkgs/issues/98766#issuecomment-714757707
+      - name: Create K3D cluster
+        run: |
+          sudo modprobe br_netfilter
+          make k3d-cluster-up
+
+      - name: Run tests
+        run: |
+          make ${{ inputs.make_target }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

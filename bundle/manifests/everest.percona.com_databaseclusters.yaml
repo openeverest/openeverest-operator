@@ -133,7 +133,7 @@ spec:
                     properties:
                       backupStorageName:
                         description: |-
-                          BackupStorageName is the name of the BackupStorage used for backups.
+                          BackupStorageName is the name of the BackupStorage used for storing backups.
                           The BackupStorage must be created in the same namespace as the DatabaseCluster.
                         type: string
                       path:
@@ -365,7 +365,7 @@ spec:
                           Claims lists the names of resources, defined in spec.resourceClaims,
                           that are used by this container.
 
-                          This is an alpha field and requires enabling the
+                          This field depends on the
                           DynamicResourceAllocation feature gate.
 
                           This field is immutable. It can only be set for containers.

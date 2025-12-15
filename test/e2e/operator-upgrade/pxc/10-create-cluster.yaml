@@ -1,0 +1,25 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-pxc-cluster
+spec:
+  engine:
+    type: pxc
+    config: |
+      [mysqld]
+      wsrep_provider_options="debug=1;gcache.size=1G"
+    replicas: 3
+    storage:
+      size: 15Gi
+    resources:
+      cpu: "1"
+      memory: 2G
+  proxy:
+    type: haproxy
+    replicas: 3
+    resources:
+      cpu: "1"
+      memory: 1G

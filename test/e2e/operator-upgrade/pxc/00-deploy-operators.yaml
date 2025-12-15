@@ -1,4 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-commands:
-  - command: kubectl apply -f https://raw.githubusercontent.com/percona/percona-xtradb-cluster-operator/v${PREVIOUS_PXC_OPERATOR_VERSION}/deploy/bundle.yaml -n "${NAMESPACE}"

@@ -1,7 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-timeout: 300
-commands:
-  - script: kubectl -n $NAMESPACE delete db test-pxc-cluster --wait=false && sleep 5
-  - command: kubectl wait --for=delete pxc test-pxc-cluster --timeout=60s -n $NAMESPACE
-  - command: kubectl wait --for=delete db test-pxc-cluster --timeout=60s -n $NAMESPACE

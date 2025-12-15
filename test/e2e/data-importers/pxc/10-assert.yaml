@@ -1,13 +1,9 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 100
+timeout: 300
 collectors:
   - command: kubectl get db/test-pxc-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get pxc/test-pxc-cluster -n ${NAMESPACE} -o yaml
-  - type: pod
-    namespace: everest-system
-    selector: control-plane=controller-manager
-    tail: 100
   - type: pod
     selector: app.kubernetes.io/name=percona-xtradb-cluster-operator
     tail: 100

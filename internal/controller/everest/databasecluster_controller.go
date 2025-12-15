@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package controllers contains a set of controllers for everest
-package controllers
+// Package everest contains a set of controllers for everest
+package everest
 
 import (
 	"context"
@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -47,7 +48,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	enginefeatureseverestv1alpha1 "github.com/percona/everest-operator/api/enginefeatures.everest/v1alpha1"
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
 	"github.com/percona/everest-operator/internal/consts"
 	"github.com/percona/everest-operator/internal/controller/everest/common"
@@ -56,13 +56,13 @@ import (
 	"github.com/percona/everest-operator/internal/controller/everest/providers/psmdb"
 	"github.com/percona/everest-operator/internal/controller/everest/providers/pxc"
 	"github.com/percona/everest-operator/internal/predicates"
-	enginefeaturespredicate "github.com/percona/everest-operator/internal/predicates/enginefeatures"
 )
 
 const (
 	monitoringConfigNameField       = ".spec.monitoring.monitoringConfigName"
 	monitoringConfigSecretNameField = ".spec.credentialsSecretName" //nolint:gosec
 	backupStorageNameField          = ".spec.backup.schedules.backupStorageName"
+	dbClusterBackupNameField        = ".spec.dataSource.dbClusterBackupName"
 	pitrBackupStorageNameField      = ".spec.backup.pitr.backupStorageName"
 	credentialsSecretNameField      = ".spec.credentialsSecretName" //nolint:gosec
 	podSchedulingPolicyNameField    = ".spec.podSchedulingPolicyName"
@@ -255,29 +255,42 @@ func (r *DatabaseClusterReconciler) reconcileDBStatus( //nolint:funcorder
 	p dbProvider,
 ) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
+	namespacedName := client.ObjectKeyFromObject(db)
 
-	status, statusReady, err := p.Status(ctx)
+	dbStatus, statusReady, err := p.Status(ctx)
 	if err != nil {
-		logger.Error(err, "failed to get status")
+		logger.Error(err, fmt.Sprintf("failed to get status for DatabaseCluster='%s'", namespacedName))
 		return ctrl.Result{}, err
 	}
-	db.Status = status
-	db.Status.ObservedGeneration = db.GetGeneration()
 
+	dbStatus.ObservedGeneration = db.GetGeneration()
+	// need to set dbStatus to DB because r.observeDataImportState enriches it.
+	db.Status = dbStatus
 	// if data import is set, we need to observe the state of the data import job.
 	if pointer.Get(db.Spec.DataSource).DataImport != nil {
-		if err := r.observeDataImportState(ctx, db); err != nil {
-			logger.Error(err, "failed to observe data import state")
+		if err = r.observeDataImportState(ctx, db); err != nil {
+			logger.Error(err, fmt.Sprintf("failed to get data import state for DatabaseCluster='%s'", namespacedName))
 			return ctrl.Result{}, err
 		}
 	}
 
-	if err := r.Client.Status().Update(ctx, db); err != nil {
-		logger.Error(err, "failed to update status")
-		return ctrl.Result{}, err
+	// make a copy to use later in the update
+	dbStatus = db.Status
+
+	if updErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		if cErr := r.Get(ctx, namespacedName, db); cErr != nil {
+			return cErr
+		}
+
+		db.Status = dbStatus
+
+		return r.Client.Status().Update(ctx, db)
+	}); client.IgnoreNotFound(updErr) != nil {
+		return ctrl.Result{}, updErr
 	}
+
 	// DB is not ready, check again soon.
-	if status.Status != everestv1alpha1.AppStateReady || !statusReady {
+	if dbStatus.Status != everestv1alpha1.AppStateReady || !statusReady {
 		return ctrl.Result{RequeueAfter: defaultRequeueAfter}, nil
 	}
 
@@ -720,6 +733,21 @@ func (r *DatabaseClusterReconciler) initIndexers(ctx context.Context, mgr ctrl.M
 		return err
 	}
 
+	err = mgr.GetFieldIndexer().IndexField(
+		ctx, &everestv1alpha1.DatabaseCluster{}, dbClusterBackupNameField,
+		func(rawObj client.Object) []string {
+			var res []string
+			db, ok := rawObj.(*everestv1alpha1.DatabaseCluster)
+			if !ok {
+				return res
+			}
+			if pointer.Get(db.Spec.DataSource).DBClusterBackupName != "" {
+				res = append(res, db.Spec.DataSource.DBClusterBackupName)
+			}
+			return res
+		},
+	)
+
 	return err
 }
 
@@ -902,36 +930,6 @@ func (r *DatabaseClusterReconciler) initWatchers(controller *builder.Builder, de
 		builder.WithPredicates(predicate.GenerationChangedPredicate{},
 			predicates.GetLoadBalancerConfigPredicate()),
 		// defaultPredicate is not needed here since LoadBalancerConfig doesn't belong to any namespace.
-	)
-	controller.Watches(
-		&enginefeatureseverestv1alpha1.SplitHorizonDNSConfig{},
-		handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-			shdc, ok := obj.(*enginefeatureseverestv1alpha1.SplitHorizonDNSConfig)
-			if !ok {
-				return []reconcile.Request{}
-			}
-
-			attachedDatabaseClusters, err := common.DatabaseClustersThatReferenceObject(ctx, r.Client,
-				SplitHorizonDNSConfigNameField, shdc.GetNamespace(), shdc.GetName())
-			if err != nil {
-				return []reconcile.Request{}
-			}
-
-			requests := make([]reconcile.Request, len(attachedDatabaseClusters.Items))
-			for i, item := range attachedDatabaseClusters.Items {
-				requests[i] = reconcile.Request{
-					NamespacedName: types.NamespacedName{
-						Name:      item.GetName(),
-						Namespace: item.GetNamespace(),
-					},
-				}
-			}
-
-			return requests
-		}),
-		builder.WithPredicates(enginefeaturespredicate.GetSplitHorizonDNSConfigPredicate(),
-			predicate.GenerationChangedPredicate{},
-			defaultPredicate),
 	)
 
 	// In PG reconciliation we create a backup credentials secret because the

@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package v1alpha1 ...
+//
 //nolint:lll
 package v1alpha1
 
@@ -42,44 +44,27 @@ import (
 )
 
 var (
-	// .spec.
-	specPath = field.NewPath("spec")
-
 	// .spec.engine.
-	enginePath          = specPath.Child("engine")
-	engineTypePath      = enginePath.Child("type")
-	engineVersionPath   = enginePath.Child("version")
-	userSecretsNamePath = enginePath.Child("userSecretsName")
+	dbcEnginePath          = specPath.Child("engine")
+	dbcEngineTypePath      = dbcEnginePath.Child("type")
+	dbcEngineVersionPath   = dbcEnginePath.Child("version")
+	dbcUserSecretsNamePath = dbcEnginePath.Child("userSecretsName")
 
 	// .spec.engine.DataSource.
-	dataSourcePath = specPath.Child("dataSource")
-	dataImportPath = dataSourcePath.Child("dataImport")
+	dbcDataSourcePath = specPath.Child("dataSource")
+	dbcDataImportPath = dbcDataSourcePath.Child("dataImport")
 
 	// .spec.proxy.
-	proxyPath          = specPath.Child("proxy")
-	proxyExposePath    = proxyPath.Child("expose")
-	proxyExposeLbcPath = proxyExposePath.Child("loadBalancerConfigName")
+	dbcProxyPath          = specPath.Child("proxy")
+	dbcProxyExposePath    = dbcProxyPath.Child("expose")
+	dbcProxyExposeLbcPath = dbcProxyExposePath.Child("loadBalancerConfigName")
 
 	// .spec.engineFeatures.
-	engineFeaturesPath = specPath.Child("engineFeatures")
+	dbcEngineFeaturesPath = specPath.Child("engineFeatures")
 
 	// .spec.engineFeatures.psmdb.
-	psmdbEngineFeaturesPath    = engineFeaturesPath.Child("psmdb")
-	psmdbShdcEngineFeaturePath = psmdbEngineFeaturesPath.Child("splitHorizonDnsConfigName")
-
-	// Immutable field error generator.
-	errImmutableField = func(fieldPath *field.Path) *field.Error {
-		return field.Forbidden(fieldPath, "is immutable and cannot be changed")
-	}
-	// Required field error generator.
-	errRequiredField = func(fieldPath *field.Path) *field.Error {
-		return field.Required(fieldPath, "can not be empty")
-	}
-
-	// Invalid field value error generator.
-	errInvalidField = func(fieldPath *field.Path, fieldValue, errMsg string) *field.Error {
-		return field.Invalid(fieldPath, fieldValue, errMsg)
-	}
+	dbcPsmdbEngineFeaturesPath    = dbcEngineFeaturesPath.Child("psmdb")
+	dbcPsmdbShdcEngineFeaturePath = dbcPsmdbEngineFeaturesPath.Child("splitHorizonDnsConfigName")
 )
 
 var dbClusterGroupKind = everestv1alpha1.GroupVersion.WithKind(consts.DatabaseClusterKind).GroupKind()
@@ -133,7 +118,7 @@ func (v *DatabaseClusterValidator) ValidateCreate(ctx context.Context, obj runti
 			Name:      userSecretsName,
 			Namespace: db.GetNamespace(),
 		}, &secret); err != nil {
-			allErrs = append(allErrs, errInvalidField(userSecretsNamePath, userSecretsName, err.Error()))
+			allErrs = append(allErrs, errInvalidField(dbcUserSecretsNamePath, userSecretsName, err.Error()))
 		}
 	}
 
@@ -182,7 +167,7 @@ func (v *DatabaseClusterValidator) ValidateUpdate(ctx context.Context, oldObj, n
 	// Validate the engine type immutability
 	if oldDb.Spec.Engine.Type != newDb.Spec.Engine.Type {
 		return nil, apierrors.NewInvalid(dbClusterGroupKind, oldDb.GetName(), field.ErrorList{
-			errImmutableField(engineTypePath),
+			errImmutableField(dbcEngineTypePath),
 		})
 	}
 
@@ -228,13 +213,13 @@ func (v *DatabaseClusterValidator) validateDataImport(
 	if err := v.Client.Get(ctx, types.NamespacedName{
 		Name: dataImport.DataImporterName,
 	}, dataimporter); err != nil {
-		return append(allErrs, errInvalidField(dataImportPath, dataImport.DataImporterName, err.Error()))
+		return append(allErrs, errInvalidField(dbcDataImportPath, dataImport.DataImporterName, err.Error()))
 	}
 
 	// Validate that the DataImporter supports the specified engine.
 	engineType := db.Spec.Engine.Type
 	if !dataimporter.Spec.SupportedEngines.Has(engineType) {
-		return append(allErrs, errInvalidField(dataImportPath, dataImport.DataImporterName,
+		return append(allErrs, errInvalidField(dbcDataImportPath, dataImport.DataImporterName,
 			fmt.Sprintf("data importer %s does not support engine type %s", dataImport.DataImporterName, engineType)))
 	}
 
@@ -246,7 +231,7 @@ func (v *DatabaseClusterValidator) validateDataImport(
 
 	// Validate the params against the schema of the DataImporter
 	if err := dataimporter.Spec.Config.Validate(dataImport.Config); err != nil {
-		return append(allErrs, errInvalidField(dataImportPath, dataImport.DataImporterName, err.Error()))
+		return append(allErrs, errInvalidField(dbcDataImportPath, dataImport.DataImporterName, err.Error()))
 	}
 
 	return nil
@@ -311,12 +296,12 @@ func (v *DatabaseClusterValidator) validateEngineVersion(ctx context.Context, db
 
 	// Get the DatabaseEngine
 	if engine, err := common.GetDatabaseEngineForType(ctx, v.Client, db.Spec.Engine.Type, db.GetNamespace()); err != nil {
-		allErrs = append(allErrs, errInvalidField(engineTypePath, string(db.Spec.Engine.Type), err.Error()))
+		allErrs = append(allErrs, errInvalidField(dbcEngineTypePath, string(db.Spec.Engine.Type), err.Error()))
 	} else {
 		// Check if the engine version is available
 		if _, ok := engine.Status.AvailableVersions.Engine[db.Spec.Engine.Version]; !ok {
 			allErrs = append(allErrs,
-				field.NotSupported(engineVersionPath, db.Spec.Engine.Version, engine.Status.AvailableVersions.Engine.GetAllowedVersionsSorted()))
+				field.NotSupported(dbcEngineVersionPath, db.Spec.Engine.Version, engine.Status.AvailableVersions.Engine.GetAllowedVersionsSorted()))
 		}
 	}
 
@@ -339,7 +324,7 @@ func (v *DatabaseClusterValidator) validateLoadBalancerConfig(ctx context.Contex
 		Name: lbcName,
 	}, &lbc)
 	if err != nil {
-		return append(allErrs, errInvalidField(proxyExposeLbcPath, lbcName, err.Error()))
+		return append(allErrs, errInvalidField(dbcProxyExposeLbcPath, lbcName, err.Error()))
 	}
 
 	return nil
@@ -378,7 +363,7 @@ func (v *DatabaseClusterValidator) validatePxcEngineFeaturesOnCreate(_ context.C
 	// We do not support engine features for PXC yet.
 	// Check that DB spec doesn't contain engine features related to the other db engines.
 	if pointer.Get(dbObj.Spec.EngineFeatures).PSMDB != nil {
-		return append(allErrs, errInvalidField(psmdbShdcEngineFeaturePath, "",
+		return append(allErrs, errInvalidField(dbcPsmdbShdcEngineFeaturePath, "",
 			fmt.Sprintf("PSMDB engine features are not applicable to engine type=%s", everestv1alpha1.DatabaseEnginePXC)))
 	}
 
@@ -391,7 +376,7 @@ func (v *DatabaseClusterValidator) validatePostgresqlEngineFeaturesOnCreate(_ co
 	// We do not support engine features for PXC yet.
 	// Check that DB spec doesn't contain engine features related to the other db engines.
 	if pointer.Get(dbObj.Spec.EngineFeatures).PSMDB != nil {
-		return append(allErrs, errInvalidField(psmdbShdcEngineFeaturePath, "",
+		return append(allErrs, errInvalidField(dbcPsmdbShdcEngineFeaturePath, "",
 			fmt.Sprintf("PSMDB engine features are not applicable to engine type=%s", everestv1alpha1.DatabaseEnginePostgresql)))
 	}
 
@@ -407,7 +392,7 @@ func (v *DatabaseClusterValidator) validatePsmdbEngineFeaturesOnCreate(ctx conte
 	if psmdbEF.SplitHorizonDNSConfigName != "" {
 		// For the time being SplitHorizonDNSConfig is not supported in sharded clusters.
 		if pointer.Get(dbObj.Spec.Sharding).Enabled {
-			return append(allErrs, field.Forbidden(psmdbShdcEngineFeaturePath, "SplitHorizonDNSConfig and Sharding configuration is not supported"))
+			return append(allErrs, field.Forbidden(dbcPsmdbShdcEngineFeaturePath, "SplitHorizonDNSConfig and Sharding configuration is not supported"))
 		}
 
 		shdc := enginefeatureseverestv1alpha1.SplitHorizonDNSConfig{}
@@ -416,7 +401,7 @@ func (v *DatabaseClusterValidator) validatePsmdbEngineFeaturesOnCreate(ctx conte
 			Namespace: dbObj.GetNamespace(),
 		}, &shdc)
 		if err != nil {
-			return append(allErrs, errInvalidField(psmdbShdcEngineFeaturePath, psmdbEF.SplitHorizonDNSConfigName, err.Error()))
+			return append(allErrs, errInvalidField(dbcPsmdbShdcEngineFeaturePath, psmdbEF.SplitHorizonDNSConfigName, err.Error()))
 		}
 	}
 
@@ -467,7 +452,7 @@ func (v *DatabaseClusterValidator) validatePxcEngineFeaturesOnUpdate(_ context.C
 	// We do not support engine features for PXC yet.
 	// Check that DB spec doesn't contain engine features related to the other db engines.
 	if pointer.Get(newDb.Spec.EngineFeatures).PSMDB != nil {
-		return append(allErrs, errInvalidField(psmdbShdcEngineFeaturePath, "",
+		return append(allErrs, errInvalidField(dbcPsmdbShdcEngineFeaturePath, "",
 			fmt.Sprintf("PSMDB engine features are not applicable to engine type=%s", everestv1alpha1.DatabaseEnginePXC)))
 	}
 
@@ -480,7 +465,7 @@ func (v *DatabaseClusterValidator) validatePostgresqlEngineFeaturesOnUpdate(_ co
 	// We do not support engine features for PXC yet.
 	// Check that DB spec doesn't contain engine features related to the other db engines.
 	if pointer.Get(newDb.Spec.EngineFeatures).PSMDB != nil {
-		return append(allErrs, errInvalidField(psmdbShdcEngineFeaturePath, "",
+		return append(allErrs, errInvalidField(dbcPsmdbShdcEngineFeaturePath, "",
 			fmt.Sprintf("PSMDB engine features are not applicable to engine type=%s", everestv1alpha1.DatabaseEnginePostgresql)))
 	}
 
@@ -497,7 +482,7 @@ func (v *DatabaseClusterValidator) validatePsmdbEngineFeaturesOnUpdate(_ context
 	if oldPsmdbEF.SplitHorizonDNSConfigName != newPsmdbEF.SplitHorizonDNSConfigName {
 		// NOTE: for the time being we do not allow to disable/enable/change SplitHorizonDNSConfig for already existing clusters.
 		// This feature can be enabled during cluster creation only.
-		allErrs = append(allErrs, errImmutableField(psmdbShdcEngineFeaturePath))
+		allErrs = append(allErrs, errImmutableField(dbcPsmdbShdcEngineFeaturePath))
 	}
 
 	// TODO: validate the rest of PSMDB engine features later.

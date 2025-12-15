@@ -26,6 +26,10 @@ resourceRefs:
     ref: db
   - apiVersion: everest.percona.com/v1alpha1
     kind: DatabaseClusterBackup
+    name: test-scheduled-backup-1
+    ref: dbb1_s3
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseClusterBackup
     name: test-scheduled-backup-2
     ref: dbb2_s3
   - apiVersion: everest.percona.com/v1alpha1
@@ -42,6 +46,9 @@ assertAll:
   - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
     message: "foregroundDeletion' is absent in db.metadata.finalizers"
 
+  - celExpr: "!('everest.percona.com/in-use-protection' in dbb1_s3.metadata.finalizers)"
+    message: "'everest.percona.com/in-use-protection' present in dbb1_s3.metadata.finalizers"
+
   - celExpr: "has(dbb2_s3.metadata.finalizers)"
     message: "dbb2_s3 doesn't have finalizers"
 
@@ -56,6 +63,9 @@ assertAll:
 
   - celExpr: "!has(dbb2_s3.status.completed)"
     message: "dbb2_s3 has unexpected status.completed field"
+
+  - celExpr: "'everest.percona.com/in-use-protection' in dbb2_s3.metadata.finalizers"
+    message: "'everest.percona.com/in-use-protection' absent in dbb2_s3.metadata.finalizers"
 
   - celExpr: "has(bs_s3.metadata.finalizers)"
     message: "bs_s3 doesn't have finalizers"
@@ -129,6 +139,7 @@ spec:
   dbClusterName: test-pg-cluster
 status:
   state: Succeeded
+  inUse: false
 ---
 apiVersion: pgv2.percona.com/v2
 kind: PerconaPGBackup
@@ -160,6 +171,8 @@ metadata:
 spec:
   backupStorageName: test-storage-s3
   dbClusterName: test-pg-cluster
+status:
+  inUse: true
 ---
 apiVersion: pgv2.percona.com/v2
 kind: PerconaPGBackup
