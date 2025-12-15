@@ -164,9 +164,8 @@ jobs:
   e2e-data-importer-tests-flows:
     name: Data importer tests
     needs: e2e-core-tests-flows
-    if: |
-      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-data-importer')
+    if: ${{ always() && (contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-data-importer')) }}
     strategy:
       fail-fast: false
       matrix:
