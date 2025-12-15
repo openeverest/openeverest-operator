@@ -224,7 +224,7 @@ k3d-upload-image:
 # Cleanup all resources created by the tests
 .PHONY: cluster-cleanup
 cluster-cleanup:
-	kubectl delete db --all-namespaces --all --cascade=foreground --ignore-not-found=true || true
+	kubectl delete db --all-namespaces --all --cascade=foreground --ignore-not-found=true --wait=false || true
 	@namespaces=$$(kubectl get pxc -A -o jsonpath='{.items[*].metadata.namespace}'); \
 	for ns in $$namespaces; do \
 		kubectl -n $$ns get pxc -o name | xargs --no-run-if-empty -I{} kubectl patch -n $$ns {} -p '{"metadata":{"finalizers":null}}' --type=merge; \

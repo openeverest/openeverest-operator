@@ -22,5 +22,5 @@ spec:
     type: haproxy
     replicas: 1
     resources:
-      cpu: 600m
-      memory: 600M
+      cpu: "1"
+      memory: 1G
