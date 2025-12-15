@@ -4,7 +4,7 @@ crdDir: config/crd/bases
 artifactsDir: /tmp/
 parallel: 1
 timeout: 180
-skipDelete: false
+skipDelete: true
 skipClusterDelete: true
 commands:
   - command: kubectl wait --for condition=established --timeout=10s crd databaseclusters.everest.percona.com

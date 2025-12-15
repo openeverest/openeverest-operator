@@ -4,7 +4,7 @@ artifactsDir: /tmp/
 parallel: 1
 timeout: 180
 startKIND: false
-skipDelete: false
+skipDelete: true
 skipClusterDelete: true
 commands:
   # Deploy Everest Operator into K8S cluster

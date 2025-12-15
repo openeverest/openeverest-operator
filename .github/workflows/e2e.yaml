@@ -70,9 +70,8 @@ jobs:
   e2e-eks-tests:
     name: EKS tests
     if: |
-      contains(github.event.pull_request.labels.*.name, 'test/never')
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#      contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
+      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
     timeout-minutes: 80
     concurrency: eks-e2e-tests
     strategy:

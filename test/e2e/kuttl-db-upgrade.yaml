@@ -1,15 +1,18 @@
 apiVersion: kuttl.dev/v1
 kind: TestSuite
-crdDir: config/crd/bases
 artifactsDir: /tmp/
 parallel: 1
 timeout: 180
 startKIND: false
-skipDelete: false
+skipDelete: true
 skipClusterDelete: true
 commands:
+  # Deploy Everest Operator into K8S cluster
+  - command: make -f ${OPERATOR_ROOT_PATH}/Makefile deploy-test
   - command: kubectl wait --for condition=established --timeout=10s crd databaseclusters.everest.percona.com
   - command: kubectl wait --for condition=established --timeout=10s crd vmagents.operator.victoriametrics.com
+  # Wait for Everest Operator to be ready.
+  - command: kubectl wait --for condition=available --timeout=30s deploy/everest-controller-manager -n everest-system
 testDirs:
   - test/e2e/db-upgrade
 manifestDirs:

@@ -173,11 +173,11 @@ test-e2e-core: docker-build k3d-upload-image ## Run e2e/core tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-core.yaml --test pxc
 
 .PHONY: test-e2e-db-upgrade
-test-e2e-db-upgrade: build ## Run e2e/db-upgrade tests
+test-e2e-db-upgrade: docker-build k3d-upload-image ## Run e2e/db-upgrade tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-db-upgrade.yaml
 
 .PHONY: test-e2e-operator-upgrade
-test-e2e-operator-upgrade: build ## Run e2e/operator-upgrade tests
+test-e2e-operator-upgrade: docker-build k3d-upload-image ## Run e2e/operator-upgrade tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-operator-upgrade.yaml
 
 .PHONY: test-e2e-resize-storage
@@ -185,23 +185,23 @@ test-e2e-resize-storage: build ## Run e2e/resize-storage tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-resize-storage.yaml
 
 .PHONY: test-e2e-data-importer
-test-e2e-data-importer: build ## Run e2e/data-importer tests
+test-e2e-data-importer: docker-build k3d-upload-image ## Run e2e/data-importer tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-data-importer.yaml
 
 .PHONY: test-e2e-data-importer-pg
-test-e2e-data-importer-pg: build ## Run e2e/data-importer PG test
+test-e2e-data-importer-pg: docker-build k3d-upload-image ## Run e2e/data-importer PG test
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-data-importer.yaml --test pg
 
 .PHONY: test-e2e-data-importer-psmdb
-test-e2e-data-importer-psmdb: build ## Run e2e/data-importer PSMDB test
+test-e2e-data-importer-psmdb: docker-build k3d-upload-image ## Run e2e/data-importer PSMDB test
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-data-importer.yaml --test psmdb
 
 .PHONY: test-e2e-data-importer-pxc
-test-e2e-data-importer-pxc: build ## Run e2e/data-importer PXC test
+test-e2e-data-importer-pxc: docker-build k3d-upload-image ## Run e2e/data-importer PXC test
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-data-importer.yaml --test pxc
 
 .PHONY: test-e2e-engine-features
-test-e2e-engine-features: build ## Run e2e/engine-features tests
+test-e2e-engine-features: docker-build k3d-upload-image ## Run e2e/engine-features tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-engine-features.yaml
 
 .PHONY: k3d-cluster-up
