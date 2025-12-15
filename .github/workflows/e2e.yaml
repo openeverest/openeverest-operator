@@ -10,7 +10,7 @@ env:
   GOPRIVATE: 'github.com/percona'
 
 jobs:
-  e2e-core-tests-flows:
+  e2e-core-flows:
     name: Core tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
@@ -54,7 +54,7 @@ jobs:
     name: Data importer tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-data-importer'))
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-data-importer')
     strategy:
       fail-fast: false
       matrix:
@@ -119,70 +119,10 @@ jobs:
 
       - name: Scale up cluster
         run: |
-          eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=10 "$NODEPOOL_NAME" --wait
+          eksctl scale nodegroup --cluster="$CLUSTER_NAME" --nodes=5 "$NODEPOOL_NAME" --wait
         env:
           CLUSTER_NAME: "everest-e2e-dev-eks-cluster"
           NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
-
-#      - name: Operator upgrade tests
-#        continue-on-error: true
-#        if: |
-#          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#          contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade')
-#        run: |
-#          make test-e2e-operator-upgrade
-#
-#      - name: Clean up custom resources
-#        continue-on-error: true
-#        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-#        timeout-minutes: 10
-#        run: |
-#          make cluster-cleanup
-
-#      - name: Core tests
-#        continue-on-error: true
-#        if: |
-#          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#          contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
-#        run: |
-#          make test-e2e-core
-#
-#      - name: Clean up custom resources
-#        continue-on-error: true
-#        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-#        timeout-minutes: 10
-#        run: |
-#          make cluster-cleanup
-
-#      - name: DB engine features tests
-#        continue-on-error: true
-#        if: |
-#          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#          contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features')
-#        run: |
-#          make test-e2e-engine-features
-#
-#      - name: Clean up custom resources
-#        continue-on-error: true
-#        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-#        timeout-minutes: 10
-#        run: |
-#          make cluster-cleanup
-
-#      - name: DB upgrade tests
-#        continue-on-error: true
-#        if: |
-#          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-#          contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade')
-#        run: |
-#          make test-e2e-db-upgrade
-#
-#      - name: Clean up custom resources
-#        continue-on-error: true
-#        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-#        timeout-minutes: 10
-#        run: |
-#          make cluster-cleanup
 
       - name: Resize DB storage
         continue-on-error: true
