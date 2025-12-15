@@ -7,4 +7,4 @@ commands:
   - command: kubectl apply --server-side -f https://raw.githubusercontent.com/percona/percona-postgresql-operator/v${PG_OPERATOR_VERSION}/deploy/bundle.yaml -n "${NAMESPACE}"
   - script: SYSTEM_NAMESPACE=$NAMESPACE MONITORING_NAMESPACE=$NAMESPACE DB_NAMESPACES=$NAMESPACE ${OPERATOR_ROOT_PATH}/bin/manager -metrics-bind-address :0 -health-probe-bind-address :0 -disable-webhook-server=true
     background: true
-    skipLogOutput: false
+    skipLogOutput: true

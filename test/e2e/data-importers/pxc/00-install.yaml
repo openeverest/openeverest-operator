@@ -8,4 +8,4 @@ commands:
   - command: kubectl apply -f ${OPERATOR_ROOT_PATH}/internal/data-importer/deploy/pxc
   - script: SYSTEM_NAMESPACE=$NAMESPACE MONITORING_NAMESPACE=$NAMESPACE DB_NAMESPACES=$NAMESPACE ${OPERATOR_ROOT_PATH}/bin/manager -metrics-bind-address :0 -health-probe-bind-address :0 -disable-webhook-server=true
     background: true
-    skipLogOutput: false
+    skipLogOutput: true
