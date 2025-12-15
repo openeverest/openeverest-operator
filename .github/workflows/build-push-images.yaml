@@ -9,8 +9,6 @@ env:
   GONOPROXY: 'github.com/percona'
   GONOSUMDB: 'github.com/percona'
   GOPRIVATE: 'github.com/percona'
-  GOCACHE: '/mnt/go_cache'
-  GOMODCACHE: '/mnt/go_mod_cache'
 
 jobs:
   build:
@@ -19,12 +17,6 @@ jobs:
       TOOLS_PATH: "/opt/tools/bin"
 
     steps:
-      - name: Enable /mnt (big volume) to be used by runner
-        run: |
-          sudo chown -vR runner:runner /mnt
-          mkdir -p ${GOCACHE} || true
-          mkdir -p ${GOMODCACHE} || true
-
       - name: Check out
         uses: actions/checkout@v5
 
