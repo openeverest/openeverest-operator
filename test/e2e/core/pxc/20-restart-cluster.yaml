@@ -8,22 +8,3 @@ metadata:
   name: test-pxc-cluster
   annotations:
     everest.percona.com/restart: "true"
-spec:
-  engine:
-    type: pxc
-    userSecretsName: pxc-sample-secrets
-    config: |
-      [mysqld]
-      wsrep_provider_options="debug=1;gcache.size=1G"
-      wsrep_debug=1
-      wsrep_trx_fragment_unit='bytes'
-      wsrep_trx_fragment_size=3670016
-    replicas: 3
-    storage:
-      size: 15G
-    resources:
-      cpu: 600m
-      memory: 1G
-  proxy:
-    type: haproxy
-    replicas: 3

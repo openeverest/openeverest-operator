@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package controllers contains the DataImportJobReconciler which manages DataImportJob resources.
-package controllers
+// Package everest contains the DataImportJobReconciler which manages DataImportJob resources.
+package everest
 
 import (
 	"context"

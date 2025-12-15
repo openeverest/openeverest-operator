@@ -5,22 +5,18 @@ apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
   name: test-psmdb-cluster
-  finalizers:
-  - everest.percona.com/upstream-cluster-cleanup
-  - foregroundDeletion
 spec:
   engine:
     type: psmdb
     config: |
      operationProfiling:
         mode: slowOp
-    userSecretsName: psmdb-sample-secrets
     replicas: 3
     storage:
-      size: 15G
+      size: 1G
     resources:
-      cpu: 300m
-      memory: 500M
+      cpu: "1"
+      memory: 1G
   proxy:
     expose:
       type: internal

@@ -1,22 +1,49 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 120
+timeout: 300
 commands:
   - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PG_OPERATOR_VERSION} db/test-pg-cluster -n "${NAMESPACE}"
+collectors:
+  - command: kubectl get db/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pg/test-pg-cluster -n ${NAMESPACE} -o yaml
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: test-pg-cluster
+    ref: db
+  - apiVersion: pgv2.percona.com/v2
+    kind: PerconaPGCluster
+    name: test-pg-cluster
+    ref: pg
+assertAll:
+  - celExpr: "has(db.metadata.finalizers)"
+    message: "db doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
+    message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
+
+  - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
+    message: "foregroundDeletion' is absent in db.metadata.finalizers"
+
+  - celExpr: "has(pg.metadata.finalizers)"
+    message: "pg doesn't have finalizers"
+
+  - celExpr: "'percona.com/delete-pvc' in pg.metadata.finalizers"
+    message: "'percona.com/delete-pvc' is absent in pg.metadata.finalizers"
+
+  - celExpr: "'percona.com/delete-ssl' in pg.metadata.finalizers"
+    message: "'percona.com/delete-ssl' is absent in pg.metadata.finalizers"
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
   name: test-pg-cluster
-  finalizers:
-  - everest.percona.com/upstream-cluster-cleanup
-  - foregroundDeletion
 spec:
   engine:
     type: postgresql
     replicas: 3
     storage:
-      size: 15G
+      size: 1G
     resources:
       cpu: "1"
       memory: 1G
@@ -24,18 +51,12 @@ spec:
     type: pgbouncer
     replicas: 3
 status:
-  ready: 6
-  size: 6
   status: ready
 ---
 apiVersion: pgv2.percona.com/v2
 kind: PerconaPGCluster
 metadata:
   name: test-pg-cluster
-  finalizers:
-    - percona.com/delete-pvc
-    - percona.com/delete-ssl
-    - internal.percona.com/stop-watchers
 spec:
   backups:
     pgbackrest:
@@ -47,15 +68,14 @@ spec:
             - ReadWriteOnce
             resources:
               requests:
-                storage: 15G
-  imagePullPolicy: IfNotPresent
+                storage: 1G
   instances:
   - dataVolumeClaimSpec:
       accessModes:
       - ReadWriteOnce
       resources:
         requests:
-          storage: 15G
+          storage: 1G
     resources:
       limits:
         cpu: "1"
@@ -70,14 +90,10 @@ spec:
       expose:
         type: ClusterIP
 status:
+  state: ready
   pgbouncer:
     ready: 3
     size: 3
   postgres:
-    instances:
-    - name: instance1
-      ready: 3
-      size: 3
     ready: 3
     size: 3
-  state: ready

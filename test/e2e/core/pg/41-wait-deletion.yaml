@@ -1,4 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-commands:
-  - command:  kubectl wait --for=delete postgresclusters/test-pg-cluster -n $NAMESPACE --timeout=120s

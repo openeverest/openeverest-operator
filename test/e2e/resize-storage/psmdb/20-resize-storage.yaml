@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  - command: kubectl patch db/test-psmdb-cluster -n $NAMESPACE -p '{"spec":{"engine":{"storage":{"size":"25G"}}}}' --type merge

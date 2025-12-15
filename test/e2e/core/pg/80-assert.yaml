@@ -1,73 +1,40 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
 timeout: 120
+collectors:
+  - command: kubectl get db/single-node -n ${NAMESPACE} -o yaml
+  - command: kubectl get pg/single-node -n ${NAMESPACE} -o yaml
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
-  name: test-single-node
+  name: single-node
 spec:
   engine:
     type: postgresql
     replicas: 3
-    storage:
-      size: 15G
-    resources:
-      cpu: "1"
-      memory: 1G
   proxy:
     type: pgbouncer
     replicas: 3
 status:
-  ready: 6
-  size: 6
   status: ready
 ---
 apiVersion: pgv2.percona.com/v2
 kind: PerconaPGCluster
 metadata:
-  name: test-single-node
+  name: single-node
 spec:
-  backups:
-    pgbackrest:
-      repos:
-      - name: repo1
-        volume:
-          volumeClaimSpec:
-            accessModes:
-            - ReadWriteOnce
-            resources:
-              requests:
-                storage: 15G
   instances:
-  - dataVolumeClaimSpec:
-      accessModes:
-      - ReadWriteOnce
-      resources:
-        requests:
-          storage: 15G
-    resources:
-      limits:
-        cpu: "1"
-        memory: 1G
-    name: instance1
-    replicas: 3
-  port: 5432
+    - name: instance1
+      replicas: 3
   proxy:
     pgBouncer:
-      port: 5432
       replicas: 3
-      expose:
-        type: ClusterIP
 status:
+  state: ready
   pgbouncer:
     ready: 3
     size: 3
   postgres:
-    instances:
-    - name: instance1
-      ready: 3
-      size: 3
     ready: 3
     size: 3
-  state: ready

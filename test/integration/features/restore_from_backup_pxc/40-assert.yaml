@@ -32,6 +32,10 @@ resourceRefs:
     name: test-pxc-cluster
     ref: pxc
   - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseClusterRestore
+    name: test-db-restore-s3
+    ref: dbcr
+  - apiVersion: everest.percona.com/v1alpha1
     kind: BackupStorage
     name: test-storage-s3
     ref: bs_s3
@@ -47,6 +51,9 @@ assertAll:
 
   - celExpr: "!has(pxc.spec.backup.storages)"
     message: "pxc has unexpected .spec.backup.storages field"
+
+  - celExpr: "!has(dbcr.metadata.finalizers)"
+    message: "dbcr has finalizers"
 
   - celExpr: "!has(bs_s3.metadata.finalizers)"
     message: "bs_s3 has finalizers"
@@ -82,6 +89,7 @@ spec:
   dbClusterName: test-pxc-cluster
 status:
   state: Succeeded
+  inUse: false
 ---
 apiVersion: pxc.percona.com/v1
 kind: PerconaXtraDBClusterRestore

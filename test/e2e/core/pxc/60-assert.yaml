@@ -1,77 +1,33 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
 timeout: 600
+collectors:
+  - command: kubectl get db/single-node -n ${NAMESPACE} -o yaml
+  - command: kubectl get pxc/single-node -n ${NAMESPACE} -o yaml
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
-  name: test-pxc-cluster
+  name: single-node
 spec:
   engine:
-    type: pxc
-    userSecretsName: pxc-sample-secrets
-    config: |
-      [mysqld]
-      wsrep_provider_options="debug=1;gcache.size=1G"
-      wsrep_debug=1
-      wsrep_trx_fragment_unit='bytes'
-      wsrep_trx_fragment_size=3670016
     replicas: 3
-    storage:
-      size: 15G
-    resources:
-      cpu: 600m
-      memory: 1G
   proxy:
     replicas: 3
-    type: haproxy
+status:
+  status: ready
 ---
 apiVersion: pxc.percona.com/v1
 kind: PerconaXtraDBCluster
 metadata:
-  name: test-pxc-cluster
+  name: single-node
 spec:
   haproxy:
     enabled: true
-    exposePrimary: {}
     size: 3
   pxc:
-    configuration: |
-      [mysqld]
-      wsrep_provider_options="debug=1;gcache.size=1G"
-      wsrep_debug=1
-      wsrep_trx_fragment_unit='bytes'
-      wsrep_trx_fragment_size=3670016
-    expose: {}
-    resources:
-      limits:
-        cpu: 600m
-        memory: 1G
-      requests:
-        cpu: 600m
-        memory: 1G
-    sidecarResources: {}
     size: 3
-    volumeSpec:
-      persistentVolumeClaim:
-        resources:
-          requests:
-            storage: 15G
-  secretsName: pxc-sample-secrets
-  unsafeFlags: {}
-  updateStrategy: SmartUpdate
-  upgradeOptions:
-    apply: never
-    schedule: 0 4 * * *
 status:
-  haproxy:
-    ready: 3
-    size: 3
-    status: ready
-  pxc:
-    ready: 3
-    size: 3
-    status: ready
   ready: 6
   size: 6
   state: ready

@@ -8,7 +8,7 @@ agents: 3 # number of worker nodes in the cluster
 image: rancher/k3s:v1.33.2-k3s1 # image to use for the cluster nodes; list of supported images: https://hub.docker.com/r/rancher/k3s/tags
 options:
   k3d: # k3d runtime settings
-    wait: true # wait for cluster to be usable before returining;
+    wait: true # wait for cluster to be usable before returning;
     disableLoadbalancer: true
   k3s: # options passed on to K3s itself
     extraArgs:
