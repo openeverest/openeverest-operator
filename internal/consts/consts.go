@@ -16,8 +16,6 @@
 // Package consts provides constants used across the operator.
 package consts
 
-import "k8s.io/apimachinery/pkg/runtime/schema"
-
 // ClusterType represents the type of the cluster.
 type ClusterType string
 
@@ -28,11 +26,11 @@ const (
 	// DBClusterRestoreDBClusterNameField is the field in the DatabaseClusterRestore CR.
 	DBClusterRestoreDBClusterNameField = ".spec.dbClusterName"
 
-	// DBClusterBackupDBClusterNameField is the field in the DatabaseClusterBackup CR.
+	// DBClusterBackupDBClusterNameField is the field in the DatabaseClusterBackup and DatabaseClusterRestore CRs.
 	DBClusterBackupDBClusterNameField = ".spec.dbClusterName"
 	// DBClusterBackupBackupStorageNameField is the field in the DatabaseClusterBackup CR.
 	DBClusterBackupBackupStorageNameField = ".spec.backupStorageName"
-	// DataSourceBackupStorageNameField is the field in the DatabaseClusterBackup CR.
+	// DataSourceBackupStorageNameField is the field in the DatabaseClusterBackup and DatabaseClusterRestore CRs.
 	DataSourceBackupStorageNameField = ".spec.dataSource.backupSource.backupStorageName"
 
 	// TopologyKeyHostname is the topology key for hostname.
@@ -81,16 +79,4 @@ const (
 
 	// EverestSecretsPrefix is the prefix for secrets created by Everest.
 	EverestSecretsPrefix = "everest-secrets-"
-)
-
-//noling:gochecknoglobals
-var (
-	// PXCGVK is the GroupVersionKind for Percona XtraDB Cluster.
-	PXCGVK = schema.GroupVersionKind{Group: PXCAPIGroup, Version: "v1", Kind: PerconaXtraDBClusterKind}
-	// PXCRGVK is the GroupVersionKind for Percona PostgreSQL.
-	PXCRGVK = schema.GroupVersionKind{Group: PXCAPIGroup, Version: "v1", Kind: PerconaXtraDBClusterRestoreKind}
-	// PSMDBGVK is the GroupVersionKind for Percona Server for MongoDB.
-	PSMDBGVK = schema.GroupVersionKind{Group: PSMDBAPIGroup, Version: "v1", Kind: PerconaServerMongoDBKind}
-	// PGGVK is the GroupVersionKind for Percona PostgreSQL.
-	PGGVK = schema.GroupVersionKind{Group: PGAPIGroup, Version: "v2", Kind: PerconaPGClusterKind}
 )

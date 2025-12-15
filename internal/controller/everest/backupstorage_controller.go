@@ -13,11 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controllers
+package everest
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 
@@ -26,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -68,16 +68,26 @@ func (r *BackupStorageReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		logger.Info("Reconciled")
 	}()
 
+	var err error
 	bs := &everestv1alpha1.BackupStorage{}
-	err := r.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, bs)
-	if err != nil {
+	if err = r.Get(ctx, req.NamespacedName, bs); err != nil {
 		// NotFound cannot be fixed by requeuing so ignore it. During background
 		// deletion, we receive delete events from cluster's dependents after
 		// cluster is deleted.
-		if err = client.IgnoreNotFound(err); err != nil {
+		if client.IgnoreNotFound(err) != nil {
 			logger.Error(err, "unable to fetch BackupStorage")
 		}
 		return reconcile.Result{}, err
+	}
+
+	// By default, we must always verify TLS.
+	// TODO: move to BackupStorage defaulter webhook.
+	if verifyTLS := bs.Spec.VerifyTLS; verifyTLS == nil {
+		bs.Spec.VerifyTLS = pointer.To(true)
+		if err = r.Update(ctx, bs); err != nil {
+			logger.Error(err, "unable to update BackupStorage with default VerifyTLS=true")
+			return ctrl.Result{}, err
+		}
 	}
 
 	bsSecret := &corev1.Secret{}
@@ -96,10 +106,10 @@ func (r *BackupStorageReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	// If the default secret is not owned/controlled by anyone, we will adopt it.
 	if controller := metav1.GetControllerOf(bsSecret); controller == nil {
 		logger.Info("setting controller reference for the secret")
-		if err := controllerutil.SetControllerReference(bs, bsSecret, r.Scheme); err != nil {
+		if err = controllerutil.SetControllerReference(bs, bsSecret, r.Scheme); err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := r.Update(ctx, bsSecret); err != nil {
+		if err = r.Update(ctx, bsSecret); err != nil {
 			return ctrl.Result{}, err
 		}
 	}
@@ -118,20 +128,29 @@ func (r *BackupStorageReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			return
 		}
 
-		bs.Status.InUse = bsUsed
-		bs.Status.LastObservedGeneration = bs.GetGeneration()
-		if err = r.Client.Status().Update(ctx, bs); err != nil {
+		bsStatus := everestv1alpha1.BackupStorageStatus{
+			InUse:                  bsUsed,
+			LastObservedGeneration: bs.GetGeneration(),
+		}
+
+		if updErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			if cErr := r.Get(ctx, req.NamespacedName, bs); cErr != nil {
+				return cErr
+			}
+
+			bs.Status = bsStatus
+
+			if err = common.EnsureInUseFinalizer(ctx, r.Client, bsUsed, bs); err != nil {
+				return err
+			}
+			return r.Client.Status().Update(ctx, bs)
+		}); client.IgnoreNotFound(updErr) != nil {
 			rr = ctrl.Result{}
 			msg := fmt.Sprintf("failed to update status for backup storage='%s'", bsName)
-			logger.Error(err, msg)
-			rerr = fmt.Errorf("%s: %w", msg, err)
+			logger.Error(updErr, msg)
+			rerr = fmt.Errorf("%s: %w", msg, updErr)
 		}
 	}()
-
-	if err = common.EnsureInUseFinalizer(ctx, r.Client, bsUsed, bs); err != nil {
-		logger.Error(err, fmt.Sprintf("failed to update finalizers for backup storage='%s'", bsName))
-		return ctrl.Result{}, errors.Join(err, fmt.Errorf("failed to update finalizers for backup storage='%s': %w", bsName, err))
-	}
 
 	return ctrl.Result{}, nil
 }
@@ -330,10 +349,10 @@ func (r *BackupStorageReconciler) isBackupStorageUsed(ctx context.Context, bs *e
 	}
 
 	// Check if the backup storage is used by any database cluster restore through the dbClusterRestoreDataSourceBackupStorageNameField field
-	if dbrList, err := common.DatabaseClusterRestoresThatReferenceObject(ctx, r.Client, dbClusterRestoreDataSourceBackupStorageNameField,
+	if dbrList, err := common.DatabaseClusterRestoresThatReferenceObject(ctx, r.Client, consts.DataSourceBackupStorageNameField,
 		bs.GetNamespace(), bs.GetName()); err != nil {
 		return false, fmt.Errorf("failed to fetch DB cluster restores that use backup storage='%s' through '%s' field: %w",
-			bs.GetName(), dbClusterRestoreDataSourceBackupStorageNameField, err)
+			bs.GetName(), consts.DataSourceBackupStorageNameField, err)
 	} else if len(dbrList.Items) > 0 {
 		return slices.ContainsFunc(dbrList.Items, func(dbr everestv1alpha1.DatabaseClusterRestore) bool {
 			// If any of the restores is in progress, we consider the backup storage as used.

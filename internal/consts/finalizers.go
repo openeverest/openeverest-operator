@@ -17,6 +17,17 @@
 package consts
 
 const (
+
+	// PerconaFinalizerPrefix is the prefix for all Percona operator finalizers.
+	// Deprecated: Use EverestFinalizerPrefix instead.
+	PerconaFinalizerPrefix = "percona.com/"
+
+	// DeletePXCBackupFinalizer is the finalizer used to ensure proper cleanup of PXC Cluster backups.
+	DeletePXCBackupFinalizer = PerconaFinalizerPrefix + "delete-backup"
+
+	// DeletePSMDBBackupFinalizer is the finalizer used to ensure proper cleanup of PSMDB Cluster backups.
+	DeletePSMDBBackupFinalizer = PerconaFinalizerPrefix + "delete-backup"
+
 	// EverestFinalizerPrefix is the prefix for all Everest operator finalizers.
 	EverestFinalizerPrefix = "everest.percona.com/"
 

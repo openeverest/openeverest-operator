@@ -6,10 +6,6 @@ collectors:
   - command: kubectl get perconapgcluster/test-pg-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get dataimportjob/data-import-test-pg-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get job -n ${NAMESPACE} -o yaml
-  - type: pod
-    namespace: everest-system
-    selector: control-plane=controller-manager
-    tail: 100
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DataImportJob

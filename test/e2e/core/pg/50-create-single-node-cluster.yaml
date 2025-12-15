@@ -5,13 +5,13 @@ timeout: 10
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
-  name: test-single-node
+  name: single-node
 spec:
   engine:
     type: postgresql
     replicas: 1
     storage:
-      size: 15G
+      size: 1G
     resources:
       cpu: "1"
       memory: 1G

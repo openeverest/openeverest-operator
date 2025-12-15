@@ -41,10 +41,6 @@ const (
 	AppStateInit AppState = "initializing"
 	// AppStatePaused is a paused state.
 	AppStatePaused AppState = "paused"
-	// AppStatePausing is a pausing state.
-	AppStatePausing AppState = "pausing"
-	// AppStateStopping is a stopping state.
-	AppStateStopping AppState = "stopping"
 	// AppStateReady is a ready state.
 	AppStateReady AppState = "ready"
 	// AppStateError is an error state.
@@ -278,9 +274,11 @@ type Proxy struct {
 // BackupSource represents settings of a source where to get a backup to run restoration.
 type BackupSource struct {
 	// Path is the path to the backup file/directory.
+	// +kubebuilder:validation:Required
 	Path string `json:"path"`
-	// BackupStorageName is the name of the BackupStorage used for backups.
+	// BackupStorageName is the name of the BackupStorage used for storing backups.
 	// The BackupStorage must be created in the same namespace as the DatabaseCluster.
+	// +kubebuilder:validation:Required
 	BackupStorageName string `json:"backupStorageName"`
 }
 
@@ -528,6 +526,18 @@ type DatabaseCluster struct {
 
 	Spec   DatabaseClusterSpec   `json:"spec,omitempty"`
 	Status DatabaseClusterStatus `json:"status,omitempty"`
+}
+
+// CanRestoreFromBackup returns true if the cluster can be restored from a backup in the current state.
+func (dbc *DatabaseCluster) CanRestoreFromBackup() bool {
+	switch dbc.Status.Status.WithCreatingState() {
+	case AppStateCreating, AppStatePaused,
+		AppStateRestoring, AppStateDeleting, AppStateUpgrading,
+		AppStateResizingVolumes, AppStateImporting:
+		return false
+	default:
+		return true
+	}
 }
 
 // +kubebuilder:object:root=true

@@ -161,6 +161,10 @@ spec:
       jsonPath: .status.created
       name: Age
       type: date
+    - description: Indicates if the backup is used by any DB cluster
+      jsonPath: .status.inUse
+      name: InUse
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -217,6 +221,11 @@ spec:
               gaps:
                 description: Gaps identifies if there are gaps detected in the PITR
                   logs
+                type: boolean
+              inUse:
+                default: false
+                description: InUse is a flag that indicates if this restore resource
+                  is being used to restore DB cluster from backup.
                 type: boolean
               latestRestorableTime:
                 description: LatestRestorableTime is the latest time that can be used
@@ -281,6 +290,10 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
+    - description: Indicates if the restore is used by any DB cluster
+      jsonPath: .status.inUse
+      name: InUse
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -311,11 +324,13 @@ spec:
                 description: DataSource defines a data source for restoration.
                 properties:
                   backupSource:
-                    description: BackupSource is the backup source to restore from
+                    description: |-
+                      BackupSource is the backup source to restore from.
+                      Shall be set either this field or DBClusterBackupName.
                     properties:
                       backupStorageName:
                         description: |-
-                          BackupStorageName is the name of the BackupStorage used for backups.
+                          BackupStorageName is the name of the BackupStorage used for storing backups.
                           The BackupStorage must be created in the same namespace as the DatabaseCluster.
                         type: string
                       path:
@@ -326,11 +341,14 @@ spec:
                     - path
                     type: object
                   dbClusterBackupName:
-                    description: DBClusterBackupName is the name of the DB cluster
-                      backup to restore from
+                    description: |-
+                      DBClusterBackupName is the name of the DB cluster backup to restore from.
+                      Shall be set either this field or BackupSource.
                     type: string
                   pitr:
-                    description: PITR is the point-in-time recovery configuration
+                    description: |-
+                      PITR is the point-in-time recovery configuration.
+                      May be set in addition to DBClusterBackupName or BackupSource to perform PITR restore.
                     properties:
                       date:
                         description: 'Date is the UTC date to recover to. The accepted
@@ -346,7 +364,8 @@ spec:
                     type: object
                 type: object
               dbClusterName:
-                description: DBClusterName defines the cluster name to restore.
+                description: DBClusterName defines the target database cluster name
+                  that needs to be restored from backup.
                 type: string
             required:
             - dataSource
@@ -359,6 +378,11 @@ spec:
               completed:
                 format: date-time
                 type: string
+              inUse:
+                default: false
+                description: InUse is a flag that indicates if this restore resource
+                  is being used to restore DB cluster from backup.
+                type: boolean
               message:
                 type: string
               state:
@@ -505,7 +529,7 @@ spec:
                     properties:
                       backupStorageName:
                         description: |-
-                          BackupStorageName is the name of the BackupStorage used for backups.
+                          BackupStorageName is the name of the BackupStorage used for storing backups.
                           The BackupStorage must be created in the same namespace as the DatabaseCluster.
                         type: string
                       path:
@@ -737,7 +761,7 @@ spec:
                           Claims lists the names of resources, defined in spec.resourceClaims,
                           that are used by this container.
 
-                          This is an alpha field and requires enabling the
+                          This field depends on the
                           DynamicResourceAllocation feature gate.
 
                           This field is immutable. It can only be set for containers.
@@ -2537,8 +2561,8 @@ spec:
                                   most preferred is the one with the greatest sum of weights, i.e.
                                   for each node that meets all of the scheduling requirements (resource
                                   request, requiredDuringScheduling anti-affinity expressions, etc.),
-                                  compute a sum by iterating through the elements of this field and adding
-                                  "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                                  compute a sum by iterating through the elements of this field and subtracting
+                                  "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                                   node(s) with the highest sum are the most preferred.
                                 items:
                                   description: The weights of all of the matched WeightedPodAffinityTerm
@@ -3462,8 +3486,8 @@ spec:
                                   most preferred is the one with the greatest sum of weights, i.e.
                                   for each node that meets all of the scheduling requirements (resource
                                   request, requiredDuringScheduling anti-affinity expressions, etc.),
-                                  compute a sum by iterating through the elements of this field and adding
-                                  "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                                  compute a sum by iterating through the elements of this field and subtracting
+                                  "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                                   node(s) with the highest sum are the most preferred.
                                 items:
                                   description: The weights of all of the matched WeightedPodAffinityTerm
@@ -4392,8 +4416,8 @@ spec:
                                   most preferred is the one with the greatest sum of weights, i.e.
                                   for each node that meets all of the scheduling requirements (resource
                                   request, requiredDuringScheduling anti-affinity expressions, etc.),
-                                  compute a sum by iterating through the elements of this field and adding
-                                  "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                                  compute a sum by iterating through the elements of this field and subtracting
+                                  "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                                   node(s) with the highest sum are the most preferred.
                                 items:
                                   description: The weights of all of the matched WeightedPodAffinityTerm
@@ -5317,8 +5341,8 @@ spec:
                                   most preferred is the one with the greatest sum of weights, i.e.
                                   for each node that meets all of the scheduling requirements (resource
                                   request, requiredDuringScheduling anti-affinity expressions, etc.),
-                                  compute a sum by iterating through the elements of this field and adding
-                                  "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                                  compute a sum by iterating through the elements of this field and subtracting
+                                  "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                                   node(s) with the highest sum are the most preferred.
                                 items:
                                   description: The weights of all of the matched WeightedPodAffinityTerm
@@ -6242,8 +6266,8 @@ spec:
                                   most preferred is the one with the greatest sum of weights, i.e.
                                   for each node that meets all of the scheduling requirements (resource
                                   request, requiredDuringScheduling anti-affinity expressions, etc.),
-                                  compute a sum by iterating through the elements of this field and adding
-                                  "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                                  compute a sum by iterating through the elements of this field and subtracting
+                                  "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                                   node(s) with the highest sum are the most preferred.
                                 items:
                                   description: The weights of all of the matched WeightedPodAffinityTerm
@@ -7172,8 +7196,8 @@ spec:
                                   most preferred is the one with the greatest sum of weights, i.e.
                                   for each node that meets all of the scheduling requirements (resource
                                   request, requiredDuringScheduling anti-affinity expressions, etc.),
-                                  compute a sum by iterating through the elements of this field and adding
-                                  "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                                  compute a sum by iterating through the elements of this field and subtracting
+                                  "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                                   node(s) with the highest sum are the most preferred.
                                 items:
                                   description: The weights of all of the matched WeightedPodAffinityTerm
@@ -8097,8 +8121,8 @@ spec:
                                   most preferred is the one with the greatest sum of weights, i.e.
                                   for each node that meets all of the scheduling requirements (resource
                                   request, requiredDuringScheduling anti-affinity expressions, etc.),
-                                  compute a sum by iterating through the elements of this field and adding
-                                  "weight" to the sum if the node has pods which matches the corresponding podAffinityTerm; the
+                                  compute a sum by iterating through the elements of this field and subtracting
+                                  "weight" from the sum if the node has pods which matches the corresponding podAffinityTerm; the
                                   node(s) with the highest sum are the most preferred.
                                 items:
                                   description: The weights of all of the matched WeightedPodAffinityTerm
@@ -9618,6 +9642,26 @@ webhooks:
     service:
       name: everest-operator-webhook-service
       namespace: everest-operator-system
+      path: /mutate-everest-percona-com-v1alpha1-databaseclusterrestore
+  failurePolicy: Fail
+  name: mdatabaseclusterrestore-v1alpha1.everest.percona.com
+  rules:
+  - apiGroups:
+    - everest.percona.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - databaseclusterrestores
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: everest-operator-webhook-service
+      namespace: everest-operator-system
       path: /mutate-everest-percona-com-v1alpha1-dataimportjob
   failurePolicy: Fail
   name: mdataimportjobs-v1akpha1.everest.percona.com
@@ -9678,6 +9722,48 @@ webhooks:
     - UPDATE
     resources:
     - databaseclusters
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: everest-operator-webhook-service
+      namespace: everest-operator-system
+      path: /validate-everest-percona-com-v1alpha1-databaseclusterbackup
+  failurePolicy: Fail
+  name: vdatabaseclusterbackup-v1alpha1.everest.percona.com
+  rules:
+  - apiGroups:
+    - everest.percona.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - databaseclusterbackups
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: everest-operator-webhook-service
+      namespace: everest-operator-system
+      path: /validate-everest-percona-com-v1alpha1-databaseclusterrestore
+  failurePolicy: Fail
+  name: vdatabaseclusterrestore-v1alpha1.everest.percona.com
+  rules:
+  - apiGroups:
+    - everest.percona.com
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - databaseclusterrestores
   sideEffects: None
 - admissionReviewVersions:
   - v1
