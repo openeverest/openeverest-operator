@@ -5,8 +5,38 @@ commands:
   - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PSMDB_OPERATOR_VERSION} db/test-psmdb-cluster -n "${NAMESPACE}"
   - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PSMDB_DB_ENGINE_VERSION} db/test-psmdb-cluster -n "${NAMESPACE}"
 collectors:
-  - command: kubectl get dbc/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: test-psmdb-cluster
+    ref: db
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: test-psmdb-cluster
+    ref: psmdb
+assertAll:
+  - celExpr: "has(db.metadata.finalizers)"
+    message: "db doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
+    message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
+
+  - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
+    message: "foregroundDeletion' is absent in db.metadata.finalizers"
+
+  - celExpr: "has(psmdb.metadata.finalizers)"
+    message: "psmdb doesn't have finalizers"
+
+  - celExpr: "'percona.com/delete-psmdb-pods-in-order' in psmdb.metadata.finalizers"
+    message: "'percona.com/delete-psmdb-pods-in-order' is absent in psmdb.metadata.finalizers"
+
+  - celExpr: "'percona.com/delete-psmdb-pvc' in psmdb.metadata.finalizers"
+    message: "percona.com/delete-psmdb-pvc' is absent in psmdb.metadata.finalizers"
+
+  - celExpr: "has(psmdb.status.backupVersion)"
+    message: "psmdb status doesn't have backupVersion field"
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
@@ -18,30 +48,24 @@ spec:
     config: |
      operationProfiling:
         mode: slowOp
-    userSecretsName: psmdb-sample-secrets
+    userSecretsName: everest-secrets-test-psmdb-cluster
     replicas: 3
     storage:
-      size: 15G
+      size: 1G
     resources:
-      cpu: 300m
-      memory: 500M
+      cpu: "1"
+      memory: 1G
   proxy:
     type: mongos
     replicas: 3
 status:
-  ready: 3
-  size: 3
   status: ready
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDB
 metadata:
   name: test-psmdb-cluster
-  finalizers:
-    - percona.com/delete-psmdb-pods-in-order
-    - percona.com/delete-psmdb-pvc
 spec:
-  imagePullPolicy: IfNotPresent
   multiCluster:
     enabled: false
   replsets:
@@ -53,25 +77,19 @@ spec:
       name: rs0
       resources:
         limits:
-          cpu: 300m
-          memory: 500M
+          cpu: "1"
+          memory: 1G
       size: 3
       volumeSpec:
         persistentVolumeClaim:
           resources:
             requests:
-              storage: 15G
+              storage: 1G
   secrets:
-    users: psmdb-sample-secrets
+    users: everest-secrets-test-psmdb-cluster
   sharding:
     enabled: false
 status:
-  replsets:
-    rs0:
-      initialized: true
-      ready: 3
-      size: 3
-      status: ready
   ready: 3
   size: 3
   state: ready

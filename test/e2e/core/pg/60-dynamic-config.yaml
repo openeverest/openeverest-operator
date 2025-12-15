@@ -4,7 +4,7 @@ kind: TestStep
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
-  name: test-pg-cluster
+  name: single-node
 spec:
   engine:
     type: postgresql
@@ -12,7 +12,7 @@ spec:
       max_connections = 2840
     replicas: 1
     storage:
-      size: 15G
+      size: 1G
     resources:
       cpu: "1"
       memory: 1G

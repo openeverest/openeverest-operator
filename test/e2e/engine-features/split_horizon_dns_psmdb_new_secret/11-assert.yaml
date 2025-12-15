@@ -6,10 +6,6 @@ collectors:
   - command: kubectl get secret/shdc-secret-1 -n ${NAMESPACE} -o yaml
   - command: kubectl get db/psmdb-shdc -n ${NAMESPACE} -o yaml
   - command: kubectl get psmdb/psmdb-shdc -n ${NAMESPACE} -o yaml
-  - type: pod
-    namespace: everest-system
-    selector: control-plane=controller-manager
-    tail: 100
 resourceRefs:
   - apiVersion: enginefeatures.everest.percona.com/v1alpha1
     kind: SplitHorizonDNSConfig
@@ -101,6 +97,8 @@ spec:
     ssl: psmdb-shdc-sh-cert
     sslInternal: psmdb-shdc-ssl-internal
 status:
+  ready: 3
+  size: 3
   state: ready
 ---
 apiVersion: v1

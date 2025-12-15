@@ -7,3 +7,6 @@ timeout: 500
 # The test steps are still declarative so no operation is executed in 03.
 commands:
   - command: kubectl wait --for=jsonpath='{.status.status}'=initializing db/test-pg-cluster -n "${NAMESPACE}"
+collectors:
+  - command: kubectl get db/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pg/test-pg-cluster -n ${NAMESPACE} -o yaml

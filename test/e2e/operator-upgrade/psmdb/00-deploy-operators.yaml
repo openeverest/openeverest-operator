@@ -1,5 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-timeout: 10
-commands:
-  - command: kubectl apply --server-side -f https://raw.githubusercontent.com/percona/percona-server-mongodb-operator/v${PREVIOUS_PSMDB_OPERATOR_VERSION}/deploy/bundle.yaml -n "${NAMESPACE}"

@@ -1,0 +1,15 @@
+apiVersion: kuttl.dev/v1
+kind: TestSuite
+crdDir: config/crd/bases
+artifactsDir: /tmp/
+parallel: 1
+timeout: 180
+skipDelete: true
+skipClusterDelete: true
+commands:
+  - command: kubectl wait --for condition=established --timeout=10s crd databaseclusters.everest.percona.com
+  - command: kubectl wait --for condition=established --timeout=10s crd vmagents.operator.victoriametrics.com
+testDirs:
+  - test/e2e/resize-storage
+manifestDirs:
+  - test/manifests

@@ -5,10 +5,6 @@ collectors:
   - command: kubectl get db/test-pxc-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get pxc/test-pxc-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get pod/pxc-client -n ${NAMESPACE} -o yaml
-  - type: pod
-    namespace: everest-system
-    selector: control-plane=controller-manager
-    tail: 100
 commands:
   - command: kubectl wait --for=delete db/test-pxc-cluster -n ${NAMESPACE}
   - command: kubectl wait --for=delete pxc/test-pxc-cluster -n ${NAMESPACE}

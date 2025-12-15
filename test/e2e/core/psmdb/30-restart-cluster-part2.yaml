@@ -1,7 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-timeout: 10
-# XXX
-# In order to do a non-declarative test that validates the state transition of a restart action we split the test assertions in 2 parts.
-# In the test assertion 03 we assert that the cluster is stopped and in 04 we assert that the cluster is up and ready to use.
-# The test steps are still declarative so no operation is executed in 04.

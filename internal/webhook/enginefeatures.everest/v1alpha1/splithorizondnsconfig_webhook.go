@@ -82,6 +82,10 @@ func SetupSplitHorizonDNSConfigWebhookWithManager(mgr ctrl.Manager) error {
 		WithValidator(&SplitHorizonDNSConfigCustomValidator{
 			Client: mgr.GetClient(),
 		}).
+		WithDefaulter(&SplitHorizonDNSConfigDefaulter{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).
 		Complete()
 }
 
