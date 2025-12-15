@@ -8,6 +8,8 @@ env:
   GONOPROXY: 'github.com/percona'
   GONOSUMDB: 'github.com/percona'
   GOPRIVATE: 'github.com/percona'
+  GOCACHE: '/mnt/go_cache'
+  GOMODCACHE: '/mnt/go_mod_cache'
 
 jobs:
   e2e-eks-tests:
@@ -35,12 +37,6 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-
-      - name: Build operator
-        run:
-          make build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Kubernetes tools
         uses: ./.github/actions/install-kubernetes-tools
@@ -144,10 +140,8 @@ jobs:
         run: |
           make test-e2e-resize-storage
 
-      - name: Clean up custom resources
-        continue-on-error: true
-        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-        timeout-minutes: 10
+      - name: Clean up resources and CRDs
+        if: always()
         run: |
           make cluster-cleanup
 
@@ -158,11 +152,6 @@ jobs:
         env:
           CLUSTER_NAME: "everest-e2e-dev-eks-cluster"
           NODEPOOL_NAME: "everest-e2e-dev-eks-workers-glowworm"
-
-      - name: Clean up resources and CRDs
-        if: always()
-        run: |
-          make cluster-cleanup
 
   e2e-data-importer-tests-flows:
     name: Data importer tests
