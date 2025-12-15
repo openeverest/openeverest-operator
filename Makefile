@@ -169,7 +169,7 @@ test-integration-operator-upgrade: docker-build k3d-upload-image ## Run operator
 	. ./test/vars.sh && kubectl kuttl test --config ./test/integration/kuttl-operator-upgrade.yaml
 
 .PHONY: test-e2e-core
-test-e2e-core: build ## Run e2e/core tests
+test-e2e-core: docker-build k3d-upload-image ## Run e2e/core tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-core.yaml
 
 .PHONY: test-e2e-db-upgrade
@@ -219,6 +219,7 @@ k3d-cluster-reset: k3d-cluster-down k3d-cluster-up ## Recreate a K8S cluster for
 
 .PHONY: k3d-upload-image
 k3d-upload-image:
+	$(info Uploading Everest operator image=$(IMG) to K3D testing cluster)
 	k3d image import -c everest-operator-test -m direct $(IMG)
 
 # Cleanup all resources created by the tests

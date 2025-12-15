@@ -50,7 +50,7 @@ spec:
       wsrep_provider_options="debug=1;gcache.size=1G"
     replicas: 3
     storage:
-      size: 15Gi
+      size: 2Gi
     resources:
       cpu: "1"
       memory: 2G
@@ -84,7 +84,7 @@ spec:
       persistentVolumeClaim:
         resources:
           requests:
-            storage: 15Gi
+            storage: 2Gi
   secretsName: everest-secrets-test-pxc-cluster
 status:
   ready: 6

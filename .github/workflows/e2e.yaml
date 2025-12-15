@@ -10,12 +10,21 @@ env:
   GOPRIVATE: 'github.com/percona'
 
 jobs:
+  e2e-core-tests-flows:
+    name: Core tests
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+      contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
+    uses: ./.github/workflows/e2e-k3d.yaml
+    secrets: inherit
+    with:
+      make_target: test-e2e-core
+
   e2e-eks-tests:
     name: EKS tests
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-operator-upgrade') ||
-      contains(github.event.pull_request.labels.*.name, 'test/e2e-core') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-engine-features') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-db-upgrade') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-resize-storage')
@@ -85,20 +94,20 @@ jobs:
         run: |
           make cluster-cleanup
 
-      - name: Core tests
-        continue-on-error: true
-        if: |
-          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
-          contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
-        run: |
-          make test-e2e-core
-
-      - name: Clean up custom resources
-        continue-on-error: true
-        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
-        timeout-minutes: 10
-        run: |
-          make cluster-cleanup
+#      - name: Core tests
+#        continue-on-error: true
+#        if: |
+#          contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
+#          contains(github.event.pull_request.labels.*.name, 'test/e2e-core')
+#        run: |
+#          make test-e2e-core
+#
+#      - name: Clean up custom resources
+#        continue-on-error: true
+#        # If this does not finish in 10 minutes, it's stuck with some resource having a finalizer.
+#        timeout-minutes: 10
+#        run: |
+#          make cluster-cleanup
 
       - name: DB engine features tests
         continue-on-error: true
@@ -153,6 +162,7 @@ jobs:
 
   e2e-data-importer-tests-flows:
     name: Data importer tests
+    needs: e2e-core-tests-flows
     if: |
       contains(github.event.pull_request.labels.*.name, 'test/e2e') ||
       contains(github.event.pull_request.labels.*.name, 'test/e2e-data-importer')
