@@ -51,6 +51,9 @@ assertAll:
   - celExpr: "!has(dbb_s3.status.completed)"
     message: "dbb_s3 has unexpected status.completed field"
 
+  - celExpr: "'everest.percona.com/in-use-protection' in dbb_s3.metadata.finalizers"
+    message: "'everest.percona.com/in-use-protection' is absent in dbb_s3.metadata.finalizers"
+
   - celExpr: "has(bs_s3.metadata.finalizers)"
     message: "bs_s3 doesn't have finalizers"
 
@@ -103,6 +106,7 @@ spec:
   dbClusterName: test-pg-cluster
 status:
   state: Starting
+  inUse: true
 ---
 apiVersion: pgv2.percona.com/v2
 kind: PerconaPGBackup

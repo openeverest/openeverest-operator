@@ -29,6 +29,10 @@ resourceRefs:
     name: test-db-backup-s3
     ref: dbb_s3
   - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseClusterRestore
+    name: test-db-restore-s3
+    ref: dbcr
+  - apiVersion: everest.percona.com/v1alpha1
     kind: BackupStorage
     name: test-storage-s3
     ref: bs_s3
@@ -53,6 +57,15 @@ assertAll:
 
   - celExpr: "has(dbb_s3.status.completed)"
     message: "dbb_s3 doesn't have status.completed field"
+
+  - celExpr: "'everest.percona.com/in-use-protection' in dbb_s3.metadata.finalizers"
+    message: "'everest.percona.com/in-use-protection' absent in dbb_s3.metadata.finalizers"
+
+  - celExpr: "has(dbcr.metadata.finalizers)"
+    message: "dbcr doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/in-use-protection' in dbcr.metadata.finalizers"
+    message: "'everest.percona.com/in-use-protection' is absent in dbcr.metadata.finalizers"
 
   - celExpr: "has(bs_s3.metadata.finalizers)"
     message: "bs_s3 doesn't have finalizers"
@@ -106,6 +119,7 @@ spec:
   dbClusterName: test-pg-cluster
 status:
   state: Succeeded
+  inUse: true
 ---
 apiVersion: pgv2.percona.com/v2
 kind: PerconaPGBackup
@@ -141,6 +155,7 @@ spec:
   dbClusterName: test-pg-cluster
 status:
     state: Starting
+    inUse: true
 ---
 apiVersion: pgv2.percona.com/v2
 kind: PerconaPGRestore

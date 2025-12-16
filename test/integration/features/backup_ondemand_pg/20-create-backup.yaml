@@ -9,4 +9,3 @@ metadata:
 spec:
   backupStorageName: test-storage-s3
   dbClusterName: test-pg-cluster
-

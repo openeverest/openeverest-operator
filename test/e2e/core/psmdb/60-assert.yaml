@@ -1,6 +1,9 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
 timeout: 300
+collectors:
+  - command: kubectl get dbc/single-node -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/single-node -n ${NAMESPACE} -o yaml
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
@@ -8,23 +11,10 @@ metadata:
   name: single-node
 spec:
   engine:
-    type: psmdb
-    config: |
-     operationProfiling:
-        mode: slowOp
-    userSecretsName: psmdb-sample-secrets
     replicas: 3
-    storage:
-      size: 15G
-    resources:
-      cpu: 300m
-      memory: 500M
   proxy:
-    type: mongos
     replicas: 3
 status:
-  ready: 3
-  size: 3
   status: ready
 ---
 apiVersion: psmdb.percona.com/v1
@@ -32,37 +22,10 @@ kind: PerconaServerMongoDB
 metadata:
   name: single-node
 spec:
-  multiCluster:
-    enabled: false
   replsets:
-    - configuration: |
-       operationProfiling:
-          mode: slowOp
-      expose:
-        enabled: true
-      name: rs0
-      resources:
-        limits:
-          cpu: 300m
-          memory: 500M
+    - name: rs0
       size: 3
-      volumeSpec:
-        persistentVolumeClaim:
-          resources:
-            requests:
-              storage: 15G
-  secrets:
-    users: psmdb-sample-secrets
-  sharding:
-    enabled: false
-  unsafeFlags: {}
 status:
-  replsets:
-    rs0:
-      initialized: true
-      ready: 3
-      size: 3
-      status: ready
   ready: 3
   size: 3
   state: ready

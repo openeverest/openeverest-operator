@@ -65,16 +65,20 @@ type DatabaseClusterBackupStatus struct {
 	Gaps bool `json:"gaps"`
 	// LatestRestorableTime is the latest time that can be used for PITR restore
 	LatestRestorableTime *metav1.Time `json:"latestRestorableTime,omitempty"`
+	// InUse is a flag that indicates if this restore resource is being used to restore DB cluster from backup.
+	// +kubebuilder:default=false
+	InUse bool `json:"inUse,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName=dbbackup;dbb
 // +kubebuilder:printcolumn:name="Cluster",type="string",JSONPath=".spec.dbClusterName",description="The original database cluster name"
 // +kubebuilder:printcolumn:name="Destination",type="string",JSONPath=".status.destination",description="Backup destination"
 // +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.state",description="Job status"
 // +kubebuilder:printcolumn:name="Completed",type="date",JSONPath=".status.completed",description="Time the job was completed"
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".status.created",description="Age of the resource"
+// +kubebuilder:printcolumn:name="InUse",type="string",JSONPath=".status.inUse",description="Indicates if the backup is used by any DB cluster"
 
 // DatabaseClusterBackup is the Schema for the databaseclusterbackups API.
 type DatabaseClusterBackup struct {
@@ -85,7 +89,7 @@ type DatabaseClusterBackup struct {
 	Status DatabaseClusterBackupStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 
 // DatabaseClusterBackupList contains a list of DatabaseClusterBackup.
 type DatabaseClusterBackupList struct {
@@ -111,6 +115,13 @@ func (b *DatabaseClusterBackup) HasFailed() bool {
 // HasCompleted returns true if the backup has completed.
 func (b *DatabaseClusterBackup) HasCompleted() bool {
 	return (b.HasSucceeded() || b.HasFailed()) && b.GetDeletionTimestamp().IsZero()
+}
+
+// IsInProgress returns true if the backup process is in progress.
+func (b *DatabaseClusterBackup) IsInProgress() bool {
+	return b.Status.State == BackupNew ||
+		b.Status.State == BackupStarting ||
+		b.Status.State == BackupRunning
 }
 
 // GetDBBackupState returns the backup state from the upstream backup object.

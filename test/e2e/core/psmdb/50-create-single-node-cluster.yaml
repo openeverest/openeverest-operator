@@ -11,13 +11,12 @@ spec:
     config: |
      operationProfiling:
         mode: slowOp
-    userSecretsName: psmdb-sample-secrets
     replicas: 1
     storage:
-      size: 15G
+      size: 1G
     resources:
-      cpu: 300m
-      memory: 500M
+      cpu: "1"
+      memory: 1G
   proxy:
     expose:
       type: internal

@@ -28,6 +28,10 @@ resourceRefs:
     name: test-pg-cluster
     ref: db
   - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseClusterRestore
+    name: test-db-restore-s3
+    ref: dbcr
+  - apiVersion: everest.percona.com/v1alpha1
     kind: BackupStorage
     name: test-storage-s3
     ref: bs_s3
@@ -40,6 +44,9 @@ assertAll:
 
   - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
     message: "foregroundDeletion' is absent in db.metadata.finalizers"
+
+  - celExpr: "!has(dbcr.metadata.finalizers)"
+    message: "dbcr has finalizers"
 
   - celExpr: "!has(bs_s3.metadata.finalizers)"
     message: "bs_s3 has finalizers"
@@ -80,6 +87,7 @@ spec:
   dbClusterName: test-pg-cluster
 status:
   state: Succeeded
+  inUse: false
 ---
 apiVersion: pgv2.percona.com/v2
 kind: PerconaPGRestore

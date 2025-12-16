@@ -1,9 +1,39 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 400
+timeout: 300
 commands:
-  - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=$PREVIOUS_PG_OPERATOR_VERSION pg/test-pg-cluster -n $NAMESPACE
-  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=$PREVIOUS_PG_DB_ENGINE_VERSION db/test-pg-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PREVIOUS_PG_OPERATOR_VERSION} pg/test-pg-cluster -n $NAMESPACE
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PREVIOUS_PG_DB_ENGINE_VERSION} db/test-pg-cluster -n $NAMESPACE
+collectors:
+  - command: kubectl get db/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get pg/test-pg-cluster -n ${NAMESPACE} -o yaml
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: test-pg-cluster
+    ref: db
+  - apiVersion: pgv2.percona.com/v2
+    kind: PerconaPGCluster
+    name: test-pg-cluster
+    ref: pg
+assertAll:
+  - celExpr: "has(db.metadata.finalizers)"
+    message: "db doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
+    message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
+
+  - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
+    message: "foregroundDeletion' is absent in db.metadata.finalizers"
+
+  - celExpr: "has(pg.metadata.finalizers)"
+    message: "pg doesn't have finalizers"
+
+  - celExpr: "'percona.com/delete-pvc' in pg.metadata.finalizers"
+    message: "'percona.com/delete-pvc' is absent in pg.metadata.finalizers"
+
+  - celExpr: "'percona.com/delete-ssl' in pg.metadata.finalizers"
+    message: "'percona.com/delete-ssl' is absent in pg.metadata.finalizers"
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
@@ -11,18 +41,16 @@ metadata:
   name: test-pg-cluster
 spec:
   engine:
-    replicas: 2
+    replicas: 3
     storage:
-      size: 1Gi
+      size: 1G
     type: postgresql
   proxy:
     expose:
       type: internal
-    replicas: 2
+    replicas: 3
     type: pgbouncer
 status:
-  ready: 4
-  size: 4
   status: ready
 ---
 apiVersion: pgv2.percona.com/v2
@@ -36,14 +64,14 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: 1Gi
+            storage: 1G
       name: instance1
-      replicas: 2
+      replicas: 3
   port: 5432
   proxy:
     pgBouncer:
       port: 5432
-      replicas: 2
+      replicas: 3
       expose:
         type: ClusterIP
   backups:
@@ -51,14 +79,10 @@ spec:
     pgbackrest:
       repos: []
 status:
-  pgbouncer:
-    ready: 2
-    size: 2
-  postgres:
-    instances:
-    - name: instance1
-      ready: 2
-      size: 2
-    ready: 2
-    size: 2
   state: ready
+  pgbouncer:
+    ready: 3
+    size: 3
+  postgres:
+    ready: 3
+    size: 3

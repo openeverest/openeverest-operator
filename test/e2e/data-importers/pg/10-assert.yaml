@@ -4,10 +4,6 @@ timeout: 100
 collectors:
   - command: kubectl get db/test-pg-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get perconapgcluster/test-pg-cluster -n ${NAMESPACE} -o yaml
-  - type: pod
-    namespace: everest-system
-    selector: control-plane=controller-manager
-    tail: 100
 ---
 apiVersion: v1
 kind: Secret

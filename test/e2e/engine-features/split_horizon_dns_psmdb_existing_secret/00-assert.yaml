@@ -5,10 +5,6 @@ collectors:
   - command: kubectl get splitdns/shdc-psmdb -n ${NAMESPACE} -o yaml
   - command: kubectl get secret/shdc-secret-exists -n ${NAMESPACE} -o yaml
   - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
-  - type: pod
-    namespace: everest-system
-    selector: control-plane=controller-manager
-    tail: 100
 resourceRefs:
   - apiVersion: enginefeatures.everest.percona.com/v1alpha1
     kind: SplitHorizonDNSConfig
@@ -20,6 +16,21 @@ assertAll:
 
   - celExpr: "!has(shdc.spec.tls.certificate)"
     message: "shdc has unexpected .spec.tls.certificate"
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: perconaservermongodbs.psmdb.percona.com
+spec:
+  group: psmdb.percona.com
+  names:
+    kind: PerconaServerMongoDB
+    listKind: PerconaServerMongoDBList
+    plural: perconaservermongodbs
+    shortNames:
+      - psmdb
+    singular: perconaservermongodb
+  scope: Namespaced
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package controllers
+package everest
 
 import everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
 

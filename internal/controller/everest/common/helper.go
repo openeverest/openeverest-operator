@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -346,15 +347,12 @@ func ReconcileDBRestoreFromDataSource(
 			Namespace: database.Namespace,
 		},
 	}
-	if err := controllerutil.SetControllerReference(database, dbRestore, c.Scheme()); err != nil {
-		return err
-	}
+
 	_, err = controllerutil.CreateOrUpdate(ctx, c, dbRestore, func() error {
 		dbRestore.Spec.DBClusterName = database.Name
 		dbRestore.Spec.DataSource = getRestoreDataSource(ctx, c, database)
-		return nil
+		return controllerutil.SetControllerReference(database, dbRestore, c.Scheme())
 	})
-
 	return err
 }
 
@@ -875,6 +873,13 @@ func EnqueueObjectsInNamespace(c client.Client, list client.ObjectList) handler.
 	})
 }
 
+// ReconcileRequestFromObject creates a reconcile.Request from a client.Object.
+func ReconcileRequestFromObject(obj client.Object) ctrl.Request {
+	return ctrl.Request{
+		NamespacedName: client.ObjectKeyFromObject(obj),
+	}
+}
+
 func toUnstructured(obj runtime.Object) (*unstructured.Unstructured, error) {
 	b, err := json.Marshal(obj)
 	if err != nil {
@@ -896,7 +901,7 @@ func storageClassSupportsVolumeExpansion(ctx context.Context, c client.Client, c
 	if err != nil {
 		return false, fmt.Errorf("getStorageClassOrDefault failed: %w", err)
 	}
-	return *storageClass.AllowVolumeExpansion, nil
+	return pointer.Get(storageClass.AllowVolumeExpansion), nil
 }
 
 func getStorageClassOrDefault(ctx context.Context, c client.Client, scName *string) (*storagev1.StorageClass, error) {

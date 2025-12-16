@@ -95,7 +95,6 @@ help: ## Display this help.
 init: cleanup-localbin  ## Install development tools
 	$(MAKE) kustomize
 	$(MAKE) controller-gen
-	$(MAKE) setup-envtest
 	$(MAKE) operator-sdk
 	$(MAKE) opm
 	$(MAKE) kubebuilder
@@ -145,18 +144,12 @@ minikube-cluster-up: ## Create a local minikube cluster
 	kubectl apply -f ./dev/kubevirt-hostpath-provisioner.yaml
 
 .PHONY: prepare-pr
-prepare-pr: manifests generate static-check format build ## Prepare the code for creating PR.
+prepare-pr: manifests generate static-check format bundle build ## Prepare the code for creating PR.
 
 ##@ Testing
 
 .PHONY: test
-#test: $(LOCALBIN) manifests generate format setup-envtest ## Run unit tests.
-
-KUBECONFIG ?= $(CWD)/test/kubeconfig
-test: $(LOCALBIN) manifests generate format ## Run unit tests. Call `make k3d-cluster-up` beforehand to create a K8S cluster for tests that require it.
-	#KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile cover.out
-	#KUBECONFIG=$(KUBECONFIG) go test ./... -coverprofile cover.out
-	#go test ./... -coverprofile cover.out
+test: ## Run unit tests.
 	go test ./...
 
 .PHONY: test-integration-core
@@ -176,16 +169,20 @@ test-integration-operator-upgrade: docker-build k3d-upload-image ## Run operator
 	. ./test/vars.sh && kubectl kuttl test --config ./test/integration/kuttl-operator-upgrade.yaml
 
 .PHONY: test-e2e-core
-test-e2e-core: docker-build ## Run e2e/core tests
+test-e2e-core: docker-build k3d-upload-image ## Run e2e/core tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-core.yaml
 
 .PHONY: test-e2e-db-upgrade
-test-e2e-db-upgrade: docker-build ## Run e2e/db-upgrade tests
+test-e2e-db-upgrade: docker-build k3d-upload-image ## Run e2e/db-upgrade tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-db-upgrade.yaml
 
 .PHONY: test-e2e-operator-upgrade
-test-e2e-operator-upgrade: docker-build ## Run e2e/operator-upgrade tests
+test-e2e-operator-upgrade: docker-build k3d-upload-image ## Run e2e/operator-upgrade tests
 	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-operator-upgrade.yaml
+
+.PHONY: test-e2e-resize-storage
+test-e2e-resize-storage: build ## Run e2e/resize-storage tests
+	. ./test/vars.sh && kubectl kuttl test --config ./test/e2e/kuttl-resize-storage.yaml
 
 .PHONY: test-e2e-data-importer
 test-e2e-data-importer: docker-build k3d-upload-image ## Run e2e/data-importer tests
@@ -222,12 +219,13 @@ k3d-cluster-reset: k3d-cluster-down k3d-cluster-up ## Recreate a K8S cluster for
 
 .PHONY: k3d-upload-image
 k3d-upload-image:
+	$(info Uploading Everest operator image=$(IMG) to K3D testing cluster)
 	k3d image import -c everest-operator-test -m direct $(IMG)
 
 # Cleanup all resources created by the tests
 .PHONY: cluster-cleanup
 cluster-cleanup:
-	kubectl delete db --all-namespaces --all --cascade=foreground --ignore-not-found=true || true
+	kubectl delete db --all-namespaces --all --cascade=foreground --ignore-not-found=true --wait=false || true
 	@namespaces=$$(kubectl get pxc -A -o jsonpath='{.items[*].metadata.namespace}'); \
 	for ns in $$namespaces; do \
 		kubectl -n $$ns get pxc -o name | xargs --no-run-if-empty -I{} kubectl patch -n $$ns {} -p '{"metadata":{"finalizers":null}}' --type=merge; \
@@ -357,13 +355,6 @@ controller-gen: $(LOCALBIN) ## Download controller-gen locally if necessary.
 ifeq (,$(wildcard $(CONTROLLER_GEN)))
 	GOBIN=$(LOCALBIN) GOOS=$(OS) GOARCH=$(ARCH) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 	mv $(LOCALBIN)/controller-gen $(CONTROLLER_GEN)
-endif
-
-.PHONY: setup-envtest
-ENVTEST = $(LOCALBIN)/setup-envtest
-setup-envtest: $(LOCALBIN) ## Download envtest-setup locally if necessary.
-ifeq (,$(wildcard $(ENVTEST)))
-	GOBIN=$(LOCALBIN) GOOS=$(OS) GOARCH=$(ARCH) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 endif
 
 .PHONY: operator-sdk

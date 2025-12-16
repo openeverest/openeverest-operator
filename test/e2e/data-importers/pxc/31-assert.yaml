@@ -1,11 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
 timeout: 420
-collectors:
-  - type: pod
-    namespace: everest-system
-    selector: control-plane=controller-manager
-    tail: 100
 commands:
   - command: kubectl wait --for=delete deploy/percona-xtradb-cluster-operator -n ${NAMESPACE}
   # Namespace deletion can be slow and flaky by kuttl

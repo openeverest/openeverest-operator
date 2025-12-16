@@ -366,7 +366,7 @@ func main() {
 			os.Exit(1)
 		}
 		if err := webhookeverestv1alpha1.SetupDataImportJobWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create webhook", "webhook", "DataImportJob")
+			setupLog.Error(err, "unable to create mutation webhook", "webhook", "DataImportJob")
 			os.Exit(1)
 		}
 
@@ -379,14 +379,18 @@ func main() {
 			setupLog.Error(err, "unable to create webhook", "webhook", "LoadBalancerConfig")
 			os.Exit(1)
 		}
+		if err := webhookeverestv1alpha1.SetupDatabaseClusterRestoreWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create validation webhook", "webhook", "DatabaseClusterRestore")
+			os.Exit(1)
+		}
+		if err := webhookeverestv1alpha1.SetupDatabaseClusterBackupWebhookWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create validation webhook", "webhook", "DatabaseClusterBackup")
+			os.Exit(1)
+		}
 
 		// ------------------ Engine Features webhooks ------------------
 		if err := webhookenginefeatureseverestv1alpha1.SetupSplitHorizonDNSConfigWebhookWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create validation webhook", "webhook", "SplitHorizonDNSConfig")
-			os.Exit(1)
-		}
-		if err := webhookenginefeatureseverestv1alpha1.SetupSplitHorizonDNSConfigMutationWebhookWithManager(mgr); err != nil {
-			setupLog.Error(err, "unable to create defaulter webhook", "webhook", "SplitHorizonDNSConfig")
 			os.Exit(1)
 		}
 		// ------------------ End of Engine Features webhooks ------------------
