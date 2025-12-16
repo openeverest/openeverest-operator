@@ -18,5 +18,20 @@ apiVersion: pgv2.percona.com/v2
 kind: PerconaPGCluster
 metadata:
   name: test-pg-cluster
+spec:
+  backups:
+    enabled: true
+    pgbackrest:
+      global:
+        repo1-retention-full: "1"
+      repos:
+        - name: repo1
+          volume:
+            volumeClaimSpec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 1Gi
 status:
   state: initializing
