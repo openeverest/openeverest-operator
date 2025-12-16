@@ -36,7 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -334,7 +334,7 @@ func addPGDataSource(
 		},
 	}
 	pg.Spec.DataSource = dataSource
-	pg.Spec.Backups.Enabled = pointer.Bool(true)
+	pg.Spec.Backups.Enabled = ptr.To(true)
 	pg.Spec.Backups.PGBackRest.Repos = []crunchyv1beta1.PGBackRestRepo{repo}
 }
 
