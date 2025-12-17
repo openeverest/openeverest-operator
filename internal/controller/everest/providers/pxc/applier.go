@@ -206,14 +206,15 @@ func (p *applier) Engine() error {
 	}
 
 	pxc.Spec.SecretsName = p.DB.Spec.Engine.UserSecretsName
-	// XXX: PXCO v1.17.0 has a bug in the auto generation of the secrets where
-	// there's a 1.5% chance that the proxyadmin password starts with the '*'
-	// character, which will be rejected by the secret validation, leaving the
-	// cluster stuck in the 'initializing' state.
+	// XXX: PXCO v1.17.0 and v1.18.0 have a bug in the auto generation of the
+	// secrets where there's a 1.5% chance that the proxyadmin password starts
+	// with the '*' character, which will be rejected by the secret validation,
+	// leaving the cluster stuck in the 'initializing' state.
 	// See: https://perconadev.atlassian.net/browse/K8SPXC-1568
 	// To work around this, we need to set the password ourselves to bypass the
 	// buggy auto generation.
-	if p.DBEngine.Status.OperatorVersion == "1.17.0" {
+	if p.DBEngine.Status.OperatorVersion == "1.17.0" ||
+		p.DBEngine.Status.OperatorVersion == "1.18.0" {
 		err := p.ensureSecretHasProxyAdminPassword(pxc.Spec.SecretsName)
 		if err != nil {
 			return fmt.Errorf("failed to set proxyadmin password: %w", err)
