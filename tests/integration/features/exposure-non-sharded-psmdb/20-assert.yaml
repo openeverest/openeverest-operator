@@ -1,0 +1,28 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 10
+collectors:
+  - command: kubectl -n $NAMESPACE get db/psmdb-non-sharded-exposure -o yaml
+  - command: kubectl -n $NAMESPACE get psmdb/psmdb-non-sharded-exposure -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: psmdb-non-sharded-exposure
+    ref: psmdb
+assertAll:
+  - celExpr: "psmdb.spec.replsets.all(i, i.expose.type == 'LoadBalancer')"
+    message: "psmdb.spec.replsets[*].expose.type is not LoadBalancer"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: psmdb-non-sharded-exposure
+spec:
+  proxy:
+    expose:
+      type: LoadBalancer
+

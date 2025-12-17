@@ -1,0 +1,30 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 10
+collectors:
+  - command: kubectl -n $NAMESPACE get db/pxc-exposure -o yaml
+  - command: kubectl -n $NAMESPACE get pxc/pxc-exposure -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: pxc-exposure
+spec:
+  proxy:
+    expose:
+      type: LoadBalancer
+---
+apiVersion: pxc.percona.com/v1
+kind: PerconaXtraDBCluster
+metadata:
+  name: pxc-exposure
+spec:
+  haproxy:
+    exposePrimary:
+      type: LoadBalancer
+    exposeReplicas:
+      type: LoadBalancer
