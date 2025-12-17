@@ -16,6 +16,7 @@
 package v1alpha1
 
 import (
+	"fmt"
 	"net"
 
 	corev1 "k8s.io/api/core/v1"
@@ -58,10 +59,17 @@ const (
 	// AppStateNew represents a newly created cluster that has not yet been reconciled.
 	AppStateNew AppState = ""
 
-	// ExposeTypeInternal is an internal expose type.
+	// Deprecated: ExposeTypeInternal is an internal expose type. Please use ExposeTypeClusterIP instead
 	ExposeTypeInternal ExposeType = "internal"
-	// ExposeTypeExternal is an external expose type.
+	// Deprecated: ExposeTypeExternal is an external expose type. Please use ExposeTypeLoadBalancer instead
 	ExposeTypeExternal ExposeType = "external"
+
+	// ExposeTypeClusterIP is the ClusterIP expose type.
+	ExposeTypeClusterIP ExposeType = "ClusterIP"
+	// ExposeTypeLoadBalancer is the LoadBalancer expose type.
+	ExposeTypeLoadBalancer ExposeType = "LoadBalancer"
+	// ExposeTypeNodePort is the NodePort expose type.
+	ExposeTypeNodePort ExposeType = "NodePort"
 
 	// ProxyTypeMongos is a mongos proxy type.
 	ProxyTypeMongos ProxyType = "mongos"
@@ -72,6 +80,23 @@ const (
 	// ProxyTypePGBouncer is a PGBouncer proxy type.
 	ProxyTypePGBouncer ProxyType = "pgbouncer"
 )
+
+func (t ExposeType) Normalize() ExposeType {
+	switch t {
+	case ExposeTypeInternal:
+		return ExposeTypeClusterIP
+	case ExposeTypeExternal:
+		return ExposeTypeLoadBalancer
+	}
+	return t
+}
+
+func (t ExposeType) DeprecationWarning() string {
+	if t != t.Normalize() {
+		return fmt.Sprintf("expose type '%s' is deprecated, please use '%s' instead", t, t.Normalize())
+	}
+	return ""
+}
 
 type (
 	// LoadBalancerType contains supported loadbalancers. It can be proxysql or haproxy
@@ -205,9 +230,9 @@ type IPSourceRange string
 
 // Expose is the expose configuration.
 type Expose struct {
-	// Type is the expose type, can be internal or external
-	// +kubebuilder:validation:Enum:=internal;external
-	// +kubebuilder:default:=internal
+	// Type is the expose type, can be ClusterIP, LoadBalancer, NodePort. The types internal and external are deprecated.
+	// +kubebuilder:validation:Enum:=internal;external;ClusterIP;LoadBalancer;NodePort
+	// +kubebuilder:default:=ClusterIP
 	Type ExposeType `json:"type,omitempty"`
 	// IPSourceRanges is the list of IP source ranges (CIDR notation)
 	// to allow access from. If not set, there is no limitations

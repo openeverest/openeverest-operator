@@ -1,0 +1,8 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  # Need to patch KUTTL's namespace to add the label so that the Everest Operator can reconcile resources from it.
+  - command: kubectl patch ns ${NAMESPACE} -p '{"metadata":{"labels":{"app.kubernetes.io/managed-by":"everest"}}}' --type merge
+  # We don't need the PG operator to be running for the integration tests, but we need the deployment to exist otherwise the everest operator won't reconcile the CRs
+  - script: "curl -fsSL https://raw.githubusercontent.com/percona/percona-postgresql-operator/v${PG_OPERATOR_VERSION}/deploy/operator.yaml | sed 's/replicas: [0-9]/replicas: 0/g' | kubectl apply -n ${NAMESPACE} -f -"
