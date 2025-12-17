@@ -218,13 +218,13 @@ func (p *applier) Proxy() error {
 	} else {
 		pg.Spec.Proxy.PGBouncer.Replicas = database.Spec.Proxy.Replicas
 	}
-	switch database.Spec.Proxy.Expose.Type {
-	case everestv1alpha1.ExposeTypeInternal:
+	switch database.Spec.Proxy.Expose.Type.Normalize() {
+	case everestv1alpha1.ExposeTypeClusterIP:
 		pg.Spec.Proxy.PGBouncer.ServiceExpose = &pgv2.ServiceExpose{
 			Type: string(corev1.ServiceTypeClusterIP),
 		}
 		pg.Spec.Proxy.PGBouncer.ServiceExpose.Annotations = map[string]string{}
-	case everestv1alpha1.ExposeTypeExternal:
+	case everestv1alpha1.ExposeTypeLoadBalancer:
 		pg.Spec.Proxy.PGBouncer.ServiceExpose = &pgv2.ServiceExpose{
 			Type:                     string(corev1.ServiceTypeLoadBalancer),
 			LoadBalancerSourceRanges: p.DB.Spec.Proxy.Expose.IPSourceRangesStringArray(),
@@ -236,6 +236,11 @@ func (p *applier) Proxy() error {
 		}
 
 		pg.Spec.Proxy.PGBouncer.ServiceExpose.Annotations = annotations
+	case everestv1alpha1.ExposeTypeNodePort:
+		pg.Spec.Proxy.PGBouncer.ServiceExpose = &pgv2.ServiceExpose{
+			Type: string(corev1.ServiceTypeNodePort),
+		}
+		pg.Spec.Proxy.PGBouncer.ServiceExpose.Annotations = map[string]string{}
 	default:
 		return fmt.Errorf("invalid expose type %s", database.Spec.Proxy.Expose.Type)
 	}
@@ -291,6 +296,15 @@ func (p *applier) DataSource() error {
 	}
 	p.PerconaPGCluster.Spec.DataSource = spec
 	return nil
+}
+
+func (p *applier) DataImport() error {
+	db := p.DB
+	if pointer.Get(db.Spec.DataSource).DataImport == nil {
+		// Nothing to do.
+		return nil
+	}
+	return common.ReconcileDBFromDataImport(p.ctx, p.C, p.DB)
 }
 
 func (p *applier) Monitoring() error {
@@ -1175,7 +1189,7 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 	return newBackups, nil
 }
 
-// Keep the PVC storage only if it was defined before or if PG less than 2.7.0 is used.
+// Keep the PVC storage only if it was defined before or if PGO less than 2.8.0 is used.
 func checkPVCRequired(repos []crunchyv1beta1.PGBackRestRepo, v string) bool {
 	for _, repo := range repos {
 		if repo.Volume != nil {

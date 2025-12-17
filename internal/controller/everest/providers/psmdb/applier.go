@@ -297,11 +297,11 @@ func (p *applier) Proxy() error {
 
 func (p *applier) exposeShardedCluster(expose *psmdbv1.MongosExpose) error {
 	database := p.DB
-	switch database.Spec.Proxy.Expose.Type {
-	case everestv1alpha1.ExposeTypeInternal:
+	switch database.Spec.Proxy.Expose.Type.Normalize() {
+	case everestv1alpha1.ExposeTypeClusterIP:
 		expose.ExposeType = corev1.ServiceTypeClusterIP
 		expose.ServiceAnnotations = map[string]string{}
-	case everestv1alpha1.ExposeTypeExternal:
+	case everestv1alpha1.ExposeTypeLoadBalancer:
 		expose.ExposeType = corev1.ServiceTypeLoadBalancer
 		expose.LoadBalancerSourceRanges = database.Spec.Proxy.Expose.IPSourceRangesStringArray()
 
@@ -311,6 +311,9 @@ func (p *applier) exposeShardedCluster(expose *psmdbv1.MongosExpose) error {
 		}
 
 		expose.ServiceAnnotations = annotations
+	case everestv1alpha1.ExposeTypeNodePort:
+		expose.ExposeType = corev1.ServiceTypeNodePort
+		expose.ServiceAnnotations = map[string]string{}
 	default:
 		return fmt.Errorf("invalid expose type %s", database.Spec.Proxy.Expose.Type)
 	}
@@ -319,12 +322,12 @@ func (p *applier) exposeShardedCluster(expose *psmdbv1.MongosExpose) error {
 
 func (p *applier) exposeDefaultReplSet(expose *psmdbv1.ExposeTogglable) error {
 	database := p.DB
-	switch database.Spec.Proxy.Expose.Type {
-	case everestv1alpha1.ExposeTypeInternal:
+	switch database.Spec.Proxy.Expose.Type.Normalize() {
+	case everestv1alpha1.ExposeTypeClusterIP:
 		expose.Enabled = true
 		expose.ExposeType = corev1.ServiceTypeClusterIP
 		expose.ServiceAnnotations = map[string]string{}
-	case everestv1alpha1.ExposeTypeExternal:
+	case everestv1alpha1.ExposeTypeLoadBalancer:
 		expose.Enabled = true
 		expose.ExposeType = corev1.ServiceTypeLoadBalancer
 		expose.LoadBalancerSourceRanges = database.Spec.Proxy.Expose.IPSourceRangesStringArray()
@@ -335,6 +338,10 @@ func (p *applier) exposeDefaultReplSet(expose *psmdbv1.ExposeTogglable) error {
 		}
 
 		expose.ServiceAnnotations = annotations
+	case everestv1alpha1.ExposeTypeNodePort:
+		expose.Enabled = true
+		expose.ExposeType = corev1.ServiceTypeNodePort
+		expose.ServiceAnnotations = map[string]string{}
 	default:
 		return fmt.Errorf("invalid expose type %s", database.Spec.Proxy.Expose.Type)
 	}
@@ -369,6 +376,24 @@ func (p *applier) DataSource() error {
 		return nil
 	}
 	return common.ReconcileDBRestoreFromDataSource(p.ctx, p.C, p.DB)
+}
+
+func (p *applier) DataImport() error {
+	database := p.DB
+	if pointer.Get(database.Spec.DataSource).DataImport == nil {
+		// Nothing to do.
+		return nil
+	}
+
+	if database.Status.Status != everestv1alpha1.AppStateReady ||
+		p.PerconaServerMongoDB.Status.BackupVersion == "" {
+		// Wait for the cluster to be ready.
+		// NOTE: .status.backupVersion is set after psmdb cluster is fully ready and takes some time after that.
+		// We need to wait for it to be set to ensure that restores from backups (pbm) work correctly.
+		return nil
+	}
+
+	return common.ReconcileDBFromDataImport(p.ctx, p.C, p.DB)
 }
 
 func (p *applier) Monitoring() error {

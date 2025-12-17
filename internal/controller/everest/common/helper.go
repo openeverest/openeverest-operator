@@ -384,6 +384,39 @@ func getRestoreDataSource(
 	}
 }
 
+// ReconcileDBFromDataImport reconciles the DataImportJob object
+// based on the DataImport field of the DatabaseCluster.
+func ReconcileDBFromDataImport(
+	ctx context.Context,
+	c client.Client,
+	db *everestv1alpha1.DatabaseCluster,
+) error {
+	namespace := db.GetNamespace()
+	dataImportSpec := db.Spec.DataSource.DataImport
+	diJob := &everestv1alpha1.DataImportJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetDataImportJobName(db),
+			Namespace: namespace,
+		},
+	}
+	if _, err := controllerutil.CreateOrUpdate(ctx, c, diJob, func() error {
+		diJob.ObjectMeta.Labels = map[string]string{
+			consts.DatabaseClusterNameLabel: db.GetName(),
+		}
+		diJob.Spec = everestv1alpha1.DataImportJobSpec{
+			TargetClusterName:     db.GetName(),
+			DataImportJobTemplate: dataImportSpec,
+		}
+		if err := controllerutil.SetControllerReference(db, diJob, c.Scheme()); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 // ValidatePitrRestoreSpec validates the PITR restore spec.
 func ValidatePitrRestoreSpec(dataSource everestv1alpha1.DataSource) error {
 	if dataSource.PITR == nil {

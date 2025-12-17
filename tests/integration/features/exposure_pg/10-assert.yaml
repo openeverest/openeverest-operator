@@ -1,0 +1,29 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 10
+collectors:
+  - command: kubectl -n $NAMESPACE get db/pg-exposure -o yaml
+  - command: kubectl -n $NAMESPACE get perconapgcluster/pg-exposure -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: pg-exposure
+spec:
+  proxy:
+    expose:
+      type: internal
+---
+apiVersion: pgv2.percona.com/v2
+kind: PerconaPGCluster
+metadata:
+  name: pg-exposure
+spec:
+  proxy:
+    pgBouncer:
+      expose:
+        type: ClusterIP

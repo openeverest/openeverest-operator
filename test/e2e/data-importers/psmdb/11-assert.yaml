@@ -4,6 +4,14 @@ timeout: 300
 collectors:
   - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+resourceRefs:
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: test-psmdb-cluster
+    ref: psmdb
+assertAll:
+  - celExpr: "has(psmdb.status.backupVersion)"
+    message: "psmdb status doesn't have backupVersion field"
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster

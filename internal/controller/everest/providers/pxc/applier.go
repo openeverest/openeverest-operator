@@ -337,6 +337,15 @@ func (p *applier) DataSource() error {
 	return common.ReconcileDBRestoreFromDataSource(p.ctx, p.C, p.DB)
 }
 
+func (p *applier) DataImport() error {
+	db := p.DB
+	if pointer.Get(db.Spec.DataSource).DataImport == nil {
+		// Nothing to do.
+		return nil
+	}
+	return common.ReconcileDBFromDataImport(p.ctx, p.C, p.DB)
+}
+
 func (p *applier) Monitoring() error {
 	monitoring, err := common.GetDBMonitoringConfig(p.ctx, p.C, p.DB)
 	if err != nil {
@@ -506,32 +515,37 @@ func (p *applier) applyHAProxyCfg() error {
 		haProxy.PodSpec.Size = *p.DB.Spec.Proxy.Replicas
 	}
 
-	switch p.DB.Spec.Proxy.Expose.Type {
-	case everestv1alpha1.ExposeTypeInternal:
-		expose := pxcv1.ServiceExpose{
+	var expose pxcv1.ServiceExpose
+	switch p.DB.Spec.Proxy.Expose.Type.Normalize() {
+	case everestv1alpha1.ExposeTypeClusterIP:
+		expose = pxcv1.ServiceExpose{
 			Enabled:     true,
 			Type:        corev1.ServiceTypeClusterIP,
 			Annotations: map[string]string{},
 		}
-		haProxy.ExposePrimary = expose
-		haProxy.ExposeReplicas = &pxcv1.ReplicasServiceExpose{ServiceExpose: expose}
-	case everestv1alpha1.ExposeTypeExternal:
+	case everestv1alpha1.ExposeTypeLoadBalancer:
 		annotations, err := common.GetAnnotations(p.ctx, p.C, p.DB)
 		if err != nil {
 			return err
 		}
-		expose := pxcv1.ServiceExpose{
+		expose = pxcv1.ServiceExpose{
 			Enabled:                  true,
 			Type:                     corev1.ServiceTypeLoadBalancer,
 			LoadBalancerSourceRanges: p.DB.Spec.Proxy.Expose.IPSourceRangesStringArray(),
 			Annotations:              annotations,
 		}
-		haProxy.ExposePrimary = expose
-		haProxy.ExposeReplicas = &pxcv1.ReplicasServiceExpose{ServiceExpose: expose}
+	case everestv1alpha1.ExposeTypeNodePort:
+		expose = pxcv1.ServiceExpose{
+			Enabled:     true,
+			Type:        corev1.ServiceTypeNodePort,
+			Annotations: map[string]string{},
+		}
 	default:
 		return fmt.Errorf("invalid expose type %s", p.DB.Spec.Proxy.Expose.Type)
 	}
 
+	haProxy.ExposePrimary = expose
+	haProxy.ExposeReplicas = &pxcv1.ReplicasServiceExpose{ServiceExpose: expose}
 	haProxy.PodSpec.Configuration = p.DB.Spec.Proxy.Config
 	if haProxy.PodSpec.Configuration == "" {
 		haProxy.PodSpec.Configuration = haProxyConfigDefault
@@ -626,30 +640,35 @@ func (p *applier) applyProxySQLCfg() error {
 		proxySQL.Size = *p.DB.Spec.Proxy.Replicas
 	}
 
-	switch p.DB.Spec.Proxy.Expose.Type {
-	case everestv1alpha1.ExposeTypeInternal:
-		expose := pxcv1.ServiceExpose{
+	var expose pxcv1.ServiceExpose
+	switch p.DB.Spec.Proxy.Expose.Type.Normalize() {
+	case everestv1alpha1.ExposeTypeClusterIP:
+		expose = pxcv1.ServiceExpose{
 			Enabled:     true,
 			Type:        corev1.ServiceTypeClusterIP,
 			Annotations: map[string]string{},
 		}
-		proxySQL.Expose = expose
-	case everestv1alpha1.ExposeTypeExternal:
+	case everestv1alpha1.ExposeTypeLoadBalancer:
 		annotations, err := common.GetAnnotations(p.ctx, p.C, p.DB)
 		if err != nil {
 			return err
 		}
-		expose := pxcv1.ServiceExpose{
+		expose = pxcv1.ServiceExpose{
 			Enabled:                  true,
 			Type:                     corev1.ServiceTypeLoadBalancer,
 			LoadBalancerSourceRanges: p.DB.Spec.Proxy.Expose.IPSourceRangesStringArray(),
 			Annotations:              annotations,
 		}
-		proxySQL.Expose = expose
+	case everestv1alpha1.ExposeTypeNodePort:
+		expose = pxcv1.ServiceExpose{
+			Enabled:     true,
+			Type:        corev1.ServiceTypeNodePort,
+			Annotations: map[string]string{},
+		}
 	default:
 		return fmt.Errorf("invalid expose type %s", p.DB.Spec.Proxy.Expose.Type)
 	}
-
+	proxySQL.Expose = expose
 	proxySQL.Configuration = p.DB.Spec.Proxy.Config
 
 	proxySQLAvailVersions, ok := p.DBEngine.Status.AvailableVersions.Proxy[everestv1alpha1.ProxyTypeProxySQL]

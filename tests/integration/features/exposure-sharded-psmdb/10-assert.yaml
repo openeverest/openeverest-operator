@@ -1,0 +1,27 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 10
+collectors:
+  - command: kubectl -n $NAMESPACE get db/psmdb-sharded-exposure -o yaml
+  - command: kubectl -n $NAMESPACE get psmdb/psmdb-sharded-exposure -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: psmdb-sharded-exposure
+    ref: psmdb
+assertAll:
+  - celExpr: "psmdb.spec.sharding.mongos.expose.type == 'ClusterIP'"
+    message: "psmdb.spec.sharding.mongos.expose.type is not ClusterIP"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: psmdb-sharded-exposure
+spec:
+  proxy:
+    expose:
+      type: internal

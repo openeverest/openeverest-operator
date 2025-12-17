@@ -92,6 +92,7 @@ type DatabaseClusterValidator struct {
 // ValidateCreate validates the creation of a DatabaseCluster.
 func (v *DatabaseClusterValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	var allErrs field.ErrorList
+	var warns admission.Warnings
 
 	db, ok := obj.(*everestv1alpha1.DatabaseCluster)
 	if !ok {
@@ -137,16 +138,22 @@ func (v *DatabaseClusterValidator) ValidateCreate(ctx context.Context, obj runti
 		allErrs = append(allErrs, errs...)
 	}
 
-	if len(allErrs) == 0 {
-		return nil, nil
+	if warn := db.Spec.Proxy.Expose.Type.DeprecationWarning(); warn != "" {
+		warns = append(warns, warn)
 	}
 
-	return nil, apierrors.NewInvalid(dbClusterGroupKind, db.GetName(), allErrs)
+	if len(allErrs) == 0 {
+		return warns, nil
+	}
+
+	return warns, apierrors.NewInvalid(dbClusterGroupKind, db.GetName(), allErrs)
 }
 
 // ValidateUpdate validates the update of a DatabaseCluster.
 func (v *DatabaseClusterValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	var allErrs field.ErrorList
+	var warns admission.Warnings
+
 	oldDb, ok := oldObj.(*everestv1alpha1.DatabaseCluster)
 	if !ok {
 		return nil, fmt.Errorf("expected a DatabaseCluster for oldDb, got %T", oldObj)
@@ -186,11 +193,15 @@ func (v *DatabaseClusterValidator) ValidateUpdate(ctx context.Context, oldObj, n
 		allErrs = append(allErrs, errs...)
 	}
 
-	if len(allErrs) == 0 {
-		return nil, nil
+	if warn := newDb.Spec.Proxy.Expose.Type.DeprecationWarning(); warn != "" {
+		warns = append(warns, warn)
 	}
 
-	return nil, apierrors.NewInvalid(dbClusterGroupKind, oldDb.GetName(), allErrs)
+	if len(allErrs) == 0 {
+		return warns, nil
+	}
+
+	return warns, apierrors.NewInvalid(dbClusterGroupKind, oldDb.GetName(), allErrs)
 }
 
 // ValidateDelete validates the deletion of a DatabaseCluster.
