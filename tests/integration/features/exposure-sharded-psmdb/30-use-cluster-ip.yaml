@@ -1,0 +1,11 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: psmdb-sharded-exposure
+spec:
+  proxy:
+    expose:
+      type: ClusterIP
