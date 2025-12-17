@@ -339,7 +339,8 @@ func (p *applier) DataSource() error {
 
 func (p *applier) DataImport() error {
 	db := p.DB
-	if pointer.Get(db.Spec.DataSource).DataImport == nil {
+	if pointer.Get(db.Spec.DataSource).DataImport == nil ||
+		db.Status.Status != everestv1alpha1.AppStateReady {
 		// Nothing to do.
 		return nil
 	}
