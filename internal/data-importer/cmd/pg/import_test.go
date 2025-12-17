@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/aws/smithy-go/ptr"
 	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -122,6 +123,12 @@ func TestAddPGDataSource(t *testing.T) {
 			assert.NotNil(t, pg.Spec.DataSource.PGBackRest, "PGBackRest should be set")
 
 			pgBackRest := pg.Spec.DataSource.PGBackRest
+
+			// Verify that the BackupsSection was set
+			assert.NotNil(t, pg.Spec.Backups, "Backups should be set")
+			assert.True(t, ptr.ToBool(pg.Spec.Backups.Enabled), "Backups.Enabled should be true")
+			assert.Equal(t, len(pg.Spec.Backups.PGBackRest.Repos), 1, "PGBackRest.Repos should have 1 element")
+			assert.Equal(t, pg.Spec.Backups.PGBackRest.Repos[0], pgBackRest.Repo, "PGBackRest.Repos[0] should be the same as in DataSource")
 
 			// Verify Configuration
 			assert.Len(t, pgBackRest.Configuration, 1, "Should have one configuration entry")
