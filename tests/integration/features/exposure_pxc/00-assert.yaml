@@ -1,0 +1,25 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: percona-xtradb-cluster-operator
+spec:
+  replicas: 0
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseEngine
+metadata:
+  name: percona-xtradb-cluster-operator
+spec:
+  type: pxc
+status:
+  status: installed

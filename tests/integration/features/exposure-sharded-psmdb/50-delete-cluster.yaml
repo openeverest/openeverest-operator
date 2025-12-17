@@ -1,0 +1,7 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 30
+commands:
+  - script: kubectl -n $NAMESPACE delete db/psmdb-sharded-exposure psmdb/psmdb-sharded-exposure --wait=false && sleep 5
+  - command: kubectl patch db/psmdb-sharded-exposure -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge
+  - command: kubectl patch psmdb/psmdb-sharded-exposure -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge

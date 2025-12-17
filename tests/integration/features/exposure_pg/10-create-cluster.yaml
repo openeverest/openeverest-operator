@@ -1,0 +1,24 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: pg-exposure
+spec:
+  engine:
+    replicas: 2
+    resources:
+      cpu: "1"
+      memory: 2G
+    storage:
+      size: 25Gi
+    type: postgresql
+  proxy:
+    expose:
+      type: internal
+    replicas: 2
+    resources:
+      cpu: "1"
+      memory: 30M
+    type: pgbouncer
