@@ -220,9 +220,13 @@ func (r *DatabaseClusterReconciler) reconcileDB(
 			return fmt.Errorf("failed to apply backup: %w", err)
 		}
 		// DataSource is run only if we're not importing external data.
-		if dataImport := pointer.Get(db.Spec.DataSource).DataImport; dataImport == nil {
+		if pointer.Get(db.Spec.DataSource).DataImport == nil {
 			if err := applier.DataSource(); err != nil {
 				return fmt.Errorf("failed to apply data source: %w", err)
+			}
+		} else {
+			if err := applier.DataImport(); err != nil {
+				return fmt.Errorf("failed to apply data import: %w", err)
 			}
 		}
 		return nil
@@ -241,11 +245,7 @@ func (r *DatabaseClusterReconciler) reconcileDB(
 		return ctrl.Result{}, fmt.Errorf("failed to create or update database cluster: %w", err)
 	}
 
-	if dataImport := pointer.Get(db.Spec.DataSource).DataImport; dataImport != nil && db.Status.Status == everestv1alpha1.AppStateReady {
-		if err := r.ensureDataImportJob(ctx, db); err != nil {
-			return ctrl.Result{}, err
-		}
-	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -324,36 +324,6 @@ func (r *DatabaseClusterReconciler) observeDataImportState(
 		})
 	case sts.State != everestv1alpha1.DataImportJobStateSucceeded:
 		db.Status.Status = everestv1alpha1.AppStateImporting
-	}
-	return nil
-}
-
-func (r *DatabaseClusterReconciler) ensureDataImportJob(
-	ctx context.Context,
-	db *everestv1alpha1.DatabaseCluster,
-) error {
-	namespace := db.GetNamespace()
-	dataImportSpec := db.Spec.DataSource.DataImport
-	diJob := &everestv1alpha1.DataImportJob{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.GetDataImportJobName(db),
-			Namespace: namespace,
-		},
-	}
-	if _, err := controllerutil.CreateOrUpdate(ctx, r.Client, diJob, func() error {
-		diJob.ObjectMeta.Labels = map[string]string{
-			consts.DatabaseClusterNameLabel: db.GetName(),
-		}
-		diJob.Spec = everestv1alpha1.DataImportJobSpec{
-			TargetClusterName:     db.GetName(),
-			DataImportJobTemplate: dataImportSpec,
-		}
-		if err := controllerutil.SetControllerReference(db, diJob, r.Scheme); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return err
 	}
 	return nil
 }

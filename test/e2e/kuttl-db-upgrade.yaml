@@ -11,6 +11,8 @@ commands:
   - command: make -f ${OPERATOR_ROOT_PATH}/Makefile deploy-test
   - command: kubectl wait --for condition=established --timeout=10s crd databaseclusters.everest.percona.com
   - command: kubectl wait --for condition=established --timeout=10s crd vmagents.operator.victoriametrics.com
+  # Need to restart Everest Operator to pick the latest image (in case it was rebuilt).
+  - command: kubectl delete pod -n everest-system -l control-plane=controller-manager
   # Wait for Everest Operator to be ready.
   - command: kubectl wait --for condition=available --timeout=30s deploy/everest-controller-manager -n everest-system
 testDirs:

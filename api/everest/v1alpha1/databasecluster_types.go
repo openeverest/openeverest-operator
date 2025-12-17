@@ -130,6 +130,7 @@ type Applier interface {
 	EngineFeatures() error
 	Proxy() error
 	DataSource() error
+	DataImport() error
 	Monitoring() error
 	PodSchedulingPolicy() error
 	Backup() error

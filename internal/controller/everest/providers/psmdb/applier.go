@@ -371,6 +371,24 @@ func (p *applier) DataSource() error {
 	return common.ReconcileDBRestoreFromDataSource(p.ctx, p.C, p.DB)
 }
 
+func (p *applier) DataImport() error {
+	database := p.DB
+	if pointer.Get(database.Spec.DataSource).DataImport == nil {
+		// Nothing to do.
+		return nil
+	}
+
+	if database.Status.Status != everestv1alpha1.AppStateReady ||
+		p.PerconaServerMongoDB.Status.BackupVersion == "" {
+		// Wait for the cluster to be ready.
+		// NOTE: .status.backupVersion is set after psmdb cluster is fully ready and takes some time after that.
+		// We need to wait for it to be set to ensure that restores from backups (pbm) work correctly.
+		return nil
+	}
+
+	return common.ReconcileDBFromDataImport(p.ctx, p.C, p.DB)
+}
+
 func (p *applier) Monitoring() error {
 	monitoring, err := common.GetDBMonitoringConfig(p.ctx, p.C, p.DB)
 	if err != nil {
