@@ -1184,7 +1184,7 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 	return newBackups, nil
 }
 
-// Keep the PVC storage only if it was defined before or if PG less than 2.7.0 is used.
+// Keep the PVC storage only if it was defined before or if PGO less than 2.8.0 is used.
 func checkPVCRequired(repos []crunchyv1beta1.PGBackRestRepo, v string) bool {
 	for _, repo := range repos {
 		if repo.Volume != nil {
