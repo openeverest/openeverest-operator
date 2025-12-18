@@ -28,7 +28,7 @@ import (
 	"strings"
 
 	"github.com/AlekSi/pointer"
-	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
+	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
 	psmdbv1 "github.com/percona/percona-server-mongodb-operator/pkg/apis/psmdb/v1"
 	"gopkg.in/yaml.v3"
 	appsv1 "k8s.io/api/apps/v1"
@@ -382,6 +382,39 @@ func getRestoreDataSource(
 		},
 		PITR: database.Spec.DataSource.PITR,
 	}
+}
+
+// ReconcileDBFromDataImport reconciles the DataImportJob object
+// based on the DataImport field of the DatabaseCluster.
+func ReconcileDBFromDataImport(
+	ctx context.Context,
+	c client.Client,
+	db *everestv1alpha1.DatabaseCluster,
+) error {
+	namespace := db.GetNamespace()
+	dataImportSpec := db.Spec.DataSource.DataImport
+	diJob := &everestv1alpha1.DataImportJob{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetDataImportJobName(db),
+			Namespace: namespace,
+		},
+	}
+	if _, err := controllerutil.CreateOrUpdate(ctx, c, diJob, func() error {
+		diJob.Labels = map[string]string{
+			consts.DatabaseClusterNameLabel: db.GetName(),
+		}
+		diJob.Spec = everestv1alpha1.DataImportJobSpec{
+			TargetClusterName:     db.GetName(),
+			DataImportJobTemplate: dataImportSpec,
+		}
+		if err := controllerutil.SetControllerReference(db, diJob, c.Scheme()); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return err
+	}
+	return nil
 }
 
 // ValidatePitrRestoreSpec validates the PITR restore spec.

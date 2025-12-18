@@ -25,7 +25,7 @@ import (
 
 	"github.com/AlekSi/pointer"
 	"github.com/go-ini/ini"
-	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
+	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
@@ -43,7 +43,7 @@ type pgReposReconciler struct {
 	reposToBeReconciled           *list.List
 }
 
-func newPGReposReconciler(oldRepos []crunchyv1beta1.PGBackRestRepo, backupSchedules []everestv1alpha1.BackupSchedule) (*pgReposReconciler, error) {
+func newPGReposReconciler(oldRepos []crunchyv1beta1.PGBackRestRepo, backupSchedules []everestv1alpha1.BackupSchedule, pvcRequired bool) (*pgReposReconciler, error) {
 	iniFile, err := ini.Load([]byte{})
 	if err != nil {
 		return nil, errors.New("failed to initialize PGBackrest secret data")
@@ -66,7 +66,9 @@ func newPGReposReconciler(oldRepos []crunchyv1beta1.PGBackRestRepo, backupSchedu
 	)
 
 	pgBackRestGlobal := make(map[string]string, maxPGBackrestOptionsNumber*maxStorages)
-	pgBackRestGlobal["repo1-retention-full"] = "1"
+	if pvcRequired {
+		pgBackRestGlobal["repo1-retention-full"] = "1"
+	}
 
 	return &pgReposReconciler{
 		pgBackRestGlobal:              pgBackRestGlobal,
@@ -76,14 +78,15 @@ func newPGReposReconciler(oldRepos []crunchyv1beta1.PGBackRestRepo, backupSchedu
 		reposReconciled:               list.New(),
 		backupSchedulesReconciled:     list.New(),
 		backupSchedulesToBeReconciled: backupSchedulesToBeReconciled,
-		availableRepoNames: []string{
-			// repo1 is reserved for the PVC-based repo, see below for details on
-			// how it is handled
-			"repo2",
-			"repo3",
-			"repo4",
-		},
+		availableRepoNames:            getAvailableRepoNames(pvcRequired),
 	}, nil
+}
+
+func getAvailableRepoNames(pvcRequired bool) []string {
+	if pvcRequired {
+		return []string{"repo2", "repo3", "repo4"} // repo1 is reserved for the PVC-based repo
+	}
+	return []string{"repo1", "repo2", "repo3", "repo4"}
 }
 
 func (p *pgReposReconciler) addRepoToPGGlobal(
@@ -399,30 +402,34 @@ func (p *pgReposReconciler) pgBackRestIniBytes() ([]byte, error) {
 	return pgBackrestSecretBuf.Bytes(), nil
 }
 
-func (p *pgReposReconciler) addDefaultRepo(engineStorage everestv1alpha1.Storage) ([]crunchyv1beta1.PGBackRestRepo, error) {
+func (p *pgReposReconciler) addDefaultRepo(engineStorage everestv1alpha1.Storage, pvcRequired bool) ([]crunchyv1beta1.PGBackRestRepo, error) {
+	var newRepos []crunchyv1beta1.PGBackRestRepo
+
 	// The PG operator requires a repo to be set up in order to create
 	// replicas. Without any credentials we can't set a cloud-based repo so we
 	// define a PVC-backed repo in case the user doesn't define any cloud-based
 	// repos. Moreover, we need to keep this repo in the list even if the user
 	// defines a cloud-based repo because the PG operator will restart the
 	// cluster if the only repo in the list is changed.
-	newRepos := []crunchyv1beta1.PGBackRestRepo{
-		{
-			Name: "repo1",
-			Volume: &crunchyv1beta1.RepoPVC{
-				VolumeClaimSpec: corev1.PersistentVolumeClaimSpec{
-					AccessModes: []corev1.PersistentVolumeAccessMode{
-						corev1.ReadWriteOnce,
-					},
-					StorageClassName: engineStorage.Class,
-					Resources: corev1.VolumeResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceStorage: engineStorage.Size,
+	if pvcRequired {
+		newRepos = []crunchyv1beta1.PGBackRestRepo{
+			{
+				Name: "repo1",
+				Volume: &crunchyv1beta1.RepoPVC{
+					VolumeClaimSpec: corev1.PersistentVolumeClaimSpec{
+						AccessModes: []corev1.PersistentVolumeAccessMode{
+							corev1.ReadWriteOnce,
+						},
+						StorageClassName: engineStorage.Class,
+						Resources: corev1.VolumeResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceStorage: engineStorage.Size,
+							},
 						},
 					},
 				},
 			},
-		},
+		}
 	}
 
 	// Add the reconciled repos to the list of repos

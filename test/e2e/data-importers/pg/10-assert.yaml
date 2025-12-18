@@ -22,7 +22,7 @@ spec:
     dataImport:
       dataImporterName: everest-percona-pg-operator
       source:
-        path: "/pg/backup/db/20250702-131148F"
+        path: "/pg/backup/db/20251211-155011F"
         s3:
           endpointURL: https://minio.minio.svc
           bucket: everest-operator
@@ -44,23 +44,9 @@ metadata:
   name: test-pg-cluster
 spec:
   backups:
+    enabled: false
     pgbackrest:
-      configuration:
-        - secret:
-            name: test-pg-cluster-pgbackrest-secrets
-      global:
-        repo1-retention-full: "1"
-      manual:
-        repoName: repo1
-      repos:
-        - name: repo1
-          volume:
-            volumeClaimSpec:
-              accessModes:
-                - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 1G
+      repos: []
   instances:
     - dataVolumeClaimSpec:
         accessModes:

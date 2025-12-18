@@ -32,7 +32,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	goversion "github.com/hashicorp/go-version"
-	pgv2 "github.com/percona/percona-postgresql-operator/pkg/apis/pgv2.percona.com/v2"
+	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
 	psmdbv1 "github.com/percona/percona-server-mongodb-operator/pkg/apis/psmdb/v1"
 	pxcv1 "github.com/percona/percona-xtradb-cluster-operator/pkg/apis/pxc/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -654,11 +654,29 @@ func (r *DatabaseClusterBackupReconciler) tryCreatePG(ctx context.Context, obj c
 		return err
 	}
 
+	pg := &pgv2.PerconaPGCluster{}
+	if err := r.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: pgBackup.Spec.PGCluster}, pg); err != nil {
+		// if such upstream cluster is not found - do nothing
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
 	// We want to ignore backups that are done to the hardcoded PVC-based repo1.
 	// This repo only exists to allow users to spin up a PG cluster without specifying a backup storage.
 	// Therefore, we don't want to allow users to restore from these backups so shouldn't create a DBB CR from repo1.
-	if pgBackup.Spec.RepoName == "repo1" {
+	if pgBackup.Spec.RepoName == "repo1" && len(pg.Spec.Backups.PGBackRest.Repos) > 0 && pg.Spec.Backups.PGBackRest.Repos[0].Volume != nil {
 		return nil
+	}
+
+	storages := &everestv1alpha1.BackupStorageList{}
+	if err := r.List(ctx, storages, &client.ListOptions{}); err != nil {
+		// if no backup storages found - do nothing
+		if k8serrors.IsNotFound(err) {
+			return nil
+		}
+		return err
 	}
 
 	backup := &everestv1alpha1.DatabaseClusterBackup{
@@ -677,27 +695,9 @@ func (r *DatabaseClusterBackupReconciler) tryCreatePG(ctx context.Context, obj c
 	}
 	backup.Spec.DBClusterName = pgBackup.Spec.PGCluster
 
-	pg := &pgv2.PerconaPGCluster{}
-	if err = r.Get(ctx, types.NamespacedName{Namespace: obj.GetNamespace(), Name: pgBackup.Spec.PGCluster}, pg); err != nil {
-		// if such upstream cluster is not found - do nothing
-		if k8serrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
-
 	cluster := &everestv1alpha1.DatabaseCluster{}
 	err = r.Get(ctx, types.NamespacedName{Name: pgBackup.Spec.PGCluster, Namespace: pgBackup.Namespace}, cluster)
 	if err != nil {
-		return err
-	}
-
-	storages := &everestv1alpha1.BackupStorageList{}
-	if err = r.List(ctx, storages, client.InNamespace(pgBackup.Namespace)); err != nil {
-		// if no backup storages found - do nothing
-		if k8serrors.IsNotFound(err) {
-			return nil
-		}
 		return err
 	}
 	name, nErr := backupStorageName(pgBackup.Spec.RepoName, pg, storages)

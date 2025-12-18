@@ -21,8 +21,7 @@ import (
 	"testing"
 
 	"github.com/AlekSi/pointer"
-	pgv2 "github.com/percona/percona-postgresql-operator/pkg/apis/pgv2.percona.com/v2"
-	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
+	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -294,6 +293,72 @@ func TestReconcilePGBackRestReposEmptyAddRequest(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposEmptyAddRequest_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testRepos := []crunchyv1beta1.PGBackRestRepo{}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "backupStorage1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -379,6 +444,77 @@ func TestReconcilePGBackRestReposEmptyAddSchedule(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposEmptyAddSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testRepos := []crunchyv1beta1.PGBackRestRepo{}
+	testSchedule := "0 0 * * *"
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -489,6 +625,86 @@ func TestReconcilePGBackRestReposSameStorageOneRequestAddRequest(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageOneRequestAddRequest_NoPCVRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "backupStorage1",
+			},
+		},
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "backupStorage1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -605,6 +821,92 @@ func TestReconcilePGBackRestReposSameStorageOneRequestAddSchedule(t *testing.T) 
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageOneRequestAddSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+		},
+	}
+	testSchedule := "0 0 * * *"
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "backupStorage1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -724,6 +1026,95 @@ func TestReconcilePGBackRestReposSameStorageOneScheduleAddRequest(t *testing.T) 
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageOneScheduleAddRequest_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule := "0 0 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "backupStorage1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -855,6 +1246,107 @@ func TestReconcilePGBackRestReposSameStorageOneScheduleAddSchedule(t *testing.T)
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageOneScheduleAddSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule1 := "0 0 * * *"
+	testSchedule2 := "0 1 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule1,
+			BackupStorageName: "backupStorage1",
+		},
+		{
+			Enabled:           true,
+			Name:              "schedule2",
+			Schedule:          testSchedule2,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -996,6 +1488,117 @@ func TestReconcilePGBackRestReposDifferentStorageOneScheduleAddRequest(t *testin
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposDifferentStorageOneScheduleAddRequest_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule := "0 0 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "backupStorage2",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+		"backupStorage2": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket2",
+				Region:      "region2",
+				EndpointURL: "endpoint2",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+		"backupStorage2": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule,
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket2",
+				Region:   "region2",
+				Endpoint: "endpoint2",
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -1141,6 +1744,121 @@ func TestReconcilePGBackRestReposDifferentStorageOneScheduleAddSchedule(t *testi
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposDifferentStorageOneScheduleAddSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule1 := "0 0 * * *"
+	testSchedule2 := "0 1 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule1,
+			BackupStorageName: "backupStorage1",
+		},
+		{
+			Enabled:           true,
+			Name:              "schedule2",
+			Schedule:          testSchedule2,
+			BackupStorageName: "backupStorage2",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+		"backupStorage2": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket2",
+				Region:      "region2",
+				EndpointURL: "endpoint2",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+		"backupStorage2": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket2",
+				Region:   "region2",
+				Endpoint: "endpoint2",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -1286,6 +2004,121 @@ func TestReconcilePGBackRestReposDifferentStorageOneScheduleAddScheduleNoOrder(t
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposDifferentStorageOneScheduleAddScheduleNoOrder_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule1 := "0 0 * * *"
+	testSchedule2 := "0 1 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket2",
+				Region:   "region2",
+				Endpoint: "endpoint2",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule1,
+			BackupStorageName: "backupStorage1",
+		},
+		{
+			Enabled:           true,
+			Name:              "schedule2",
+			Schedule:          testSchedule2,
+			BackupStorageName: "backupStorage2",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+		"backupStorage2": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket2",
+				Region:      "region2",
+				EndpointURL: "endpoint2",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+		"backupStorage2": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket2",
+				Region:   "region2",
+				Endpoint: "endpoint2",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -1427,6 +2260,117 @@ func TestReconcilePGBackRestReposDifferentStorageOneScheduleAddRequestNoOrder(t 
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposDifferentStorageOneScheduleAddRequestNoOrder_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule2 := "0 1 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket2",
+				Region:   "region2",
+				Endpoint: "endpoint2",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule2",
+			Schedule:          testSchedule2,
+			BackupStorageName: "backupStorage2",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "backupStorage1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+		"backupStorage2": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket2",
+				Region:      "region2",
+				EndpointURL: "endpoint2",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+		"backupStorage2": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket2",
+				Region:   "region2",
+				Endpoint: "endpoint2",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -1541,6 +2485,90 @@ func TestReconcilePGBackRestReposSameStorageOneScheduleChangeSchedule(t *testing
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageOneScheduleChangeSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule1 := "0 0 * * *"
+	testSchedule2 := "0 1 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule2",
+			Schedule:          testSchedule2,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -1673,6 +2701,108 @@ func TestReconcilePGBackRestReposSameStorageOneScheduleChangeScheduleAddSchedule
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageOneScheduleChangeScheduleAddSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule1 := "0 0 * * *"
+	testSchedule2 := "0 1 * * *"
+	testSchedule3 := "0 2 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule2",
+			Schedule:          testSchedule2,
+			BackupStorageName: "backupStorage1",
+		},
+		{
+			Enabled:           true,
+			Name:              "schedule2",
+			Schedule:          testSchedule3,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule3,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -1782,6 +2912,85 @@ func TestReconcilePGBackRestReposSameStorageOneScheduleDeleteScheduleAddRequest(
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageOneScheduleDeleteScheduleAddRequest_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule := "0 0 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "backupStorage1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -1907,6 +3116,101 @@ func TestReconcilePGBackRestReposSameStorageTwoSchedulesDelete2ndSchedule(t *tes
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageTwoSchedulesDelete2ndSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule1 := "0 0 * * *"
+	testSchedule2 := "0 1 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule1,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -2032,6 +3336,101 @@ func TestReconcilePGBackRestReposSameStorageTwoSchedulesDelete1stSchedule(t *tes
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageTwoSchedulesDelete1stSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule1 := "0 0 * * *"
+	testSchedule2 := "0 1 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule2",
+			Schedule:          testSchedule2,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -2111,6 +3510,54 @@ func TestReconcilePGBackRestReposOneScheduleDeleteSchedule(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposOneScheduleDeleteSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule1 := "0 0 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	var expRepos []crunchyv1beta1.PGBackRestRepo
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -2186,6 +3633,50 @@ func TestReconcilePGBackRestReposOneRequestDeleteRequest(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposOneRequestDeleteRequest_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	var expRepos []crunchyv1beta1.PGBackRestRepo
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -2314,6 +3805,7 @@ func TestReconcilePGBackRestReposSameStorageThreeSchedulesAddSchedule(t *testing
 				UID:  "123",
 			},
 		},
+		true,
 	)
 	require.Error(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -2467,6 +3959,7 @@ func TestReconcilePGBackRestReposDifferentStorageThreeRequestsAddRequest(t *test
 				UID:  "123",
 			},
 		},
+		true,
 	)
 	require.Error(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -2644,6 +4137,153 @@ func TestReconcilePGBackRestReposSameStorageThreeSchedulesAddRequest(t *testing.
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposSameStorageThreeSchedulesAddRequest_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testSchedule1 := "0 0 * * *"
+	testSchedule2 := "0 1 * * *"
+	testSchedule3 := "0 2 * * *"
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+		{
+			Name: "repo3",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule3,
+			},
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule1,
+			BackupStorageName: "backupStorage1",
+		},
+		{
+			Enabled:           true,
+			Name:              "schedule2",
+			Schedule:          testSchedule2,
+			BackupStorageName: "backupStorage1",
+		},
+		{
+			Enabled:           true,
+			Name:              "schedule3",
+			Schedule:          testSchedule3,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "backupStorage1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule1,
+			},
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule2,
+			},
+		},
+		{
+			Name: "repo3",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket:   "bucket1",
+				Region:   "region1",
+				Endpoint: "endpoint1",
+			},
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: &testSchedule3,
+			},
+		},
+	}
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -2683,6 +4323,7 @@ func TestReconcilePGBackRestReposUnknownStorageRequest(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
 	)
 	require.Error(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -2791,6 +4432,96 @@ func TestReconcilePGBackRestReposScheduleAfterOnDemandToAnotherStorage(t *testin
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposScheduleAfterOnDemandToAnotherStorage_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	s3Repo1 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket1",
+	}
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3:   s3Repo1,
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{{
+		Enabled:           true,
+		Name:              "sched1",
+		Schedule:          "20 * * * *",
+		BackupStorageName: "bs2",
+	}}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{{
+		Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+			BackupStorageName: "bs1",
+		},
+	}}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"bs1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket1",
+			},
+		},
+		"bs2": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket2",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"bs1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		}, "bs2": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3:   s3Repo1,
+		},
+		{
+			Name: "repo2",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket: "bucket2",
+			},
+		},
+	}
+
+	repos, _, _, _ := reconcilePGBackRestRepos( //nolint:dogsled
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	assert.Equal(t, expRepos, repos)
 }
@@ -2901,6 +4632,99 @@ func TestReconcilePGBackRestReposOnDemandAfterScheduleToAnotherStorage(t *testin
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposOnDemandAfterScheduleToAnotherStorage_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	s3Repo1 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket1",
+	}
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: s3Repo1,
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{{
+		Enabled:           true,
+		Name:              "sched1",
+		Schedule:          "20 * * * *",
+		BackupStorageName: "bs1",
+	}}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{{
+		Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+			BackupStorageName: "bs2",
+		},
+	}}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"bs1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket1",
+			},
+		},
+		"bs2": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket2",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"bs1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		}, "bs2": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: s3Repo1,
+		},
+		{
+			Name: "repo2",
+			S3: &crunchyv1beta1.RepoS3{
+				Bucket: "bucket2",
+			},
+		},
+	}
+
+	repos, _, _, _ := reconcilePGBackRestRepos( //nolint:dogsled
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	assert.Equal(t, expRepos, repos)
 }
@@ -3048,6 +4872,136 @@ func TestReconcilePGBackRestReposScheduleAfter3OnDemands(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposScheduleAfter3OnDemands_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	s3Repo1 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket1",
+	}
+	s3Repo2 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket2",
+	}
+	s3Repo3 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket3",
+	}
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3:   s3Repo1,
+		},
+		{
+			Name: "repo2",
+			S3:   s3Repo2,
+		},
+		{
+			Name: "repo3",
+			S3:   s3Repo3,
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{{
+		Enabled:           true,
+		Name:              "sched1",
+		Schedule:          "20 * * * *",
+		BackupStorageName: "bs2",
+	}}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs3",
+			},
+		},
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs2",
+			},
+		},
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"bs1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket1",
+			},
+		},
+		"bs2": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket2",
+			},
+		},
+		"bs3": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket3",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"bs1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		}, "bs2": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+		"bs3": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3:   s3Repo1,
+		},
+		{
+			Name: "repo2",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: s3Repo2,
+		},
+		{
+			Name: "repo3",
+			S3:   s3Repo3,
+		},
+	}
+
+	repos, _, _, _ := reconcilePGBackRestRepos( //nolint:dogsled
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	assert.Equal(t, expRepos, repos)
 }
@@ -3203,6 +5157,144 @@ func TestReconcilePGBackRestReposOnDemand3OnDemandsAndSchedule(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposOnDemand3OnDemandsAndSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	s3Repo1 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket1",
+	}
+	s3Repo2 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket2",
+	}
+	s3Repo3 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket3",
+	}
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3:   s3Repo1,
+		},
+		{
+			Name: "repo2",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: s3Repo2,
+		},
+		{
+			Name: "repo3",
+			S3:   s3Repo3,
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{{
+		Enabled:           true,
+		Name:              "sched1",
+		Schedule:          "20 * * * *",
+		BackupStorageName: "bs2",
+	}}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs3",
+			},
+		},
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs2",
+			},
+		},
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs1",
+			},
+		},
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs3",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"bs1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket1",
+			},
+		},
+		"bs2": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket2",
+			},
+		},
+		"bs3": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket3",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"bs1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		}, "bs2": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+		"bs3": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3:   s3Repo1,
+		},
+		{
+			Name: "repo2",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: s3Repo2,
+		},
+		{
+			Name: "repo3",
+			S3:   s3Repo3,
+		},
+	}
+
+	repos, _, _, _ := reconcilePGBackRestRepos( //nolint:dogsled
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	assert.Equal(t, expRepos, repos)
 }
@@ -3298,6 +5390,84 @@ func TestReconcilePGBackRestBackupAndScheduleToTheSameStorage(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestBackupAndScheduleToTheSameStorage_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	s3Repo := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket1",
+	}
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: s3Repo,
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{{
+		Enabled:           true,
+		Name:              "sched1",
+		Schedule:          "20 * * * *",
+		BackupStorageName: "bs1",
+	}}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"bs1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"bs1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: s3Repo,
+		},
+	}
+
+	repos, _, _, _ := reconcilePGBackRestRepos( //nolint:dogsled
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	assert.Equal(t, expRepos, repos)
 }
@@ -3386,6 +5556,76 @@ func TestReconcilePGBackRestNewBackupAndNewScheduleToTheSameStorage(t *testing.T
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestNewBackupAndNewScheduleToTheSameStorage_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	s3Repo := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket1",
+	}
+	testRepos := []crunchyv1beta1.PGBackRestRepo{}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{{
+		Enabled:           true,
+		Name:              "sched1",
+		Schedule:          "20 * * * *",
+		BackupStorageName: "bs1",
+	}}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"bs1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"bs1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: s3Repo,
+		},
+	}
+
+	repos, _, _, _ := reconcilePGBackRestRepos( //nolint:dogsled
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	assert.Equal(t, expRepos, repos)
 }
@@ -3478,6 +5718,81 @@ func TestReconcilePGBackRestBackupAndNewScheduleToTheSameStorage(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestBackupAndNewScheduleToTheSameStorage_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	s3Repo := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket1",
+	}
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3:   s3Repo,
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{{
+		Enabled:           true,
+		Name:              "sched1",
+		Schedule:          "20 * * * *",
+		BackupStorageName: "bs1",
+	}}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs1",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"bs1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"bs1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+				Full: pointer.To("20 * * * *"),
+			},
+			S3: s3Repo,
+		},
+	}
+
+	repos, _, _, _ := reconcilePGBackRestRepos( //nolint:dogsled
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	assert.Equal(t, expRepos, repos)
 }
@@ -3518,6 +5833,7 @@ func TestReconcilePGBackRestReposUnknownStorageSchedule(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
 	)
 	require.Error(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -3568,6 +5884,42 @@ func TestReconcilePGBackRestReposEmpty(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposEmptyNoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testRepos := []crunchyv1beta1.PGBackRestRepo{}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{}
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	// no repos expected to be added
+	var expRepos []crunchyv1beta1.PGBackRestRepo
+
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, expRepos, repos)
@@ -3611,8 +5963,184 @@ func TestReconcilePGBackRestReposAfterDataSource_withoutSchedule(t *testing.T) {
 				UID:  "123",
 			},
 		},
+		true,
 	)
 	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposAfterDataSource_withoutSchedule_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+
+	var testRepos []crunchyv1beta1.PGBackRestRepo
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{}
+
+	var expRepos []crunchyv1beta1.PGBackRestRepo
+	repos, _, _, err := reconcilePGBackRestRepos(
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, expRepos, repos)
+}
+
+func TestReconcilePGBackRestReposAdd4thStorage_NoPVCRequired(t *testing.T) {
+	t.Parallel()
+	testEngineStorageSize, _ := resource.ParseQuantity("15G")
+	testEngineStorageClass := "someSC"
+	s3Repo1 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket1",
+	}
+	s3Repo2 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket2",
+	}
+	s3Repo3 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket3",
+	}
+	s3Repo4 := &crunchyv1beta1.RepoS3{
+		Bucket: "bucket4",
+	}
+	testRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3:   s3Repo1,
+		},
+		{
+			Name: "repo2",
+			S3:   s3Repo2,
+		},
+		{
+			Name: "repo3",
+			S3:   s3Repo3,
+		},
+	}
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs1",
+			},
+		},
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs2",
+			},
+		},
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs3",
+			},
+		},
+		{
+			Spec: everestv1alpha1.DatabaseClusterBackupSpec{
+				BackupStorageName: "bs4",
+			},
+		},
+	}
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"bs1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket1",
+			},
+		},
+		"bs2": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket2",
+			},
+		},
+		"bs3": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket3",
+			},
+		},
+		"bs4": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:   "s3",
+				Bucket: "bucket4",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"bs1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+		"bs2": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+		"bs3": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+		"bs4": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testEngineStorage := everestv1alpha1.Storage{
+		Size:  testEngineStorageSize,
+		Class: &testEngineStorageClass,
+	}
+	expRepos := []crunchyv1beta1.PGBackRestRepo{
+		{
+			Name: "repo1",
+			S3:   s3Repo1,
+		},
+		{
+			Name: "repo2",
+			S3:   s3Repo2,
+		},
+		{
+			Name: "repo3",
+			S3:   s3Repo3,
+		},
+		{
+			Name: "repo4",
+			S3:   s3Repo4,
+		},
+	}
+
+	repos, _, _, _ := reconcilePGBackRestRepos( //nolint:dogsled
+		testRepos,
+		testBackupSchedules,
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
+	)
 	assert.Equal(t, expRepos, repos)
 }
 
@@ -3737,1057 +6265,4 @@ func pvcVolumeAndEngineStorage() (*crunchyv1beta1.RepoPVC, everestv1alpha1.Stora
 			},
 		},
 	}, testEngineStorage
-}
-
-//nolint:maintidx
-func TestGetPMMResources(t *testing.T) {
-	t.Parallel()
-
-	type res struct {
-		memory string
-		cpu    string
-	}
-
-	type resourceString struct {
-		requests res
-		limits   res
-	}
-
-	tests := []struct {
-		name           string
-		isNewDBCluster bool
-		dbSpec         *everestv1alpha1.DatabaseClusterSpec
-		curPgSpec      *pgv2.PerconaPGClusterSpec
-		want           corev1.ResourceRequirements
-		wantString     resourceString
-	}{
-		// enable monitoring for new DB cluster w/o requested resources
-		{
-			name:           "New small cluster w/o requested resources",
-			isNewDBCluster: true,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("1G"),
-					},
-				},
-			},
-			curPgSpec: nil,
-			want:      common.PmmResourceRequirementsSmall,
-			wantString: resourceString{
-				requests: res{
-					memory: "99604Ki",
-					cpu:    "95m",
-				},
-			},
-		},
-		{
-			name:           "New medium cluster w/o requested resources",
-			isNewDBCluster: true,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-			},
-			curPgSpec: nil,
-			want:      common.PmmResourceRequirementsMedium,
-			wantString: resourceString{
-				requests: res{
-					memory: "199168Ki",
-					cpu:    "228m",
-				},
-			},
-		},
-		{
-			name:           "New large cluster w/o requested resources",
-			isNewDBCluster: true,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("32G"),
-					},
-				},
-			},
-			curPgSpec: nil,
-			want:      common.PmmResourceRequirementsLarge,
-			wantString: resourceString{
-				requests: res{
-					memory: "796907Ki",
-					cpu:    "228m",
-				},
-			},
-		},
-		// enable monitoring for new DB cluster with requested resources
-		{
-			name:           "New small cluster with requested resources",
-			isNewDBCluster: true,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("1G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU: resource.MustParse("100m"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceMemory: resource.MustParse("110M"),
-						},
-					},
-				},
-			},
-			curPgSpec: nil,
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("100m"),
-					corev1.ResourceMemory: resource.MustParse("99604Ki"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceMemory: resource.MustParse("110M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "99604Ki",
-					cpu:    "100m",
-				},
-				limits: res{
-					memory: "110M",
-				},
-			},
-		},
-		{
-			name:           "New medium cluster with requested resources",
-			isNewDBCluster: true,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceMemory: resource.MustParse("300M"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU: resource.MustParse("300m"),
-						},
-					},
-				},
-			},
-			curPgSpec: nil,
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("228m"),
-					corev1.ResourceMemory: resource.MustParse("300M"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU: resource.MustParse("300m"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "300M",
-					cpu:    "228m",
-				},
-				limits: res{
-					cpu: "300m",
-				},
-			},
-		},
-		{
-			name:           "New large cluster with requested resources",
-			isNewDBCluster: true,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("32G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("500m"),
-							corev1.ResourceMemory: resource.MustParse("500M"),
-						},
-					},
-				},
-			},
-			curPgSpec: nil,
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("228m"),
-					corev1.ResourceMemory: resource.MustParse("796907Ki"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("500M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "796907Ki",
-					cpu:    "228m",
-				},
-				limits: res{
-					memory: "500M",
-					cpu:    "500m",
-				},
-			},
-		},
-		// enable monitoring for existing DB cluster w/o monitoring and w/o requested resources
-		{
-			name:           "Existing small cluster w/o monitoring and w/o requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("1G"),
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("1G"),
-							},
-						},
-					},
-				},
-			},
-			want: common.PmmResourceRequirementsSmall,
-			wantString: resourceString{
-				requests: res{
-					memory: "99604Ki",
-					cpu:    "95m",
-				},
-			},
-		},
-		{
-			name:           "Existing medium cluster w/o monitoring and w/o requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("8G"),
-							},
-						},
-					},
-				},
-			},
-			want: common.PmmResourceRequirementsMedium,
-			wantString: resourceString{
-				requests: res{
-					memory: "199168Ki",
-					cpu:    "228m",
-				},
-			},
-		},
-		{
-			name:           "Existing large cluster w/o monitoring and w/o requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("32G"),
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("32G"),
-							},
-						},
-					},
-				},
-			},
-			want: common.PmmResourceRequirementsLarge,
-			wantString: resourceString{
-				requests: res{
-					memory: "796907Ki",
-					cpu:    "228m",
-				},
-			},
-		},
-		// enable monitoring for existing DB cluster w/o monitoring and with requested resources
-		{
-			name:           "Existing small cluster w/o monitoring and with requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("1G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("100m"),
-							corev1.ResourceMemory: resource.MustParse("100M"),
-						},
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("1G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("100m"),
-					corev1.ResourceMemory: resource.MustParse("100M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "100M",
-					cpu:    "100m",
-				},
-			},
-		},
-		{
-			name:           "Existing medium cluster w/o monitoring and with requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("300m"),
-							corev1.ResourceMemory: resource.MustParse("300M"),
-						},
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("8G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("300m"),
-					corev1.ResourceMemory: resource.MustParse("300M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "300M",
-					cpu:    "300m",
-				},
-			},
-		},
-		{
-			name:           "Existing large cluster w/o monitoring and with requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("32G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("500m"),
-							corev1.ResourceMemory: resource.MustParse("500M"),
-						},
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("32G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("500M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "500M",
-					cpu:    "500m",
-				},
-			},
-		},
-		// enable monitoring and change DB engine size for existing DB cluster w/o monitoring and w/o requested resources
-		{
-			name:           "Existing small->medium cluster w/o monitoring and w/o requested resources and change DB engine size",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("1G"),
-							},
-						},
-					},
-				},
-			},
-			want: common.PmmResourceRequirementsMedium,
-			wantString: resourceString{
-				requests: res{
-					memory: "199168Ki",
-					cpu:    "228m",
-				},
-			},
-		},
-		{
-			name:           "Existing medium->large cluster w/o monitoring and w/o requested resources and change DB engine size",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("32G"),
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("8G"),
-							},
-						},
-					},
-				},
-			},
-			want: common.PmmResourceRequirementsLarge,
-			wantString: resourceString{
-				requests: res{
-					memory: "796907Ki",
-					cpu:    "228m",
-				},
-			},
-		},
-		{
-			name:           "Existing large->medium cluster w/o monitoring and w/o requested resources and change DB engine size",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("32G"),
-							},
-						},
-					},
-				},
-			},
-			want: common.PmmResourceRequirementsMedium,
-			wantString: resourceString{
-				requests: res{
-					memory: "199168Ki",
-					cpu:    "228m",
-				},
-			},
-		},
-		// enable monitoring and change DB engine size for existing DB cluster w/o monitoring and with requested resources
-		{
-			name:           "Existing small->medium cluster w/o monitoring and w/o requested resources and change DB engine size",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("100m"),
-							corev1.ResourceMemory: resource.MustParse("100M"),
-						},
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("1G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("100m"),
-					corev1.ResourceMemory: resource.MustParse("100M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "100M",
-					cpu:    "100m",
-				},
-			},
-		},
-		{
-			name:           "Existing medium->large cluster w/o monitoring and w/o requested resources and change DB engine size",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("32G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("300m"),
-							corev1.ResourceMemory: resource.MustParse("300M"),
-						},
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("8G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("300m"),
-					corev1.ResourceMemory: resource.MustParse("300M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "300M",
-					cpu:    "300m",
-				},
-			},
-		},
-		{
-			name:           "Existing large ->medium cluster w/o monitoring and w/o requested resources and change DB engine size",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("500m"),
-							corev1.ResourceMemory: resource.MustParse("500M"),
-						},
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: false,
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("32G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("500M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "500M",
-					cpu:    "500m",
-				},
-			},
-		},
-		// enable monitoring for existing DB cluster with monitoring and w/o requested resources - keep current resources
-		{
-			name:           "Existing small cluster with monitoring and w/o requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("1G"),
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: true,
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("110m"),
-							corev1.ResourceMemory: resource.MustParse("110M"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("115m"),
-							corev1.ResourceMemory: resource.MustParse("115M"),
-						},
-					},
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("1G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("110m"),
-					corev1.ResourceMemory: resource.MustParse("110M"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("115m"),
-					corev1.ResourceMemory: resource.MustParse("115M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "110M",
-					cpu:    "110m",
-				},
-				limits: res{
-					memory: "115M",
-					cpu:    "115m",
-				},
-			},
-		},
-		{
-			name:           "Existing medium cluster with monitoring and w/o requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: true,
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("220m"),
-							corev1.ResourceMemory: resource.MustParse("220M"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("225m"),
-							corev1.ResourceMemory: resource.MustParse("225M"),
-						},
-					},
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("8G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("220m"),
-					corev1.ResourceMemory: resource.MustParse("220M"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("225m"),
-					corev1.ResourceMemory: resource.MustParse("225M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "220M",
-					cpu:    "220m",
-				},
-				limits: res{
-					memory: "225M",
-					cpu:    "225m",
-				},
-			},
-		},
-		{
-			name:           "Existing large cluster with monitoring and w/o requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("32G"),
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: true,
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("330m"),
-							corev1.ResourceMemory: resource.MustParse("330M"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("335m"),
-							corev1.ResourceMemory: resource.MustParse("335M"),
-						},
-					},
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("32G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("330m"),
-					corev1.ResourceMemory: resource.MustParse("330M"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("335m"),
-					corev1.ResourceMemory: resource.MustParse("335M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "330M",
-					cpu:    "330m",
-				},
-				limits: res{
-					memory: "335M",
-					cpu:    "335m",
-				},
-			},
-		},
-		// enable monitoring for existing DB cluster with monitoring and with requested resources - merge resources
-		{
-			name:           "Existing small cluster with monitoring and with requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("1G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("111m"),
-							corev1.ResourceMemory: resource.MustParse("111M"),
-						},
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: true,
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("110m"),
-							corev1.ResourceMemory: resource.MustParse("110M"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("115m"),
-							corev1.ResourceMemory: resource.MustParse("115M"),
-						},
-					},
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("1G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("111m"),
-					corev1.ResourceMemory: resource.MustParse("111M"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("115m"),
-					corev1.ResourceMemory: resource.MustParse("115M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "111M",
-					cpu:    "111m",
-				},
-				limits: res{
-					memory: "115M",
-					cpu:    "115m",
-				},
-			},
-		},
-		{
-			name:           "Existing medium cluster with monitoring and with requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("8G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("222m"),
-							corev1.ResourceMemory: resource.MustParse("222M"),
-						},
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: true,
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("220m"),
-							corev1.ResourceMemory: resource.MustParse("220M"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("225m"),
-							corev1.ResourceMemory: resource.MustParse("225M"),
-						},
-					},
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("8G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("222m"),
-					corev1.ResourceMemory: resource.MustParse("222M"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("225m"),
-					corev1.ResourceMemory: resource.MustParse("225M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "222M",
-					cpu:    "222m",
-				},
-				limits: res{
-					memory: "225M",
-					cpu:    "225m",
-				},
-			},
-		},
-		{
-			name:           "Existing large cluster with monitoring and with requested resources",
-			isNewDBCluster: false,
-			dbSpec: &everestv1alpha1.DatabaseClusterSpec{
-				Engine: everestv1alpha1.Engine{
-					Resources: everestv1alpha1.Resources{
-						Memory: resource.MustParse("32G"),
-					},
-				},
-				Monitoring: &everestv1alpha1.Monitoring{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("333m"),
-							corev1.ResourceMemory: resource.MustParse("333M"),
-						},
-					},
-				},
-			},
-			curPgSpec: &pgv2.PerconaPGClusterSpec{
-				PMM: &pgv2.PMMSpec{
-					Enabled: true,
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("330m"),
-							corev1.ResourceMemory: resource.MustParse("330M"),
-						},
-						Limits: corev1.ResourceList{
-							corev1.ResourceCPU:    resource.MustParse("335m"),
-							corev1.ResourceMemory: resource.MustParse("335M"),
-						},
-					},
-				},
-				InstanceSets: pgv2.PGInstanceSets{
-					{
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{
-								corev1.ResourceMemory: resource.MustParse("32G"),
-							},
-						},
-					},
-				},
-			},
-			want: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("333m"),
-					corev1.ResourceMemory: resource.MustParse("333M"),
-				},
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("335m"),
-					corev1.ResourceMemory: resource.MustParse("335M"),
-				},
-			},
-			wantString: resourceString{
-				requests: res{
-					memory: "333M",
-					cpu:    "333m",
-				},
-				limits: res{
-					memory: "335M",
-					cpu:    "335m",
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			calculatedResources := getPMMResources(tt.isNewDBCluster, tt.dbSpec, tt.curPgSpec)
-			assert.True(t, tt.want.Requests.Cpu().Equal(*calculatedResources.Requests.Cpu()))
-			assert.True(t, tt.want.Requests.Memory().Equal(*calculatedResources.Requests.Memory()))
-			assert.True(t, tt.want.Limits.Cpu().Equal(*calculatedResources.Limits.Cpu()))
-			assert.True(t, tt.want.Limits.Memory().Equal(*calculatedResources.Limits.Memory()))
-
-			if tt.wantString.requests.memory != "" {
-				assert.Equal(t, tt.wantString.requests.memory, calculatedResources.Requests.Memory().String())
-			}
-
-			if tt.wantString.requests.cpu != "" {
-				assert.Equal(t, tt.wantString.requests.cpu, calculatedResources.Requests.Cpu().String())
-			}
-
-			if tt.wantString.limits.memory != "" {
-				assert.Equal(t, tt.wantString.limits.memory, calculatedResources.Limits.Memory().String())
-			}
-
-			if tt.wantString.limits.cpu != "" {
-				assert.Equal(t, tt.wantString.limits.cpu, calculatedResources.Limits.Cpu().String())
-			}
-		})
-	}
 }
