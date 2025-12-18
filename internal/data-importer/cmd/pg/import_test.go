@@ -127,7 +127,7 @@ func TestAddPGDataSource(t *testing.T) {
 			// Verify that the BackupsSection was set
 			assert.NotNil(t, pg.Spec.Backups, "Backups should be set")
 			assert.True(t, ptr.ToBool(pg.Spec.Backups.Enabled), "Backups.Enabled should be true")
-			assert.Equal(t, len(pg.Spec.Backups.PGBackRest.Repos), 1, "PGBackRest.Repos should have 1 element")
+			assert.Equal(t, 1, len(pg.Spec.Backups.PGBackRest.Repos), "PGBackRest.Repos should have 1 element")
 			assert.Equal(t, pg.Spec.Backups.PGBackRest.Repos[0], pgBackRest.Repo, "PGBackRest.Repos[0] should be the same as in DataSource")
 
 			// Verify Configuration

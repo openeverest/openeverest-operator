@@ -245,7 +245,6 @@ func (r *DatabaseClusterReconciler) reconcileDB(
 		return ctrl.Result{}, fmt.Errorf("failed to create or update database cluster: %w", err)
 	}
 
-
 	return ctrl.Result{}, nil
 }
 

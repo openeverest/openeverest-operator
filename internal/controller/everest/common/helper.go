@@ -400,7 +400,7 @@ func ReconcileDBFromDataImport(
 		},
 	}
 	if _, err := controllerutil.CreateOrUpdate(ctx, c, diJob, func() error {
-		diJob.ObjectMeta.Labels = map[string]string{
+		diJob.Labels = map[string]string{
 			consts.DatabaseClusterNameLabel: db.GetName(),
 		}
 		diJob.Spec = everestv1alpha1.DataImportJobSpec{
