@@ -86,22 +86,15 @@ metadata:
   name: test-pg-cluster
 spec:
   backups:
+    enabled: true
     pgbackrest:
       configuration:
         - secret:
             name: test-pg-cluster-pgbackrest-secrets
       global:
-        repo1-retention-full: "1"
+        repo1-storage-verify-tls: "n"
       repos:
         - name: repo1
-          volume:
-            volumeClaimSpec:
-              accessModes:
-                - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 1G
-        - name: repo2
           s3:
             bucket: test-backup-bucket
             endpoint: s3.amazonaws.com
@@ -141,7 +134,7 @@ spec:
   pgCluster: test-pg-cluster
   options:
     - --type=full
-  repoName: repo2
+  repoName: repo1
 status:
   state: Succeeded
 ---
@@ -175,7 +168,7 @@ metadata:
       name: test-db-restore-s3
 spec:
   pgCluster: test-pg-cluster
-  repoName: repo2
+  repoName: repo1
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: BackupStorage

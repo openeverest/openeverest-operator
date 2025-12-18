@@ -88,24 +88,16 @@ spec:
       name: instance1
       replicas: 1
   backups:
+    enabled: true
     pgbackrest:
       configuration:
         - secret:
             name: test-pg-cluster-pgbackrest-secrets
       global:
         repo1-retention-full: "1"
-        repo2-retention-full: "1"
-        repo2-storage-verify-tls: "n"
+        repo1-storage-verify-tls: "n"
       repos:
         - name: repo1
-          volume:
-            volumeClaimSpec:
-              accessModes:
-                - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 1G
-        - name: repo2
           s3:
             bucket: test-backup-bucket
             endpoint: s3.amazonaws.com
@@ -145,7 +137,7 @@ metadata:
       blockOwnerDeletion: true
 spec:
   pgCluster: test-pg-cluster
-  repoName: repo2
+  repoName: repo1
 status:
   state: Succeeded
 ---

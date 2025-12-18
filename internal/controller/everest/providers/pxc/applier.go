@@ -338,6 +338,16 @@ func (p *applier) DataSource() error {
 	return common.ReconcileDBRestoreFromDataSource(p.ctx, p.C, p.DB)
 }
 
+func (p *applier) DataImport() error {
+	db := p.DB
+	if pointer.Get(db.Spec.DataSource).DataImport == nil ||
+		db.Status.Status != everestv1alpha1.AppStateReady {
+		// Nothing to do.
+		return nil
+	}
+	return common.ReconcileDBFromDataImport(p.ctx, p.C, p.DB)
+}
+
 func (p *applier) Monitoring() error {
 	monitoring, err := common.GetDBMonitoringConfig(p.ctx, p.C, p.DB)
 	if err != nil {

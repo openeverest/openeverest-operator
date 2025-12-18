@@ -17,7 +17,7 @@ spec:
     dataImport:
       dataImporterName: everest-percona-pg-operator
       source:
-        path: "/pg/backup/db/20250702-131148F"
+        path: "/pg/backup/db/20251211-155011F"
         s3:
           bucket: everest-operator
           region: us-east-1

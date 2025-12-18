@@ -59,7 +59,6 @@ spec:
     storage:
       size: 25Gi
     type: postgresql
-    userSecretsName: everest-secrets-test-pg-cluster
   proxy:
     expose:
       type: internal
@@ -75,23 +74,9 @@ metadata:
   name: test-pg-cluster
 spec:
   backups:
+    enabled: false
     pgbackrest:
-      configuration:
-        - secret:
-            name: test-pg-cluster-pgbackrest-secrets
-      global:
-        repo1-retention-full: "1"
-      manual:
-        repoName: repo1
-      repos:
-        - name: repo1
-          volume:
-            volumeClaimSpec:
-              accessModes:
-                - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 25Gi
+      repos: []
   extensions:
     builtin: {}
     storage: {}

@@ -27,9 +27,10 @@ import (
 	"strings"
 
 	"github.com/AlekSi/pointer"
+	"github.com/Masterminds/semver/v3"
 	"github.com/go-ini/ini"
-	pgv2 "github.com/percona/percona-postgresql-operator/pkg/apis/pgv2.percona.com/v2"
-	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
+	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
+	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -295,6 +296,16 @@ func (p *applier) DataSource() error {
 	}
 	p.PerconaPGCluster.Spec.DataSource = spec
 	return nil
+}
+
+func (p *applier) DataImport() error {
+	db := p.DB
+	if pointer.Get(db.Spec.DataSource).DataImport == nil ||
+		db.Status.Status != everestv1alpha1.AppStateReady {
+		// Nothing to do.
+		return nil
+	}
+	return common.ReconcileDBFromDataImport(p.ctx, p.C, p.DB)
 }
 
 func (p *applier) Monitoring() error {
@@ -927,12 +938,15 @@ func (p *applier) addBackupStoragesByRestores(
 	restoreList *everestv1alpha1.DatabaseClusterRestoreList,
 	backupStorages map[string]everestv1alpha1.BackupStorage,
 	backupStoragesSecrets map[string]*corev1.Secret,
+	dbHasDataSource bool,
 ) error {
 	ctx := p.ctx
 	c := p.C
 	for _, restore := range restoreList.Items {
-		// If the restore has already completed, skip it.
-		if restore.IsComplete() {
+		// If the restore has already completed and there is no dataSource defined in the DB, skip the restore.
+		// Even if the restore is complete, we need to keep the repo with the storage while dataSource is defined
+		// to avoid issues with the restoration when no repos are defined and backups are disabled
+		if restore.IsComplete() && !dbHasDataSource {
 			continue
 		}
 
@@ -1079,10 +1093,14 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 			Image:   pgbackrestVersion.ImagePath,
 			Manual:  oldBackups.PGBackRest.Manual,
 			Restore: oldBackups.PGBackRest.Restore,
+			Repos:   []crunchyv1beta1.PGBackRestRepo{},
 		},
+		Enabled: pointer.ToBool(false),
 	}
 
-	if newBackups.PGBackRest.Manual == nil {
+	isPVCRequired := checkPVCRequired(oldBackups.PGBackRest.Repos, engine.Status.OperatorVersion)
+
+	if newBackups.PGBackRest.Manual == nil && isPVCRequired {
 		// This field is required by the operator, but it doesn't impact
 		// our manual backup operation because we use the PerconaPGBackup
 		// CR to request on-demand backups which then changes the Manual field
@@ -1114,7 +1132,7 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 	}
 
 	// Add backup storages used by restores to the list
-	if err := p.addBackupStoragesByRestores(backupList, restoreList, backupStorages, backupStoragesSecrets); err != nil {
+	if err := p.addBackupStoragesByRestores(backupList, restoreList, backupStorages, backupStoragesSecrets, database.Spec.DataSource != nil); err != nil {
 		return pgv2.Backups{}, err
 	}
 
@@ -1133,6 +1151,7 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 		backupStoragesSecrets,
 		database.Spec.Engine.Storage,
 		database,
+		isPVCRequired,
 	)
 	if err != nil {
 		return pgv2.Backups{}, err
@@ -1151,6 +1170,11 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 		return pgv2.Backups{}, err
 	}
 
+	if len(pgBackrestRepos) == 0 {
+		return newBackups, nil
+	}
+	newBackups.Enabled = pointer.ToBool(true)
+
 	newBackups.PGBackRest.Configuration = []corev1.VolumeProjection{
 		{
 			Secret: &corev1.SecretProjection{
@@ -1164,6 +1188,21 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 	newBackups.PGBackRest.Repos = pgBackrestRepos
 	newBackups.PGBackRest.Global = pgBackrestGlobal
 	return newBackups, nil
+}
+
+// Keep the PVC storage only if it was defined before or if PGO less than 2.8.0 is used.
+func checkPVCRequired(repos []crunchyv1beta1.PGBackRestRepo, v string) bool {
+	for _, repo := range repos {
+		if repo.Volume != nil {
+			return true
+		}
+	}
+
+	if version, err := semver.NewVersion(v); err == nil {
+		return version.LessThan(semver.MustParse("2.8.0"))
+	}
+
+	return false
 }
 
 // createPGBackrestSecret creates or updates the PG Backrest secret.
@@ -1211,13 +1250,14 @@ func reconcilePGBackRestRepos(
 	backupStoragesSecrets map[string]*corev1.Secret,
 	engineStorage everestv1alpha1.Storage,
 	db *everestv1alpha1.DatabaseCluster,
+	pvcRequired bool,
 ) (
 	[]crunchyv1beta1.PGBackRestRepo,
 	map[string]string,
 	[]byte,
 	error,
 ) {
-	reposReconciler, err := newPGReposReconciler(oldRepos, backupSchedules)
+	reposReconciler, err := newPGReposReconciler(oldRepos, backupSchedules, pvcRequired)
 	if err != nil {
 		return []crunchyv1beta1.PGBackRestRepo{}, map[string]string{}, []byte{},
 			errors.Join(err, errors.New("failed to initialize PGBackrest repos reconciler"))
@@ -1246,7 +1286,7 @@ func reconcilePGBackRestRepos(
 			errors.Join(err, errors.New("failed to add new backup schedules"))
 	}
 
-	newRepos, err := reposReconciler.addDefaultRepo(engineStorage)
+	newRepos, err := reposReconciler.addDefaultRepo(engineStorage, pvcRequired)
 	if err != nil {
 		return []crunchyv1beta1.PGBackRestRepo{}, map[string]string{}, []byte{}, err
 	}

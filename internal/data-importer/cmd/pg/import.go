@@ -25,8 +25,8 @@ import (
 	"strings"
 	"time"
 
-	pgv2 "github.com/percona/percona-postgresql-operator/pkg/apis/pgv2.percona.com/v2"
-	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
+	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
+	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"gopkg.in/ini.v1"
@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -298,6 +299,14 @@ func addPGDataSource(
 	if !verifyTLS {
 		options = append(options, fmt.Sprintf("--no-%s-storage-verify-tls", repoName))
 	}
+	repo := crunchyv1beta1.PGBackRestRepo{
+		Name: repoName,
+		S3: &crunchyv1beta1.RepoS3{
+			Bucket:   bucket,
+			Endpoint: endpoint,
+			Region:   region,
+		},
+	}
 	dataSource := &crunchyv1beta1.DataSource{
 		PGBackRest: &crunchyv1beta1.PGBackRestDataSource{
 			Configuration: []corev1.VolumeProjection{
@@ -314,14 +323,7 @@ func addPGDataSource(
 				repoName + "-s3-uri-style": uriStyle,
 			},
 			Options: options,
-			Repo: crunchyv1beta1.PGBackRestRepo{
-				Name: repoName,
-				S3: &crunchyv1beta1.RepoS3{
-					Bucket:   bucket,
-					Endpoint: endpoint,
-					Region:   region,
-				},
-			},
+			Repo:    repo,
 			Resources: corev1.ResourceRequirements{
 				Limits: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("200m"),
@@ -332,6 +334,8 @@ func addPGDataSource(
 		},
 	}
 	pg.Spec.DataSource = dataSource
+	pg.Spec.Backups.Enabled = ptr.To(true)
+	pg.Spec.Backups.PGBackRest.Repos = []crunchyv1beta1.PGBackRestRepo{repo}
 }
 
 const defaultRetryInterval = time.Second * 30

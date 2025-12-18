@@ -9,4 +9,4 @@ metadata:
   name: test-scheduled-backup-1
 spec:
   pgCluster: test-pg-cluster
-  repoName: repo2
+  repoName: repo1

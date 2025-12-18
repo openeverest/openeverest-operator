@@ -24,6 +24,10 @@ kind: PerconaPGCluster
 metadata:
   name: single-node
 spec:
+  backups:
+    enabled: false
+    pgbackrest:
+      repos: []
   instances:
     - name: instance1
       replicas: 3
