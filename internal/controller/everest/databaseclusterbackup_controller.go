@@ -977,7 +977,7 @@ func isCRVersionGreaterOrEqual(currentVersionStr, desiredVersionStr string) (boo
 	return crVersion.GreaterThanOrEqual(desiredVersion), nil
 }
 
-// Get the last performed PG backup directly from S3.
+// Build the backup destination path.
 func getLastPGBackupDestination(
 	backupStorage *everestv1alpha1.BackupStorage,
 	db *everestv1alpha1.DatabaseCluster,
