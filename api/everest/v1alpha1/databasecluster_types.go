@@ -556,6 +556,12 @@ type DatabaseCluster struct {
 
 // CanRestoreFromBackup returns true if the cluster can be restored from a backup in the current state.
 func (dbc *DatabaseCluster) CanRestoreFromBackup() bool {
+	// Handle the special case for PG bootstrap restore which appears when the new cluster is being created from a backup.
+	// The Everest dbr resource needs to be created to use its backup storage in the PG repos list during restoration,
+	// so regardless the dbc status we allow the dbr creation in case of creating a new pg db from DataSource.
+	if dbc.Spec.Engine.Type == DatabaseEnginePostgresql && dbc.Spec.DataSource != nil {
+		return true
+	}
 	switch dbc.Status.Status.WithCreatingState() {
 	case AppStateCreating, AppStatePaused,
 		AppStateRestoring, AppStateDeleting, AppStateUpgrading,
