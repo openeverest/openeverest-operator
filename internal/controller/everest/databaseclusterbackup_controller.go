@@ -17,20 +17,12 @@ package everest
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"fmt"
-	"net/http"
-	"path/filepath"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/AlekSi/pointer"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
 	goversion "github.com/hashicorp/go-version"
 	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
 	psmdbv1 "github.com/percona/percona-server-mongodb-operator/pkg/apis/psmdb/v1"
@@ -43,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -120,7 +113,7 @@ func (r *DatabaseClusterBackupReconciler) Reconcile(ctx context.Context, req ctr
 
 	defer func() {
 		// Update the status and finalizers of the DatabaseClusterBackup object after the reconciliation.
-		if err = r.reconcileStatus(ctx, backup, cluster.Spec.Engine.Type); err != nil {
+		if err = r.reconcileStatus(ctx, backup, cluster); err != nil {
 			logger.Error(err, "failed to update DatabaseClusterBackup status")
 		}
 	}()
@@ -343,7 +336,7 @@ func (r *DatabaseClusterBackupReconciler) SetupWithManager(mgr ctrl.Manager) err
 func (r *DatabaseClusterBackupReconciler) getBackupStatus(
 	ctx context.Context,
 	backup *everestv1alpha1.DatabaseClusterBackup,
-	engineType everestv1alpha1.EngineType,
+	db *everestv1alpha1.DatabaseCluster,
 ) (everestv1alpha1.DatabaseClusterBackupStatus, error) {
 	var err error
 	logger := log.FromContext(ctx)
@@ -355,7 +348,7 @@ func (r *DatabaseClusterBackupReconciler) getBackupStatus(
 		return backupStatus, nil
 	}
 
-	switch engineType {
+	switch db.Spec.Engine.Type {
 	case everestv1alpha1.DatabaseEnginePXC:
 		pxcCR := &pxcv1.PerconaXtraDBClusterBackup{
 			ObjectMeta: metav1.ObjectMeta{
@@ -419,10 +412,19 @@ func (r *DatabaseClusterBackupReconciler) getBackupStatus(
 			}
 			return backupStatus, nil
 		}
+
+		backupStorage := &everestv1alpha1.BackupStorage{}
+		err := r.Get(ctx, types.NamespacedName{
+			Name:      backup.Spec.BackupStorageName,
+			Namespace: namespacedName.Namespace,
+		}, backupStorage)
+		if err != nil {
+			return backupStatus, fmt.Errorf("failed to get backup storage %s", backup.Spec.BackupStorageName)
+		}
 		backupStatus.State = everestv1alpha1.GetDBBackupState(pgCR)
 		backupStatus.CompletedAt = pgCR.Status.CompletedAt
 		backupStatus.CreatedAt = &pgCR.CreationTimestamp
-		backupStatus.Destination = &pgCR.Status.Destination
+		backupStatus.Destination = getLastPGBackupDestination(backupStorage, db, pgCR)
 		backupStatus.LatestRestorableTime = pgCR.Status.LatestRestorableTime.Time
 	}
 
@@ -432,12 +434,12 @@ func (r *DatabaseClusterBackupReconciler) getBackupStatus(
 func (r *DatabaseClusterBackupReconciler) reconcileStatus(
 	ctx context.Context,
 	backup *everestv1alpha1.DatabaseClusterBackup,
-	engineType everestv1alpha1.EngineType,
+	db *everestv1alpha1.DatabaseCluster,
 ) error {
 	logger := log.FromContext(ctx)
 	namespacedName := client.ObjectKeyFromObject(backup)
 
-	backupStatus, err := r.getBackupStatus(ctx, backup, engineType)
+	backupStatus, err := r.getBackupStatus(ctx, backup, db)
 	if err != nil {
 		logger.Error(err, fmt.Sprintf("failed to get status for DatabaseClusterBackup='%s'", namespacedName))
 		return err
@@ -975,75 +977,13 @@ func isCRVersionGreaterOrEqual(currentVersionStr, desiredVersionStr string) (boo
 	return crVersion.GreaterThanOrEqual(desiredVersion), nil
 }
 
-// Get the last performed PG backup directly from S3.
-func (r *DatabaseClusterBackupReconciler) getLastPGBackupDestination(
-	ctx context.Context,
+// Build the backup destination path.
+func getLastPGBackupDestination(
 	backupStorage *everestv1alpha1.BackupStorage,
 	db *everestv1alpha1.DatabaseCluster,
 	pgBackup *pgv2.PerconaPGBackup,
 ) *string {
-	logger := log.FromContext(ctx)
-	if pgBackup.Status.BackupName != "" {
-		logger.Info("using backup name from status")
-		destination := fmt.Sprintf("s3://%s/%s/backup/db/%s", backupStorage.Spec.Bucket, common.BackupStoragePrefix(db), pgBackup.Status.BackupName)
-		return &destination
-	}
-	backupStorageSecret := &corev1.Secret{}
-	err := r.Get(ctx, types.NamespacedName{Name: backupStorage.Spec.CredentialsSecretName, Namespace: backupStorage.Namespace}, backupStorageSecret)
-	if err != nil {
-		logger.Error(err, "unable to get backup storage secret")
-		return nil
-	}
-
-	cfg, err := config.LoadDefaultConfig(ctx,
-		config.WithRegion(backupStorage.Spec.Region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			string(backupStorageSecret.Data["AWS_ACCESS_KEY_ID"]),
-			string(backupStorageSecret.Data["AWS_SECRET_ACCESS_KEY"]),
-			"",
-		)),
-	)
-	if err != nil {
-		logger.Error(err, "unable to load AWS configuration")
-		return nil
-	}
-	httpClient := http.DefaultClient
-	httpClient.Transport = &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: !pointer.Get(backupStorage.Spec.VerifyTLS), //nolint:gosec
-		},
-	}
-
-	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(backupStorage.Spec.EndpointURL)
-		o.HTTPClient = httpClient
-		o.UsePathStyle = pointer.Get(backupStorage.Spec.ForcePathStyle)
-	})
-	result, err := s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
-		Bucket: aws.String(backupStorage.Spec.Bucket),
-		Prefix: aws.String(common.BackupStoragePrefix(db) + "/backup/db/backup.history/"),
-	})
-	if err != nil {
-		logger.Error(err, "unable to list objects in bucket", "bucket", backupStorage.Spec.Bucket)
-		return nil
-	}
-
-	if len(result.Contents) == 0 {
-		logger.Error(err, "no backup found in bucket", "bucket", backupStorage.Spec.Bucket)
-		return nil
-	}
-
-	var lastBackup string
-	var lastModified time.Time
-	for _, content := range result.Contents {
-		if lastModified.Before(*content.LastModified) {
-			lastModified = *content.LastModified
-			lastBackup = strings.Split(filepath.Base(*content.Key), ".")[0]
-		}
-	}
-
-	destination := fmt.Sprintf("s3://%s/%s/backup/db/%s", backupStorage.Spec.Bucket, common.BackupStoragePrefix(db), lastBackup)
-	return &destination
+	return ptr.To(fmt.Sprintf("s3://%s/%s/backup/db/%s", backupStorage.Spec.Bucket, common.BackupStoragePrefix(db), pgBackup.Status.BackupName))
 }
 
 // Reconcile PG.
