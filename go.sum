@@ -767,8 +767,8 @@ github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0
 github.com/pelletier/go-toml/v2 v2.2.4/go.mod h1:2gIqNv+qfxSVS7cM2xJQKtLSTLUE9V8t9Stt+h56mCY=
 github.com/percona/percona-backup-mongodb v1.8.1-0.20250925114718-2f499a6a31c8 h1:iHJ1QTVTLgYCR5Jr9b99cBiXt4Flp+S37cBp5soIqy0=
 github.com/percona/percona-backup-mongodb v1.8.1-0.20250925114718-2f499a6a31c8/go.mod h1:ji37sYcYJM4XWpcyqxmwIS9knw4vLNVSJF8LHye8HPE=
-github.com/percona/percona-postgresql-operator/v2 v2.8.1 h1:Vtz3NMRg+xDYsLKrYjtk4uW62Bv1oG48bLK+WIGrva8=
-github.com/percona/percona-postgresql-operator/v2 v2.8.1/go.mod h1:GSiXaVee8ZjK/trBwoJsLXGm7bhqIzisn+voPLT9sZo=
+github.com/percona/percona-postgresql-operator/v2 v2.8.2 h1:dWq4xqeANRNZI0FuS66XRm7ZgYaDPvmWjUVklpux7JQ=
+github.com/percona/percona-postgresql-operator/v2 v2.8.2/go.mod h1:GSiXaVee8ZjK/trBwoJsLXGm7bhqIzisn+voPLT9sZo=
 github.com/percona/percona-server-mongodb-operator v1.21.1 h1:ven97PFWl28Ot0pgFQ82x0nyjuuueFrQRbGI+cFb7E4=
 github.com/percona/percona-server-mongodb-operator v1.21.1/go.mod h1:SOrR+TGJGSmF3lX/z4FwgUAzjTnqg22y5NoIKWXNXgw=
 github.com/percona/percona-xtradb-cluster-operator v1.18.0 h1:i5VKJGx0Yp0pPbxxiLnv4+/wEzS0XASshUyzRE27l/c=

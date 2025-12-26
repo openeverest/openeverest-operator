@@ -1184,7 +1184,7 @@ func checkPVCRequired(repos []crunchyv1beta1.PGBackRestRepo, v string) bool {
 	}
 
 	if version, err := semver.NewVersion(v); err == nil {
-		return version.LessThan(semver.MustParse("2.8.1"))
+		return version.LessThan(semver.MustParse("2.8.2"))
 	}
 
 	return false

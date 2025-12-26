@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.31.8
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.12
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.90.0
+	github.com/aws/smithy-go v1.23.2
 	github.com/go-ini/ini v1.67.0
 	github.com/go-logr/logr v1.4.3
 	github.com/hashicorp/go-version v1.7.0
@@ -17,7 +18,7 @@ require (
 	github.com/onsi/gomega v1.38.2
 	github.com/operator-framework/api v0.33.0
 	github.com/percona/percona-backup-mongodb v1.8.1-0.20250925114718-2f499a6a31c8
-	github.com/percona/percona-postgresql-operator/v2 v2.8.1
+	github.com/percona/percona-postgresql-operator/v2 v2.8.2
 	github.com/percona/percona-server-mongodb-operator v1.21.1
 	github.com/percona/percona-xtradb-cluster-operator v1.18.0
 	github.com/rs/zerolog v1.34.0
@@ -86,7 +87,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.29.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.34.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.38.4 // indirect
-	github.com/aws/smithy-go v1.23.2 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bkielbasa/cyclop v1.2.3 // indirect
