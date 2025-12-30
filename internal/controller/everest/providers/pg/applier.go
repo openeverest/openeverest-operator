@@ -52,6 +52,7 @@ const (
 	pgBackRestStorageVerifyTmpl    = "%s-storage-verify-tls"
 	pgBackRestStorageForcePathTmpl = "%s-s3-uri-style"
 	pgBackRestStoragePathStyle     = "path"
+	repo1Name                      = "repo1"
 )
 
 type applier struct {
@@ -1097,6 +1098,19 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 		Enabled: pointer.ToBool(false),
 	}
 
+	isPVCRequired := checkPVCRequired(oldBackups.PGBackRest.Repos, engine.Status.OperatorVersion)
+
+	if newBackups.PGBackRest.Manual == nil && isPVCRequired {
+		// This field is required by the operator, but it doesn't impact
+		// our manual backup operation because we use the PerconaPGBackup
+		// CR to request on-demand backups which then changes the Manual field
+		// internally and sets the
+		// postgres-operator.crunchydata.com/pgbackrest-backup annotation.
+		newBackups.PGBackRest.Manual = &crunchyv1beta1.PGBackRestManualBackup{
+			RepoName: "repo1",
+		}
+	}
+
 	// List DatabaseClusterBackup objects for this database
 	backupList, err := common.DatabaseClusterBackupsThatReferenceObject(ctx, c, consts.DBClusterBackupDBClusterNameField, database.GetNamespace(), database.Name)
 	if err != nil {
@@ -1137,6 +1151,7 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 		backupStoragesSecrets,
 		database.Spec.Engine.Storage,
 		database,
+		isPVCRequired,
 	)
 	if err != nil {
 		return pgv2.Backups{}, err
@@ -1235,13 +1250,14 @@ func reconcilePGBackRestRepos(
 	backupStoragesSecrets map[string]*corev1.Secret,
 	engineStorage everestv1alpha1.Storage,
 	db *everestv1alpha1.DatabaseCluster,
+	pvcRequired bool,
 ) (
 	[]crunchyv1beta1.PGBackRestRepo,
 	map[string]string,
 	[]byte,
 	error,
 ) {
-	reposReconciler, err := newPGReposReconciler(oldRepos, backupSchedules)
+	reposReconciler, err := newPGReposReconciler(oldRepos, backupSchedules, pvcRequired)
 	if err != nil {
 		return []crunchyv1beta1.PGBackRestRepo{}, map[string]string{}, []byte{},
 			errors.Join(err, errors.New("failed to initialize PGBackrest repos reconciler"))
@@ -1270,7 +1286,7 @@ func reconcilePGBackRestRepos(
 			errors.Join(err, errors.New("failed to add new backup schedules"))
 	}
 
-	newRepos, err := reposReconciler.sortRepos()
+	newRepos, err := reposReconciler.addDefaultRepo(engineStorage, pvcRequired)
 	if err != nil {
 		return []crunchyv1beta1.PGBackRestRepo{}, map[string]string{}, []byte{}, err
 	}
