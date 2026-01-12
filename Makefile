@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 1.11.0-rc1
+VERSION ?= 1.11.0
 
 FLAGS = -X 'github.com/percona/everest-operator/internal/consts.Version=$(VERSION)'
 LD_FLAGS_OPERATOR = -ldflags " $(FLAGS)"
@@ -32,7 +32,7 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # percona.com/everest-operator-bundle:$VERSION and percona.com/everest-operator-catalog:$VERSION.
-IMAGE_TAG_OWNER ?= docker.io/perconalab
+IMAGE_TAG_OWNER ?= docker.io/percona
 IMAGE_TAG_BASE ?= $(IMAGE_TAG_OWNER)/everest-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
