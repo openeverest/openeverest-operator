@@ -148,6 +148,48 @@ func (r *DatabaseClusterReconciler) reconcileDB(
 ) (rr ctrl.Result, rerr error) {
 	logger := log.FromContext(ctx)
 
+	// Handle group membership
+	if db.Spec.GroupName != "" {
+		// Ensure the group label is set
+		if db.Labels == nil {
+			db.Labels = make(map[string]string)
+		}
+		if db.Labels["everest.percona.com/group"] != db.Spec.GroupName {
+			db.Labels["everest.percona.com/group"] = db.Spec.GroupName
+			if err := r.Update(ctx, db); err != nil {
+				logger.Error(err, "Failed to update group label")
+				return ctrl.Result{}, err
+			}
+			logger.Info("Updated group label", "groupName", db.Spec.GroupName)
+		}
+
+		// Set owner reference to enable cascade deletion
+		group := &everestv1alpha1.DatabaseGroup{}
+		if err := r.Get(ctx, client.ObjectKey{
+			Name:      db.Spec.GroupName,
+			Namespace: db.Namespace,
+		}, group); err == nil {
+			// Check if owner reference already exists
+			hasOwner := false
+			for _, owner := range db.OwnerReferences {
+				if owner.Kind == "DatabaseGroup" && owner.Name == group.Name {
+					hasOwner = true
+					break
+				}
+			}
+
+			if !hasOwner {
+				if err := controllerutil.SetControllerReference(group, db, r.Scheme); err == nil {
+					if err := r.Update(ctx, db); err != nil {
+						logger.Error(err, "Failed to set owner reference")
+					} else {
+						logger.Info("Set owner reference to DatabaseGroup", "groupName", group.Name)
+					}
+				}
+			}
+		}
+	}
+
 	// Handle any necessary cleanup.
 	if !db.GetDeletionTimestamp().IsZero() {
 		// If this DB has a data import associated with it, delete the credentials secret.
@@ -286,6 +328,14 @@ func (r *DatabaseClusterReconciler) reconcileDBStatus( //nolint:funcorder
 		return r.Client.Status().Update(ctx, db)
 	}); client.IgnoreNotFound(updErr) != nil {
 		return ctrl.Result{}, updErr
+	}
+
+	// Update DatabaseGroup status if cluster belongs to a group
+	if db.Spec.GroupName != "" {
+		if err := r.updateGroupStatus(ctx, db); err != nil {
+			logger.Error(err, "Failed to update DatabaseGroup status", "groupName", db.Spec.GroupName)
+			// Don't fail reconciliation if group update fails
+		}
 	}
 
 	// DB is not ready, check again soon.
@@ -532,6 +582,59 @@ func (r *DatabaseClusterReconciler) reconcileLabels(
 		return r.Update(ctx, database)
 	}
 	return nil
+}
+
+// updateGroupStatus updates the DatabaseGroup status to reflect the current cluster state.
+func (r *DatabaseClusterReconciler) updateGroupStatus(
+	ctx context.Context,
+	db *everestv1alpha1.DatabaseCluster,
+) error {
+	group := &everestv1alpha1.DatabaseGroup{}
+	if err := r.Get(ctx, client.ObjectKey{
+		Name:      db.Spec.GroupName,
+		Namespace: db.Namespace,
+	}, group); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		// Group doesn't exist, skip update
+		return nil
+	}
+
+	// Find and update cluster info in group status
+	found := false
+	for i, clusterInfo := range group.Status.Clusters {
+		if clusterInfo.Name == db.Name {
+			group.Status.Clusters[i] = everestv1alpha1.ClusterInGroup{
+				Name:      db.Name,
+				Engine:    string(db.Spec.Engine.Type),
+				Phase:     string(db.Status.Status),
+				Ready:     db.Status.Ready,
+				Size:      db.Status.Size,
+				CreatedAt: db.CreationTimestamp.String(),
+			}
+			found = true
+			break
+		}
+	}
+
+	// If cluster not in list, add it
+	if !found {
+		group.Status.Clusters = append(group.Status.Clusters, everestv1alpha1.ClusterInGroup{
+			Name:      db.Name,
+			Engine:    string(db.Spec.Engine.Type),
+			Phase:     string(db.Status.Status),
+			Ready:     db.Status.Ready,
+			Size:      db.Status.Size,
+			CreatedAt: db.CreationTimestamp.String(),
+		})
+	}
+
+	group.Status.ObservedGeneration = group.Generation
+	group.Status.Message = fmt.Sprintf("%d clusters in group", len(group.Status.Clusters))
+
+	// Update group status
+	return r.Status().Update(ctx, group)
 }
 
 // SetupWithManager sets up the controller with the Manager.
