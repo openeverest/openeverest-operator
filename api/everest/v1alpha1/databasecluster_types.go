@@ -428,6 +428,11 @@ type EngineFeaturesStatus struct {
 type DatabaseClusterSpec struct {
 	// Paused is a flag to stop the cluster
 	Paused bool `json:"paused,omitempty"`
+	// GroupName specifies the DatabaseGroup this cluster belongs to.
+	// When set, the cluster becomes part of the group and can be managed collectively.
+	// The cluster will be automatically labeled with "everest.percona.com/group" for group operations.
+	// +optional
+	GroupName string `json:"groupName,omitempty"`
 	// AllowUnsafeConfiguration field used to ensure that the user can create configurations unfit for production use.
 	//
 	// Deprecated: AllowUnsafeConfiguration will not be supported in the future releases.
