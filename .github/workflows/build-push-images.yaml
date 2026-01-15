@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TOOLS_PATH: "/opt/tools/bin"
+      IMAGE_PREFIX: 'ghcr.io/openeverest'
+      EVEREST_OPERATOR_DEV_IMAGE_NAME: 'openeverest-operator-dev'
+      EVEREST_OPERATOR_BUNDLE_DEV_IMAGE_NAME: 'openeverest-operator-bundle-dev'
 
     steps:
       - name: Check out
@@ -39,7 +42,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            perconalab/everest-operator
+            ${{ env.IMAGE_PREFIX }}/${{ env.EVEREST_OPERATOR_DEV_IMAGE_NAME }}
           tags: |
             type=raw,value=0.0.0,enable=${{ contains(github.ref_name, 'main') }}
 
@@ -48,7 +51,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            perconalab/everest-operator-bundle
+            ${{ env.IMAGE_PREFIX }}/${{ env.EVEREST_OPERATOR_BUNDLE_DEV_IMAGE_NAME }}
           tags: |
             type=raw,value=0.0.0,enable=${{ contains(github.ref_name, 'main') }}
 
