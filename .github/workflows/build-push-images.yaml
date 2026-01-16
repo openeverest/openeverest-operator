@@ -9,12 +9,16 @@ env:
   GONOPROXY: 'github.com/percona'
   GONOSUMDB: 'github.com/percona'
   GOPRIVATE: 'github.com/percona'
+  REGISTRY: ghcr.io
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
       TOOLS_PATH: "/opt/tools/bin"
+      IMAGE_PREFIX: 'ghcr.io/openeverest'
+      EVEREST_OPERATOR_DEV_IMAGE_NAME: 'openeverest-operator-dev'
+      EVEREST_OPERATOR_BUNDLE_DEV_IMAGE_NAME: 'openeverest-operator-bundle-dev'
 
     steps:
       - name: Check out
@@ -39,7 +43,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            perconalab/everest-operator
+            ${{ env.IMAGE_PREFIX }}/${{ env.EVEREST_OPERATOR_DEV_IMAGE_NAME }}
           tags: |
             type=raw,value=0.0.0,enable=${{ contains(github.ref_name, 'main') }}
 
@@ -48,15 +52,16 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            perconalab/everest-operator-bundle
+            ${{ env.IMAGE_PREFIX }}/${{ env.EVEREST_OPERATOR_BUNDLE_DEV_IMAGE_NAME }}
           tags: |
             type=raw,value=0.0.0,enable=${{ contains(github.ref_name, 'main') }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and Push operator image
         uses: docker/build-push-action@v6
