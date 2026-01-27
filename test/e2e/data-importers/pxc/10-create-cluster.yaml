@@ -28,7 +28,7 @@ spec:
       size: 1Gi
     resources:
       cpu: "1"
-      memory: 1G
+      memory: 3G
   proxy:
     type: haproxy
     replicas: 3

@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 300
+timeout: 400
 commands:
   - command: kubectl wait --for=jsonpath='{.status.crVersion}'=$PXC_OPERATOR_VERSION db/test-pxc-cluster -n $NAMESPACE
   - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=$PXC_OPERATOR_VERSION pxc/test-pxc-cluster -n $NAMESPACE

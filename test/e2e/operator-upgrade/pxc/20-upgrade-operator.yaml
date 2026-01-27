@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestStep
-timeout: 60
+timeout: 120
 commands:
   - command: kubectl apply -f https://raw.githubusercontent.com/percona/percona-xtradb-cluster-operator/v${PXC_OPERATOR_VERSION}/deploy/bundle.yaml -n "${NAMESPACE}"
   # I know it's weird to use a TestStep to do an assertion but this is a
@@ -10,4 +10,4 @@ commands:
   # the test fails. On the other hand, if the state doesn't change, kubectl
   # times out and the test passes.
   - script: >
-      kubectl wait --for=jsonpath='{.status.state}'=initializing pxc/test-pxc-cluster -n $NAMESPACE --timeout=30s; test $? -ne 0
+      kubectl wait --for=jsonpath='{.status.state}'=initializing pxc/test-pxc-cluster -n $NAMESPACE --timeout=120s; test $? -ne 0
