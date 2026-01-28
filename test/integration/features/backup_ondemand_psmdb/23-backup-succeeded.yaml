@@ -1,5 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-timeout: 10
-commands:
-  - command: kubectl patch psmdb-backup/test-db-backup-s3  --subresource status -n $NAMESPACE -p '{"status":{"state":"ready","completed":"2025-01-01T01:02:03.04Z"}}' --type=merge

@@ -1,5 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-commands:
-  # in psmdb 1.20 the pbm initialization process has changed. So first let's test the backups creation for older CR versions
-  - command: kubectl patch db test-psmdb-cluster -n $NAMESPACE -p '{"spec":{"engine":{"crVersion":"${PREVIOUS_PSMDB_OPERATOR_VERSION}"}}}' --type merge

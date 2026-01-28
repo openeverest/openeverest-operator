@@ -1,7 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-timeout: 10
-commands:
-  #  must be set on DatabaseClusterBackup to ensure that storage is NOT cleaned up.
-  - command: kubectl patch dbb/test-db-backup-s3 -n $NAMESPACE -p '{"metadata":{"finalizers":["everest.percona.com/dbb-storage-protection", "foregroundDeletion"]}}' --type merge
-  - command: kubectl delete dbb/test-db-backup-s3 -n $NAMESPACE --wait=false

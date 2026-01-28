@@ -8,6 +8,11 @@ metadata:
   name: test-pxc-cluster
 spec:
   engine:
+    # there is the newer pxc engine recommended in pxc 1.19.0 - the 8.4.7-7.1 which gets installed by default,
+    # however we need to test for 8.0.X because there is no recommended 8.4.X version in pxc 1.18.0.
+    # so we specify the recommended 8.0.X version here to avoid the upgrade tests failures while having
+    # PXC_DB_ENGINE_VERSION: 8.0.44-35.1 and PREVIOUS_PXC_DB_ENGINE_VERSION: 8.0.42-33.1
+    version: 8.0.44-35.1
     replicas: 3
     resources:
       cpu: "1"

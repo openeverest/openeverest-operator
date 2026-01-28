@@ -8,9 +8,6 @@ collectors:
   - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
 
-  - command: kubectl get dbb/test-scheduled-backup-1 -n ${NAMESPACE} -o yaml
-  - command: kubectl get psmdb-backup/test-scheduled-backup-1 -n ${NAMESPACE} -o yaml
-
   - command: kubectl get dbb/test-scheduled-backup-2 -n ${NAMESPACE} -o yaml
   - command: kubectl get psmdb-backup/test-scheduled-backup-2 -n ${NAMESPACE} -o yaml
 
@@ -19,9 +16,6 @@ collectors:
     namespace: everest-system
     selector: control-plane=controller-manager
     tail: 100
-commands:
-  - command: kubectl wait --for=delete psmdb-backup/test-scheduled-backup-1 -n ${NAMESPACE}
-  - command: kubectl wait --for=delete dbb/test-scheduled-backup-1 -n ${NAMESPACE}
 resourceRefs:
   - apiVersion: everest.percona.com/v1alpha1
     kind: DatabaseCluster
