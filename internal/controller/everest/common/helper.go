@@ -26,6 +26,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"text/template"
 
 	"github.com/AlekSi/pointer"
 	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
@@ -677,6 +678,32 @@ func GetLoadBalancerConfig(
 	return lbc, nil
 }
 
+// SetTemplateValues sets the respective values in the template
+func SetTemplateValues(value string, database *everestv1alpha1.DatabaseCluster) (string, error) {
+	funcMap := template.FuncMap{
+		".ObjectMeta.Namespace": func() string {
+			return database.Namespace
+		},
+		".ObjectMeta.Name": func() string {
+			return database.Name
+		},
+	}
+
+	tmpl, err := template.New("").Funcs(funcMap).Parse(value)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+
+	err = tmpl.Execute(&buf, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
 // GetAnnotations returns annotations from the LoadBalancerConfig used in the given DB.
 func GetAnnotations(
 	ctx context.Context,
@@ -692,7 +719,22 @@ func GetAnnotations(
 		return nil, err
 	}
 
-	return lbc.Spec.Annotations, nil
+	annotations := lbc.Spec.Annotations
+
+	for key, value := range annotations {
+		// check for labels with Golang Tenplates
+		if strings.Contains(value, "{{") && strings.Contains(value, "}}") {
+
+			updatedVal, err := SetTemplateValues(value, database)
+			if err != nil {
+				return map[string]string{}, err
+			}
+
+			annotations[key] = updatedVal
+		}
+	}
+
+	return annotations, nil
 }
 
 // GetPodSchedulingPolicy returns the PodSchedulingPolicy object by name.
