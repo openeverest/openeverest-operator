@@ -848,7 +848,7 @@ func (p *applier) genPXCStorageSpec(name, namespace string) (*pxcv1.BackupStorag
 	}, backupStorage, nil
 }
 
-func (p *applier) genPXCBackupSpec() (*pxcv1.PXCScheduledBackup, error) {
+func (p *applier) genPXCBackupSpec() (*pxcv1.BackupSpec, error) {
 	engine := p.DBEngine
 	database := p.DB
 	// Get the best backup version for the specified database engine
@@ -866,7 +866,7 @@ func (p *applier) genPXCBackupSpec() (*pxcv1.PXCScheduledBackup, error) {
 	}
 
 	// Initialize PXCScheduledBackup object
-	pxcBackupSpec := &pxcv1.PXCScheduledBackup{
+	pxcBackupSpec := &pxcv1.BackupSpec{
 		Image: image,
 		PITR: pxcv1.PITRSpec{
 			Enabled: database.Spec.Backup.PITR.Enabled,
@@ -1004,7 +1004,7 @@ func (p *applier) getStoragesSpec(backupStorageName string) (*pxcv1.BackupStorag
 	return spec, nil
 }
 
-func (p *applier) addPITRConfiguration(storages map[string]*pxcv1.BackupStorageSpec, pxcBackupSpec *pxcv1.PXCScheduledBackup) error {
+func (p *applier) addPITRConfiguration(storages map[string]*pxcv1.BackupStorageSpec, pxcBackupSpec *pxcv1.BackupSpec) error {
 	database := p.DB
 	storageName := *database.Spec.Backup.PITR.BackupStorageName
 
@@ -1040,7 +1040,7 @@ func (p *applier) addPITRConfiguration(storages map[string]*pxcv1.BackupStorageS
 
 func (p *applier) addScheduledBackupsConfiguration(
 	storages map[string]*pxcv1.BackupStorageSpec,
-	pxcBackupSpec *pxcv1.PXCScheduledBackup,
+	pxcBackupSpec *pxcv1.BackupSpec,
 ) error {
 	database := p.DB
 	var pxcSchedules []pxcv1.PXCScheduledBackupSchedule //nolint:prealloc

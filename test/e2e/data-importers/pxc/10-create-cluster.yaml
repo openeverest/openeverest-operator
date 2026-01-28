@@ -11,7 +11,7 @@ spec:
     dataImport:
       dataImporterName: everest-percona-pxc-operator
       source:
-        path: "/pxc/test-pxc-2025-09-30-11:18:45-full"
+        path: "/pxc/mysql-cgb-2026-01-26-15:37:33-full"
         s3:
           bucket: everest-operator
           region: us-east-1
@@ -28,7 +28,7 @@ spec:
       size: 1Gi
     resources:
       cpu: "1"
-      memory: 1G
+      memory: 3G
   proxy:
     type: haproxy
     replicas: 3

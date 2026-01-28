@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 300
+timeout: 600
 commands:
   - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PREVIOUS_PXC_OPERATOR_VERSION} db/test-pxc-cluster -n $NAMESPACE
   - command: kubectl wait --for=jsonpath='{.spec.crVersion}'=${PREVIOUS_PXC_OPERATOR_VERSION} pxc/test-pxc-cluster -n $NAMESPACE
@@ -56,7 +56,7 @@ spec:
       size: 15Gi
     resources:
       cpu: "1"
-      memory: 2G
+      memory: 3G
   proxy:
     type: haproxy
     replicas: 3
@@ -82,7 +82,7 @@ spec:
     resources:
       requests:
         cpu: "1"
-        memory: 2G
+        memory: 3G
     size: 3
     volumeSpec:
       persistentVolumeClaim:

@@ -110,14 +110,14 @@ func Test_isCRVersionGreaterOrEqual(t *testing.T) {
 			name:             "incorrect current version",
 			currentVersion:   "aaa",
 			desiredVersion:   "1.20.0",
-			err:              errors.New("Malformed version: aaa"),
+			err:              errors.New("malformed version: aaa"),
 			isGreaterOrEqual: false,
 		},
 		{
 			name:             "incorrect desired version",
 			currentVersion:   "1.20.0",
 			desiredVersion:   "bbb",
-			err:              errors.New("Malformed version: bbb"),
+			err:              errors.New("malformed version: bbb"),
 			isGreaterOrEqual: false,
 		},
 	}

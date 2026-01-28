@@ -22,7 +22,7 @@ metadata:
 spec:
   dataImporterName: everest-percona-pxc-operator
   source:
-    path: "/pxc/test-pxc-2025-09-30-11:18:45-full"
+    path: "/pxc/mysql-cgb-2026-01-26-15:37:33-full"
     s3:
       endpointURL: https://minio.minio.svc
       bucket: everest-operator

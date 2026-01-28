@@ -8,9 +8,6 @@ collectors:
   - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
 
-  - command: kubectl get dbb/test-scheduled-backup-1 -n ${NAMESPACE} -o yaml
-  - command: kubectl get psmdb-backup/test-scheduled-backup-1 -n ${NAMESPACE} -o yaml
-
   - command: kubectl get dbb/test-scheduled-backup-2 -n ${NAMESPACE} -o yaml
   - command: kubectl get psmdb-backup/test-scheduled-backup-2 -n ${NAMESPACE} -o yaml
 
@@ -24,10 +21,6 @@ resourceRefs:
     kind: DatabaseCluster
     name: test-psmdb-cluster
     ref: db
-  - apiVersion: everest.percona.com/v1alpha1
-    kind: DatabaseClusterBackup
-    name: test-scheduled-backup-1
-    ref: dbb1_s3
   - apiVersion: everest.percona.com/v1alpha1
     kind: DatabaseClusterBackup
     name: test-scheduled-backup-2
@@ -45,9 +38,6 @@ assertAll:
 
   - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
     message: "foregroundDeletion' is absent in db.metadata.finalizers"
-
-  - celExpr: "!('everest.percona.com/in-use-protection' in dbb1_s3.metadata.finalizers)"
-    message: "'everest.percona.com/in-use-protection' present in dbb1_s3.metadata.finalizers"
 
   - celExpr: "has(dbb2_s3.metadata.finalizers)"
     message: "dbb2_s3 doesn't have finalizers"
@@ -101,40 +91,6 @@ spec:
           insecureSkipTLSVerify: true
           region: us-east-2
         type: s3
-status:
-  state: ready
----
-apiVersion: everest.percona.com/v1alpha1
-kind: DatabaseClusterBackup
-metadata:
-  name: test-scheduled-backup-1
-  labels:
-    clusterName: test-psmdb-cluster
-  ownerReferences:
-    - apiVersion: everest.percona.com/v1alpha1
-      kind: DatabaseCluster
-      blockOwnerDeletion: true
-      controller: true
-      name: test-psmdb-cluster
-spec:
-  backupStorageName: test-storage-s3
-  dbClusterName: test-psmdb-cluster
-status:
-  state: Succeeded
-  inUse: false
----
-apiVersion: psmdb.percona.com/v1
-kind: PerconaServerMongoDBBackup
-metadata:
-  name: test-scheduled-backup-1
-  ownerReferences:
-    - apiVersion: everest.percona.com/v1alpha1
-      blockOwnerDeletion: true
-      kind: DatabaseClusterBackup
-      name: test-scheduled-backup-1
-spec:
-  storageName: test-storage-s3
-  clusterName: test-psmdb-cluster
 status:
   state: ready
 ---

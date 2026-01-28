@@ -3,8 +3,8 @@ kind: TestAssert
 timeout: 300
 commands:
   - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PSMDB_OPERATOR_VERSION} db/test-psmdb-cluster -n "${NAMESPACE}"
-  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=7.0.12-7 db/test-psmdb-cluster -n "${NAMESPACE}"
-  - command: kubectl wait --for=jsonpath='{.status.mongoVersion}'=7.0.12-7 psmdb/test-psmdb-cluster -n "${NAMESPACE}"
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=7.0.28-15 db/test-psmdb-cluster -n "${NAMESPACE}"
+  - command: kubectl wait --for=jsonpath='{.status.mongoVersion}'=7.0.28-15 psmdb/test-psmdb-cluster -n "${NAMESPACE}"
 collectors:
   - command: kubectl get db/test-psmdb-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
