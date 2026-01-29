@@ -252,6 +252,15 @@ func (p *applier) Proxy() error {
 		pg.Spec.Proxy.PGBouncer.Resources.Limits[corev1.ResourceMemory] = database.Spec.Proxy.Resources.Memory
 	}
 	pg.Spec.Proxy.PGBouncer.ExposeSuperusers = true
+
+	if database.Spec.Proxy.Config != "" {
+		cfg, err := ParsePGBouncerConfig(database.Spec.Proxy.Config)
+		if err != nil {
+			return fmt.Errorf("proxy config: %w", err)
+		}
+		pg.Spec.Proxy.PGBouncer.Config = cfg
+	}
+
 	pg.Spec.Users = []crunchyv1beta1.PostgresUserSpec{
 		{
 			Name:       "postgres",
