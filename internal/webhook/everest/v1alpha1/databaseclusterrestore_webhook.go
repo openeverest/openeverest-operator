@@ -124,7 +124,10 @@ func (v *DatabaseClusterRestoreCustomValidator) ValidateCreate(ctx context.Conte
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterRestore.
-func (v *DatabaseClusterRestoreCustomValidator) ValidateUpdate(ctx context.Context, oldDbcr, newDbcr *everestv1alpha1.DatabaseClusterRestore) (admission.Warnings, error) {
+func (v *DatabaseClusterRestoreCustomValidator) ValidateUpdate(
+	ctx context.Context,
+	oldDbcr, newDbcr *everestv1alpha1.DatabaseClusterRestore,
+) (admission.Warnings, error) {
 	var allErrs field.ErrorList
 	logger := logf.FromContext(ctx).WithName("DatabaseClusterRestoreCustomValidator").WithValues(
 		"name", oldDbcr.GetName(),

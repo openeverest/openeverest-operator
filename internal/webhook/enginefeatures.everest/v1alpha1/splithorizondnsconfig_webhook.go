@@ -99,7 +99,10 @@ type SplitHorizonDNSConfigCustomValidator struct {
 }
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type SplitHorizonDNSConfig.
-func (v *SplitHorizonDNSConfigCustomValidator) ValidateCreate(ctx context.Context, shdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig) (admission.Warnings, error) {
+func (v *SplitHorizonDNSConfigCustomValidator) ValidateCreate(
+	ctx context.Context,
+	shdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig,
+) (admission.Warnings, error) {
 	var allErrs field.ErrorList
 
 	logger := logf.FromContext(ctx).WithName("SplitHorizonDNSConfigValidator").WithValues(
@@ -135,7 +138,10 @@ func (v *SplitHorizonDNSConfigCustomValidator) ValidateCreate(ctx context.Contex
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type SplitHorizonDNSConfig.
-func (v *SplitHorizonDNSConfigCustomValidator) ValidateUpdate(ctx context.Context, oldShdc, newShdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig) (admission.Warnings, error) {
+func (v *SplitHorizonDNSConfigCustomValidator) ValidateUpdate(
+	ctx context.Context,
+	oldShdc, newShdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig,
+) (admission.Warnings, error) {
 	var allErrs field.ErrorList
 
 	logger := logf.FromContext(ctx).WithName("SplitHorizonDNSConfigValidator").WithValues(
@@ -179,7 +185,10 @@ func (v *SplitHorizonDNSConfigCustomValidator) ValidateUpdate(ctx context.Contex
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type SplitHorizonDNSConfig.
-func (v *SplitHorizonDNSConfigCustomValidator) ValidateDelete(ctx context.Context, shdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig) (admission.Warnings, error) {
+func (v *SplitHorizonDNSConfigCustomValidator) ValidateDelete(
+	ctx context.Context,
+	shdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig,
+) (admission.Warnings, error) {
 	logger := logf.FromContext(ctx).WithName("SplitHorizonDNSConfigValidator").WithValues(
 		"name", shdc.GetName(),
 		"namespace", shdc.GetNamespace(),
