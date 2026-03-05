@@ -28,7 +28,6 @@ import (
 	"github.com/AlekSi/pointer"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -71,8 +70,7 @@ var dbClusterGroupKind = everestv1alpha1.GroupVersion.WithKind(consts.DatabaseCl
 
 // SetupDatabaseClusterWebhookWithManager sets up the webhook with the manager.
 func SetupDatabaseClusterWebhookWithManager(mgr manager.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&everestv1alpha1.DatabaseCluster{}).
+	return ctrl.NewWebhookManagedBy(mgr, &everestv1alpha1.DatabaseCluster{}).
 		WithValidator(&DatabaseClusterValidator{
 			Client: mgr.GetClient(),
 		}).
@@ -90,14 +88,9 @@ type DatabaseClusterValidator struct {
 }
 
 // ValidateCreate validates the creation of a DatabaseCluster.
-func (v *DatabaseClusterValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *DatabaseClusterValidator) ValidateCreate(ctx context.Context, db *everestv1alpha1.DatabaseCluster) (admission.Warnings, error) {
 	var allErrs field.ErrorList
 	var warns admission.Warnings
-
-	db, ok := obj.(*everestv1alpha1.DatabaseCluster)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseCluster, got %T", obj)
-	}
 
 	logger := log.FromContext(ctx).WithName("DatabaseClusterValidator").WithValues(
 		"name", db.GetName(),
@@ -150,19 +143,9 @@ func (v *DatabaseClusterValidator) ValidateCreate(ctx context.Context, obj runti
 }
 
 // ValidateUpdate validates the update of a DatabaseCluster.
-func (v *DatabaseClusterValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+func (v *DatabaseClusterValidator) ValidateUpdate(ctx context.Context, oldDb, newDb *everestv1alpha1.DatabaseCluster) (admission.Warnings, error) {
 	var allErrs field.ErrorList
 	var warns admission.Warnings
-
-	oldDb, ok := oldObj.(*everestv1alpha1.DatabaseCluster)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseCluster for oldDb, got %T", oldObj)
-	}
-
-	newDb, ok := newObj.(*everestv1alpha1.DatabaseCluster)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseCluster for newDb, got %T", newObj)
-	}
 
 	logger := log.FromContext(ctx).WithName("DatabaseClusterValidator").WithValues(
 		"name", newDb.GetName(),
@@ -205,7 +188,7 @@ func (v *DatabaseClusterValidator) ValidateUpdate(ctx context.Context, oldObj, n
 }
 
 // ValidateDelete validates the deletion of a DatabaseCluster.
-func (v *DatabaseClusterValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+func (v *DatabaseClusterValidator) ValidateDelete(_ context.Context, _ *everestv1alpha1.DatabaseCluster) (admission.Warnings, error) {
 	return nil, nil
 }
 
