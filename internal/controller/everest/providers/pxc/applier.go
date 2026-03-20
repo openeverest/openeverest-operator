@@ -479,6 +479,7 @@ func defaultSpec() pxcv1.PerconaXtraDBClusterSpec {
 						corev1.ResourceMemory: resource.MustParse("1G"),
 						corev1.ResourceCPU:    resource.MustParse("600m"),
 					},
+					Requests: corev1.ResourceList{},
 				},
 				ReadinessProbes: corev1.Probe{TimeoutSeconds: haProxyProbesTimeout},
 				LivenessProbes:  corev1.Probe{TimeoutSeconds: haProxyProbesTimeout},
@@ -492,6 +493,7 @@ func defaultSpec() pxcv1.PerconaXtraDBClusterSpec {
 						corev1.ResourceMemory: resource.MustParse("1G"),
 						corev1.ResourceCPU:    resource.MustParse("600m"),
 					},
+					Requests: corev1.ResourceList{},
 				},
 			},
 		},
@@ -701,7 +703,7 @@ func (p *applier) applyProxySQLCfg() error {
 		// We now set the requests to the same value as the limits, however, we need to ensure that
 		// they're not automatically applied when Everest is upgraded, otherwise it leads to a proxy restart.
 		if shouldUpdateRequests ||
-			p.currentPerconaXtraDBClusterSpec.HAProxy.Resources.Requests.Cpu().
+			p.currentPerconaXtraDBClusterSpec.ProxySQL.Resources.Requests.Cpu().
 				Equal(p.DB.Spec.Proxy.Resources.CPU) {
 			proxySQL.Resources.Requests[corev1.ResourceCPU] = p.DB.Spec.Proxy.Resources.CPU
 		}
@@ -714,8 +716,8 @@ func (p *applier) applyProxySQLCfg() error {
 		// We now set the requests to the same value as the limits, however, we need to ensure that
 		// they're not automatically applied when Everest is upgraded, otherwise it leads to a proxy restart.
 		if shouldUpdateRequests ||
-			p.currentPerconaXtraDBClusterSpec.HAProxy.Resources.Requests.Cpu().
-				Equal(p.DB.Spec.Proxy.Resources.CPU) {
+			p.currentPerconaXtraDBClusterSpec.ProxySQL.Resources.Requests.Memory().
+				Equal(p.DB.Spec.Proxy.Resources.Memory) {
 			proxySQL.Resources.Requests[corev1.ResourceMemory] = p.DB.Spec.Proxy.Resources.Memory
 		}
 	}
