@@ -940,11 +940,14 @@ func configureStorage(
 		currentSize = current.VolumeSpec.PersistentVolumeClaim.PersistentVolumeClaimSpec.Resources.Requests[corev1.ResourceStorage]
 	}
 
-	setStorageSize := func(size resource.Quantity) {
+	storageClass := db.Spec.Engine.Storage.Class
+	desiredSize := db.Spec.Engine.Storage.Size
+
+	setStorageSize := func(size resource.Quantity, storageClass *string) {
 		desired.VolumeSpec = &psmdbv1.VolumeSpec{
 			PersistentVolumeClaim: psmdbv1.PVCSpec{
 				PersistentVolumeClaimSpec: &corev1.PersistentVolumeClaimSpec{
-					StorageClassName: db.Spec.Engine.Storage.Class,
+					StorageClassName: storageClass,
 					Resources: corev1.VolumeResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceStorage: size,
@@ -955,5 +958,5 @@ func configureStorage(
 		}
 	}
 
-	return common.ConfigureStorage(ctx, c, db, currentSize, setStorageSize)
+	return common.ConfigureStorage(ctx, c, db, currentSize, desiredSize, storageClass, setStorageSize)
 }

@@ -996,12 +996,11 @@ func ConfigureStorage(
 	c client.Client,
 	db *everestv1alpha1.DatabaseCluster,
 	currentSize resource.Quantity,
-	setStorageSizeFunc func(resource.Quantity),
+	desiredSize resource.Quantity,
+	storageClass *string,
+	setStorageSizeFunc func(resource.Quantity, *string),
 ) error {
 	meta.RemoveStatusCondition(&db.Status.Conditions, everestv1alpha1.ConditionTypeCannotResizeVolume)
-
-	desiredSize := db.Spec.Engine.Storage.Size
-	storageClass := db.Spec.Engine.Storage.Class
 
 	// We cannot shrink the volume size.
 	hasStorageShrunk := currentSize.Cmp(desiredSize) > 0 && !currentSize.IsZero()
@@ -1013,14 +1012,14 @@ func ConfigureStorage(
 			LastTransitionTime: metav1.Now(),
 			ObservedGeneration: db.GetGeneration(),
 		})
-		setStorageSizeFunc(currentSize)
+		setStorageSizeFunc(currentSize, storageClass)
 		return nil
 	}
 
 	// Check if storage size is being expanded. If not, set the desired size and return early.
 	hasStorageExpanded := currentSize.Cmp(desiredSize) < 0 && !currentSize.IsZero()
 	if !hasStorageExpanded {
-		setStorageSizeFunc(desiredSize)
+		setStorageSizeFunc(desiredSize, storageClass)
 		return nil
 	}
 
@@ -1037,11 +1036,11 @@ func ConfigureStorage(
 			LastTransitionTime: metav1.Now(),
 			ObservedGeneration: db.GetGeneration(),
 		})
-		setStorageSizeFunc(currentSize)
+		setStorageSizeFunc(currentSize, storageClass)
 		return nil
 	}
 
-	setStorageSizeFunc(desiredSize)
+	setStorageSizeFunc(desiredSize, storageClass)
 	return nil
 }
 
