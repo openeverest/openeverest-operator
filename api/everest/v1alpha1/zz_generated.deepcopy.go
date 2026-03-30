@@ -1757,7 +1757,11 @@ func (in *Proxy) DeepCopyInto(out *Proxy) {
 		*out = new(int32)
 		**out = **in
 	}
-	in.Storage.DeepCopyInto(&out.Storage)
+	if in.Storage != nil {
+		in, out := &in.Storage, &out.Storage
+		*out = new(Storage)
+		(*in).DeepCopyInto(*out)
+	}
 	in.Expose.DeepCopyInto(&out.Expose)
 	in.Resources.DeepCopyInto(&out.Resources)
 }

@@ -119,10 +119,13 @@ func configureStorage(
 	}
 	currentSize := getCurrentStorageSize()
 
-	setStorageSize := func(size resource.Quantity) {
+	storageClass := db.Spec.Engine.Storage.Class
+	desiredSize := db.Spec.Engine.Storage.Size
+
+	setStorageSize := func(size resource.Quantity, storageClass *string) {
 		desired.PXC.PodSpec.VolumeSpec = &pxcv1.VolumeSpec{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
-				StorageClassName: db.Spec.Engine.Storage.Class,
+				StorageClassName: storageClass,
 				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: size,
@@ -132,7 +135,60 @@ func configureStorage(
 		}
 	}
 
-	return common.ConfigureStorage(ctx, c, db, currentSize, setStorageSize)
+	return common.ConfigureStorage(ctx, c, db, currentSize, desiredSize, storageClass, setStorageSize)
+}
+
+func configureProxySQLStorage(
+	ctx context.Context,
+	c client.Client,
+	desired *pxcv1.PerconaXtraDBClusterSpec,
+	current *pxcv1.PerconaXtraDBClusterSpec,
+	db *everestv1alpha1.DatabaseCluster,
+) error {
+
+	getCurrentProxySQLStorageSize := func() resource.Quantity {
+		if db.Status.Status == everestv1alpha1.AppStateNew ||
+			current == nil ||
+			current.ProxySQL == nil ||
+			current.ProxySQL.PodSpec.VolumeSpec == nil ||
+			current.ProxySQL.PodSpec.VolumeSpec.PersistentVolumeClaim == nil {
+			return resource.Quantity{}
+		}
+		return current.ProxySQL.PodSpec.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage]
+	}
+
+	getDesiredProxySQLStorageSize := func() resource.Quantity {
+		if db.Spec.Proxy.Storage == nil || db.Spec.Proxy.Storage.Size.IsZero() {
+			return resource.MustParse("2Gi")
+		}
+		return db.Spec.Proxy.Storage.Size
+	}
+
+	getStorageClass := func() *string {
+		if db.Spec.Proxy.Storage == nil || db.Spec.Proxy.Storage.Class == nil {
+			return db.Spec.Engine.Storage.Class
+		}
+		return db.Spec.Proxy.Storage.Class
+	}
+
+	currentSize := getCurrentProxySQLStorageSize()
+	desiredSize := getDesiredProxySQLStorageSize()
+	storageClass := getStorageClass()
+
+	setStorageProxySQLStorageSize := func(size resource.Quantity, storageClass *string) {
+		desired.ProxySQL.PodSpec.VolumeSpec = &pxcv1.VolumeSpec{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
+				StorageClassName: storageClass,
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: size,
+					},
+				},
+			},
+		}
+	}
+
+	return common.ConfigureStorage(ctx, c, db, currentSize, desiredSize, storageClass, setStorageProxySQLStorageSize)
 }
 
 // generatePass generates a random password.
@@ -693,6 +749,10 @@ func (p *applier) applyProxySQLCfg() error {
 		image = p.currentPerconaXtraDBClusterSpec.ProxySQL.Image
 	}
 	proxySQL.Image = image
+
+	if err := configureProxySQLStorage(p.ctx, p.C, &p.PerconaXtraDBCluster.Spec, &p.currentPerconaXtraDBClusterSpec, p.DB); err != nil {
+		return err
+	}
 
 	shouldUpdateRequests := common.IsNewDatabaseCluster(p.DB.Status.Status)
 	if !p.DB.Spec.Proxy.Resources.CPU.IsZero() {
