@@ -131,6 +131,7 @@ metadata:
       blockOwnerDeletion: true
 spec:
   pgCluster: test-pg-cluster
+  method: pgbackrest
   repoName: repo1
 status:
   state: Starting

@@ -123,6 +123,7 @@ spec:
   pgCluster: test-pg-cluster
   options:
     - --type=full
+  method: pgbackrest
   repoName: repo1
 ---
 apiVersion: everest.percona.com/v1alpha1
