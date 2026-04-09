@@ -519,8 +519,6 @@ spec:
                     - proxysql
                     - pgbouncer
                     type: string
-                required:
-                - storage
                 type: object
               sharding:
                 description: Sharding is the sharding configuration. PSMDB-only

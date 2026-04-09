@@ -290,6 +290,7 @@ type Proxy struct {
 	// Config is the proxy configuration
 	Config string `json:"config,omitempty"`
 	// Storage is the proxy storage configuration
+	// +optional
 	Storage *Storage `json:"storage"`
 	// Expose is the proxy expose configuration
 	// +kubebuilder:validation:XValidation:rule="self.type == 'internal' || !has(oldSelf.loadBalancerConfigName) || oldSelf.loadBalancerConfigName == '' || (has(self.loadBalancerConfigName) && self.loadBalancerConfigName != '')",message=".spec.proxy.expose.loadBalancerConfigName cannot be cleared once set"
