@@ -750,10 +750,6 @@ func (p *applier) applyProxySQLCfg() error {
 	}
 	proxySQL.Image = image
 
-	if err := configureProxySQLStorage(p.ctx, p.C, &p.PerconaXtraDBCluster.Spec, &p.currentPerconaXtraDBClusterSpec, p.DB); err != nil {
-		return err
-	}
-
 	shouldUpdateRequests := common.IsNewDatabaseCluster(p.DB.Status.Status)
 	if !p.DB.Spec.Proxy.Resources.CPU.IsZero() {
 		// When the limits are changed, triggers a pod restart, hence ensuring the requests are applied automatically (next block),
@@ -782,6 +778,11 @@ func (p *applier) applyProxySQLCfg() error {
 		}
 	}
 	p.PerconaXtraDBCluster.Spec.ProxySQL = proxySQL
+
+	if err := configureProxySQLStorage(p.ctx, p.C, &p.PerconaXtraDBCluster.Spec, &p.currentPerconaXtraDBClusterSpec, p.DB); err != nil {
+		return err
+	}
+
 	return nil
 }
 
