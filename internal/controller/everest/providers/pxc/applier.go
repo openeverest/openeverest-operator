@@ -70,6 +70,10 @@ func (p *applier) Metadata() error {
 			controllerutil.AddFinalizer(p.PerconaXtraDBCluster, f)
 		}
 
+		if p.DB.Spec.Proxy.Type == everestv1alpha1.ProxyTypeProxySQL {
+			controllerutil.AddFinalizer(p.PerconaXtraDBCluster, finalizerDeleteProxySQLPVC)
+		}
+
 		// remove legacy finalizers.
 		for _, f := range []string{
 			"delete-pxc-pods-in-order",

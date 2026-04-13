@@ -43,6 +43,7 @@ const (
 
 	finalizerDeletePXCPodsInOrder = "percona.com/delete-pxc-pods-in-order"
 	finalizerDeletePXCPVC         = "percona.com/delete-pxc-pvc"
+	finalizerDeleteProxySQLPVC    = "percona.com/delete-proxysql-pvc"
 	finalizerDeletePXCSSL         = "percona.com/delete-ssl"
 )
 

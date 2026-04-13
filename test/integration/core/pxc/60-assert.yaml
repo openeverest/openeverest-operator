@@ -40,6 +40,9 @@ assertAll:
   - celExpr: "'percona.com/delete-pxc-pvc' in pxc.metadata.finalizers"
     message: "'percona.com/delete-pxc-pvc' is absent in pxc.metadata.finalizers"
 
+  - celExpr: "'percona.com/delete-proxysql-pvc' in pxc.metadata.finalizers"
+    message: "'percona.com/delete-proxysql-pvc' is absent in pxc.metadata.finalizers"
+
   - celExpr: "'percona.com/delete-ssl' in pxc.metadata.finalizers"
     message: "'percona.com/delete-ssl' is absent in pxc.metadata.finalizers"
 
