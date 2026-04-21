@@ -896,6 +896,11 @@ func addBackupStorageCredentialsToPGBackrestSecretIni(
 
 // createPGBackrestSecret creates or updates the PG Backrest secret.
 // NOTE: The PG DataImporter depends on Everest creating this Secret.
+// NOTE: No owner reference is set intentionally — the PG operator does not
+// delete secrets on cluster deletion (it relies on a dedicated PVC finalizer).
+// Setting an owner reference would cause Kubernetes GC to delete the secret
+// during foreground deletion before in-progress backups complete, deadlocking
+// both the backup pods and the DatabaseCluster.
 func (p *applier) createPGBackrestSecret(
 	pgbackrestKey string,
 	pgbackrestConf []byte,
@@ -920,12 +925,11 @@ func (p *applier) createPGBackrestSecret(
 		pgBackrestSecret.Data[k] = v
 	}
 
-	err := controllerutil.SetControllerReference(database, pgBackrestSecret, c.Scheme())
-	if err != nil {
+	if err := common.CreateOrUpdate(ctx, c, pgBackrestSecret, false); err != nil {
 		return nil, err
 	}
-	err = common.CreateOrUpdate(ctx, c, pgBackrestSecret, false)
-	if err != nil {
+
+	if err := stripPGBackrestSecretOwnerRef(ctx, c, pgBackrestSecret.Name, database.Namespace, database); err != nil {
 		return nil, err
 	}
 
@@ -1206,6 +1210,11 @@ func checkPVCRequired(repos []crunchyv1beta1.PGBackRestRepo, v string) bool {
 }
 
 // createPGBackrestSecret creates or updates the PG Backrest secret.
+// NOTE: No owner reference is set intentionally — the PG operator does not
+// delete secrets on cluster deletion (it relies on a dedicated PVC finalizer).
+// Setting an owner reference would cause Kubernetes GC to delete the secret
+// during foreground deletion before in-progress backups complete, deadlocking
+// both the backup pods and the DatabaseCluster.
 func createPGBackrestSecret(
 	ctx context.Context,
 	c client.Client,
@@ -1230,16 +1239,46 @@ func createPGBackrestSecret(
 		pgBackrestSecret.Data[k] = v
 	}
 
-	err := controllerutil.SetControllerReference(database, pgBackrestSecret, c.Scheme())
-	if err != nil {
+	if err := common.CreateOrUpdate(ctx, c, pgBackrestSecret, false); err != nil {
 		return nil, err
 	}
-	err = common.CreateOrUpdate(ctx, c, pgBackrestSecret, false)
-	if err != nil {
+
+	if err := stripPGBackrestSecretOwnerRef(ctx, c, pgBackrestSecret.Name, database.Namespace, database); err != nil {
 		return nil, err
 	}
 
 	return pgBackrestSecret, nil
+}
+
+// stripPGBackrestSecretOwnerRef removes any owner reference to database from
+// the named secret, patching the API server if needed. This is a
+// backwards-compatibility migration for secrets created before the owner
+// reference was intentionally removed to prevent Kubernetes GC from deleting
+// them mid-backup during foreground cluster deletion.
+func stripPGBackrestSecretOwnerRef(
+	ctx context.Context,
+	c client.Client,
+	secretName, namespace string,
+	database *everestv1alpha1.DatabaseCluster,
+) error {
+	secret := &corev1.Secret{}
+	if err := c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, secret); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	var newRefs []metav1.OwnerReference
+	for _, ref := range secret.GetOwnerReferences() {
+		if ref.UID != database.GetUID() {
+			newRefs = append(newRefs, ref)
+		}
+	}
+	if len(newRefs) == len(secret.GetOwnerReferences()) {
+		return nil // nothing to remove
+	}
+
+	patch := client.MergeFrom(secret.DeepCopy())
+	secret.SetOwnerReferences(newRefs)
+	return c.Patch(ctx, secret, patch)
 }
 
 func reconcilePGBackRestRepos(

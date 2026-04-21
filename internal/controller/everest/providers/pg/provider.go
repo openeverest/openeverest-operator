@@ -245,7 +245,28 @@ func (p *Provider) Cleanup(ctx context.Context, database *everestv1alpha1.Databa
 	if err != nil || !done {
 		return done, err
 	}
-	return common.HandleUpstreamClusterCleanup(ctx, p.C, database, &pgv2.PerconaPGCluster{})
+	done, err = common.HandleUpstreamClusterCleanup(ctx, p.C, database, &pgv2.PerconaPGCluster{})
+	if err != nil || !done {
+		return done, err
+	}
+	// Explicitly delete pgbackrest secrets since they no longer have an owner
+	// reference (removed to prevent GC from deleting them mid-backup, which
+	// would deadlock cluster deletion).
+	for _, secretName := range []string{
+		database.Name + "-pgbackrest-secrets",
+		database.Name + "-pgbackrest-datasource-secrets",
+	} {
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: database.Namespace,
+			},
+		}
+		if err := client.IgnoreNotFound(p.C.Delete(ctx, secret)); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
 }
 
 // DBObject returns the PerconaPGCluster object.
