@@ -76,8 +76,8 @@ const (
 )
 
 var everestFinalizers = []string{
+	consts.DBBackupCleanupFinalizer,
 	consts.UpstreamClusterCleanupFinalizer,
-	consts.ForegroundDeletionFinalizer,
 }
 
 // DatabaseClusterReconciler reconciles a DatabaseCluster object.
