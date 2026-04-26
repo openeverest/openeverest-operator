@@ -240,6 +240,21 @@ func verifyPVCResizingStatus(ctx context.Context, c client.Client, name, namespa
 	return false, nil
 }
 
+func ensureBackupsDisabled(ctx context.Context, c client.Client, database *everestv1alpha1.DatabaseCluster) error {
+	pg := &pgv2.PerconaPGCluster{}
+	if err := c.Get(ctx, types.NamespacedName{Name: database.GetName(), Namespace: database.GetNamespace()}, pg); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("failed to get PostgreSQL cluster: %w", err)
+		}
+		return nil
+	}
+	pg.Spec.Backups.Enabled = pointer.To[bool](false)
+	if err := c.Update(ctx, pg); err != nil {
+		return fmt.Errorf("failed to update PostgreSQL cluster to disable backup schedules: %w", err)
+	}
+	return nil
+}
+
 // handleDBBackupsCleanup handles the cleanup of the dbbackup objects.
 // Returns true if cleanup is complete.
 func handleDBBackupsCleanup(
@@ -248,6 +263,33 @@ func handleDBBackupsCleanup(
 	database *everestv1alpha1.DatabaseCluster,
 ) (bool, error) {
 	if controllerutil.ContainsFinalizer(database, consts.DBBackupCleanupFinalizer) {
+		// Disable backups on the cluster before deleting the PerconaPGBackup CR.
+		//
+		// Why this is necessary:
+		// As long as backups are enabled, the operator runs a WAL watcher goroutine
+		// (WatchCommitTimestamps) that continuously sends GenericEvents to the backup
+		// controller's reconcile queue. Each enqueue causes the BackupSucceeded reconcile
+		// branch to run, which writes LatestRestorableTime to the PerconaPGBackup status
+		// and removes FinalizerKeepJob from the underlying Job. These writes in turn
+		// trigger new cluster reconciles via the owned-object watch. The result is a
+		// constant stream of cluster reconcile loops while any Succeeded backup exists.
+		//
+		// Each of those reconcile loops calls reconcileBackupJob(), which recreates a
+		// PerconaPGBackup CR for any backup Job it finds without one. If we delete the
+		// CR while this stream is active, there is a window between the CR disappearing
+		// and the Kubernetes GC setting DeletionTimestamp on the owned Job. Any reconcile
+		// loop landing in that window will create a new CR, undoing the deletion.
+		//
+		// Setting Spec.Backups.Enabled=false stops the WAL watcher goroutine and makes
+		// the crunchy reconciler skip all pgBackRest management (clearing its status and
+		// returning early). This drains the constant flow of reconcile triggers before
+		// we delete the CR, so by the time we issue the delete the Job's DeletionTimestamp
+		// is already set and reconcileBackupJob() will not recreate the CR.
+		err := ensureBackupsDisabled(ctx, c, database)
+		if err != nil {
+			return false, err
+		}
+
 		if done, err := common.DeleteBackupsForDatabase(ctx, c, database.GetName(), database.GetNamespace()); err != nil {
 			return false, err
 		} else if !done {
