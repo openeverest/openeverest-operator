@@ -793,7 +793,7 @@ func HandleDBBackupsCleanup(
 	database *everestv1alpha1.DatabaseCluster,
 ) (bool, error) {
 	if controllerutil.ContainsFinalizer(database, consts.DBBackupCleanupFinalizer) {
-		if done, err := deleteBackupsForDatabase(ctx, c, database.GetName(), database.GetNamespace()); err != nil {
+		if done, err := DeleteBackupsForDatabase(ctx, c, database.GetName(), database.GetNamespace()); err != nil {
 			return false, err
 		} else if !done {
 			return false, nil
@@ -806,7 +806,7 @@ func HandleDBBackupsCleanup(
 
 // Delete all dbbackups for the given database.
 // Returns true if no dbbackups are found.
-func deleteBackupsForDatabase(
+func DeleteBackupsForDatabase(
 	ctx context.Context,
 	c client.Client,
 	dbName, dbNs string,
