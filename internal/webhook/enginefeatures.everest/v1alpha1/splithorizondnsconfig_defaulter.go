@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	enginefeatureseverestv1alpha1 "github.com/percona/everest-operator/api/enginefeatures.everest/v1alpha1"
 	"github.com/percona/everest-operator/internal/consts"
@@ -41,10 +40,7 @@ var (
 	secretNamePath = field.NewPath("spec", "tls", "secretName")
 )
 
-var (
-	groupKind                         = enginefeatureseverestv1alpha1.GroupVersion.WithKind(consts.SplitHorizonDNSConfigKind).GroupKind()
-	_         webhook.CustomDefaulter = &SplitHorizonDNSConfigDefaulter{}
-)
+var groupKind = enginefeatureseverestv1alpha1.GroupVersion.WithKind(consts.SplitHorizonDNSConfigKind).GroupKind()
 
 // NOTE: The 'path' attribute must follow a specific pattern and should not be modified directly here.
 // Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
@@ -64,12 +60,7 @@ type SplitHorizonDNSConfigDefaulter struct {
 
 // Default implements a mutating webhook for SplitHorizonDNSConfig resources.
 // The main goal of this func - copy certificate data (if provided) into secret (secretName) and reset certificate.
-func (d *SplitHorizonDNSConfigDefaulter) Default(ctx context.Context, obj runtime.Object) error {
-	shdc, ok := obj.(*enginefeatureseverestv1alpha1.SplitHorizonDNSConfig)
-	if !ok {
-		return fmt.Errorf("expected a SplitHorizonDNSConfig object but got %T", obj)
-	}
-
+func (d *SplitHorizonDNSConfigDefaulter) Default(ctx context.Context, shdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig) error {
 	logger := logf.FromContext(ctx).WithName("SplitHorizonDNSConfigDefaulter").WithValues(
 		"name", shdc.GetName(),
 		"namespace", shdc.GetNamespace(),

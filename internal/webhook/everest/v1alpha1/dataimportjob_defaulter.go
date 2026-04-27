@@ -25,7 +25,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -37,8 +36,7 @@ import (
 
 // SetupDataImportJobWebhookWithManager sets up the mutation webhook for DataImportJob.
 func SetupDataImportJobWebhookWithManager(mgr manager.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&everestv1alpha1.DataImportJob{}).
+	return ctrl.NewWebhookManagedBy(mgr, &everestv1alpha1.DataImportJob{}).
 		WithDefaulter(&DataImportJobDefaulter{
 			Client: mgr.GetClient(),
 		}).
@@ -55,11 +53,7 @@ type DataImportJobDefaulter struct {
 }
 
 // Default implements a mutating webhook for DataImportJob resources.
-func (d *DataImportJobDefaulter) Default(ctx context.Context, obj runtime.Object) error {
-	dij, ok := obj.(*everestv1alpha1.DataImportJob)
-	if !ok {
-		return fmt.Errorf("expected an DataImportJob object but got %T", obj)
-	}
+func (d *DataImportJobDefaulter) Default(ctx context.Context, dij *everestv1alpha1.DataImportJob) error {
 	logger := ctrl.LoggerFrom(ctx).WithName("DataImportJobDefaulter").WithValues(
 		"name", dij.GetName(),
 		"namespace", dij.GetNamespace(),

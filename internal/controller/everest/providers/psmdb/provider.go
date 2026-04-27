@@ -235,8 +235,6 @@ func (p *Provider) Cleanup(ctx context.Context, database *everestv1alpha1.Databa
 	if err != nil {
 		return false, err
 	}
-	// Even though we no longer set the DBBackupCleanupFinalizer, we still need
-	// to handle the cleanup to ensure backward compatibility.
 	done, err := common.HandleDBBackupsCleanup(ctx, p.C, database)
 	if err != nil || !done {
 		return done, err

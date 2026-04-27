@@ -20,11 +20,9 @@ package v1alpha1
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/AlekSi/pointer"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -43,13 +41,8 @@ type DatabaseClusterDefaulter struct {
 }
 
 // Default implements a mutating webhook for DatabaseCluster resources.
-func (d *DatabaseClusterDefaulter) Default(ctx context.Context, obj runtime.Object) error {
+func (d *DatabaseClusterDefaulter) Default(ctx context.Context, db *everestv1alpha1.DatabaseCluster) error {
 	var allErrs field.ErrorList
-
-	db, ok := obj.(*everestv1alpha1.DatabaseCluster)
-	if !ok {
-		return fmt.Errorf("expected a DatabaseCluster object but got %T", obj)
-	}
 
 	logger := log.FromContext(ctx).WithName("DatabaseClusterDefaulter").WithValues(
 		"name", db.GetName(),

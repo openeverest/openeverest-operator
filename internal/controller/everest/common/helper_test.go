@@ -294,8 +294,12 @@ func TestConfigureStorage(t *testing.T) {
 
 			// Setup test objects
 			var actualSize resource.Quantity
-			setSize := func(size resource.Quantity) {
+			storageClassName := tt.db.Spec.Engine.Storage.Class
+			desiredSize := tt.db.Spec.Engine.Storage.Size
+
+			setSize := func(size resource.Quantity, class *string) {
 				actualSize = size
+				storageClassName = class
 			}
 
 			// Setup fake client with storage class if needed
@@ -303,16 +307,17 @@ func TestConfigureStorage(t *testing.T) {
 			if tt.storageClassExists && tt.db.Spec.Engine.Storage.Class != nil {
 				sc := &storagev1.StorageClass{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: *tt.db.Spec.Engine.Storage.Class,
+						Name: *storageClassName,
 					},
 					AllowVolumeExpansion: &tt.storageClassAllowExpansion,
 				}
 				builder.WithObjects(sc)
+
 			}
 			client := builder.Build()
 
 			// Run the test
-			err := ConfigureStorage(t.Context(), client, tt.db, tt.currentSize, setSize)
+			err := ConfigureStorage(t.Context(), client, tt.db, tt.currentSize, desiredSize, storageClassName, setSize)
 
 			// Verify results
 			if tt.expectErr {
