@@ -6,5 +6,3 @@ commands:
   - command: kubectl patch dbb/test-db-backup-s3-2 -n $NAMESPACE -p '{"metadata":{"finalizers":["everest.percona.com/dbb-storage-protection", "foregroundDeletion"]}}' --type merge
   - script: kubectl -n $NAMESPACE delete db/test-pxc-cluster --wait=false && sleep 3
   - command: kubectl patch pxc/test-pxc-cluster -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge
-  - command: kubectl delete pxc-backup/test-db-backup-s3-2 -n $NAMESPACE --wait=false
-  - command: kubectl patch pxc-backup/test-db-backup-s3-2 -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge

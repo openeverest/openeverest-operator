@@ -12,4 +12,4 @@ collectors:
     tail: 100
 commands:
   - command: kubectl wait --for=delete db/test-pxc-cluster -n ${NAMESPACE}
-  - command: kubectl wait --for=delete pxc/test-pg-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=delete pxc/test-pxc-cluster -n ${NAMESPACE}

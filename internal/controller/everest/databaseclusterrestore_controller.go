@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -644,7 +645,7 @@ func (r *DatabaseClusterRestoreReconciler) restorePG(
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, pgCR, func() error {
 		pgCR.Spec.PGCluster = restore.Spec.DBClusterName
-		pgCR.Spec.RepoName = repoName
+		pgCR.Spec.RepoName = ptr.To(repoName)
 		pgCR.Spec.Options, err = getPGRestoreOptions(restore.Spec.DataSource, backupBaseName)
 		return controllerutil.SetControllerReference(restore, pgCR, r.Client.Scheme())
 	})
