@@ -21,13 +21,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
@@ -56,8 +54,7 @@ var (
 
 // SetupDatabaseClusterRestoreWebhookWithManager registers the webhook for DatabaseClusterRestore in the manager.
 func SetupDatabaseClusterRestoreWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&everestv1alpha1.DatabaseClusterRestore{}).
+	return ctrl.NewWebhookManagedBy(mgr, &everestv1alpha1.DatabaseClusterRestore{}).
 		WithValidator(&DatabaseClusterRestoreCustomValidator{
 			Client: mgr.GetClient(),
 		}).
@@ -79,18 +76,11 @@ type DatabaseClusterRestoreCustomValidator struct {
 	Client client.Client
 }
 
-var (
-	_                               webhook.CustomValidator = &DatabaseClusterRestoreCustomValidator{}
-	databaseClusterRestoreGroupKind                         = everestv1alpha1.GroupVersion.WithKind("DatabaseClusterRestore").GroupKind()
-)
+var databaseClusterRestoreGroupKind = everestv1alpha1.GroupVersion.WithKind("DatabaseClusterRestore").GroupKind()
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterRestore.
-func (v *DatabaseClusterRestoreCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *DatabaseClusterRestoreCustomValidator) ValidateCreate(ctx context.Context, dbcr *everestv1alpha1.DatabaseClusterRestore) (admission.Warnings, error) {
 	var allErrs field.ErrorList
-	dbcr, ok := obj.(*everestv1alpha1.DatabaseClusterRestore)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseClusterRestore object but got %T", obj)
-	}
 	logger := logf.FromContext(ctx).WithName("DatabaseClusterRestoreCustomValidator").WithValues(
 		"name", dbcr.GetName(),
 		"namespace", dbcr.GetNamespace(),
@@ -134,17 +124,11 @@ func (v *DatabaseClusterRestoreCustomValidator) ValidateCreate(ctx context.Conte
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterRestore.
-func (v *DatabaseClusterRestoreCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+func (v *DatabaseClusterRestoreCustomValidator) ValidateUpdate(
+	ctx context.Context,
+	oldDbcr, newDbcr *everestv1alpha1.DatabaseClusterRestore,
+) (admission.Warnings, error) {
 	var allErrs field.ErrorList
-	oldDbcr, ok := oldObj.(*everestv1alpha1.DatabaseClusterRestore)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseClusterRestore object for the oldObj but got %T", oldObj)
-	}
-
-	newDbcr, ok := newObj.(*everestv1alpha1.DatabaseClusterRestore)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseClusterRestore object for the newObj but got %T", newObj)
-	}
 	logger := logf.FromContext(ctx).WithName("DatabaseClusterRestoreCustomValidator").WithValues(
 		"name", oldDbcr.GetName(),
 		"namespace", oldDbcr.GetNamespace(),
@@ -168,11 +152,7 @@ func (v *DatabaseClusterRestoreCustomValidator) ValidateUpdate(ctx context.Conte
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterRestore.
-func (v *DatabaseClusterRestoreCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	dbcr, ok := obj.(*everestv1alpha1.DatabaseClusterRestore)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseClusterRestore object but got %T", obj)
-	}
+func (v *DatabaseClusterRestoreCustomValidator) ValidateDelete(ctx context.Context, dbcr *everestv1alpha1.DatabaseClusterRestore) (admission.Warnings, error) {
 	logger := logf.FromContext(ctx).WithName("DatabaseClusterRestoreCustomValidator").WithValues(
 		"name", dbcr.GetName(),
 		"namespace", dbcr.GetNamespace(),

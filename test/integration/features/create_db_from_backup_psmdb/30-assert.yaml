@@ -49,8 +49,8 @@ assertAll:
   - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
     message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
 
-  - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
-    message: "foregroundDeletion' is absent in db.metadata.finalizers"
+  - celExpr: "'everest.percona.com/dbb-cleanup' in db.metadata.finalizers"
+    message: "'everest.percona.com/dbb-cleanup' is absent in db.metadata.finalizers"
 
   - celExpr: "has(db_trg.metadata.finalizers)"
     message: "db_trg doesn't have finalizers"
@@ -58,8 +58,8 @@ assertAll:
   - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db_trg.metadata.finalizers"
     message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db_trg.metadata.finalizers"
 
-  - celExpr: "'foregroundDeletion' in db_trg.metadata.finalizers"
-    message: "foregroundDeletion' is absent in db_trg.metadata.finalizers"
+  - celExpr: "'everest.percona.com/dbb-cleanup' in db_trg.metadata.finalizers"
+    message: "'everest.percona.com/dbb-cleanup' is absent in db_trg.metadata.finalizers"
 
   - celExpr: "has(dbb_s3.metadata.finalizers)"
     message: "dbb_s3 doesn't have finalizers"

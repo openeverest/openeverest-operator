@@ -25,13 +25,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	enginefeatureseverestv1alpha1 "github.com/percona/everest-operator/api/enginefeatures.everest/v1alpha1"
@@ -73,12 +71,9 @@ var (
 	errDeleteInUse = errors.New("is used by some DB cluster and cannot be deleted")
 )
 
-var _ webhook.CustomValidator = &SplitHorizonDNSConfigCustomValidator{}
-
 // SetupSplitHorizonDNSConfigWebhookWithManager registers the validation webhook for SplitHorizonDNSConfig in the manager.
 func SetupSplitHorizonDNSConfigWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&enginefeatureseverestv1alpha1.SplitHorizonDNSConfig{}).
+	return ctrl.NewWebhookManagedBy(mgr, &enginefeatureseverestv1alpha1.SplitHorizonDNSConfig{}).
 		WithValidator(&SplitHorizonDNSConfigCustomValidator{
 			Client: mgr.GetClient(),
 		}).
@@ -104,12 +99,11 @@ type SplitHorizonDNSConfigCustomValidator struct {
 }
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type SplitHorizonDNSConfig.
-func (v *SplitHorizonDNSConfigCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *SplitHorizonDNSConfigCustomValidator) ValidateCreate(
+	ctx context.Context,
+	shdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig,
+) (admission.Warnings, error) {
 	var allErrs field.ErrorList
-	shdc, ok := obj.(*enginefeatureseverestv1alpha1.SplitHorizonDNSConfig)
-	if !ok {
-		return nil, fmt.Errorf("expected a SplitHorizonDNSConfig object but got %T", obj)
-	}
 
 	logger := logf.FromContext(ctx).WithName("SplitHorizonDNSConfigValidator").WithValues(
 		"name", shdc.GetName(),
@@ -144,17 +138,11 @@ func (v *SplitHorizonDNSConfigCustomValidator) ValidateCreate(ctx context.Contex
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type SplitHorizonDNSConfig.
-func (v *SplitHorizonDNSConfigCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+func (v *SplitHorizonDNSConfigCustomValidator) ValidateUpdate(
+	ctx context.Context,
+	oldShdc, newShdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig,
+) (admission.Warnings, error) {
 	var allErrs field.ErrorList
-	oldShdc, ok := oldObj.(*enginefeatureseverestv1alpha1.SplitHorizonDNSConfig)
-	if !ok {
-		return nil, fmt.Errorf("expected a SplitHorizonDNSConfig object for the newObj but got %T", newObj)
-	}
-
-	newShdc, ok := newObj.(*enginefeatureseverestv1alpha1.SplitHorizonDNSConfig)
-	if !ok {
-		return nil, fmt.Errorf("expected a SplitHorizonDNSConfig object for the newObj but got %T", newObj)
-	}
 
 	logger := logf.FromContext(ctx).WithName("SplitHorizonDNSConfigValidator").WithValues(
 		"name", oldShdc.GetName(),
@@ -197,11 +185,10 @@ func (v *SplitHorizonDNSConfigCustomValidator) ValidateUpdate(ctx context.Contex
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type SplitHorizonDNSConfig.
-func (v *SplitHorizonDNSConfigCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	shdc, ok := obj.(*enginefeatureseverestv1alpha1.SplitHorizonDNSConfig)
-	if !ok {
-		return nil, fmt.Errorf("expected a SplitHorizonDNSConfig object but got %T", obj)
-	}
+func (v *SplitHorizonDNSConfigCustomValidator) ValidateDelete(
+	ctx context.Context,
+	shdc *enginefeatureseverestv1alpha1.SplitHorizonDNSConfig,
+) (admission.Warnings, error) {
 	logger := logf.FromContext(ctx).WithName("SplitHorizonDNSConfigValidator").WithValues(
 		"name", shdc.GetName(),
 		"namespace", shdc.GetNamespace(),

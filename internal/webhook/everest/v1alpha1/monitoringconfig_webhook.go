@@ -29,7 +29,6 @@ import (
 	"os"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,8 +40,7 @@ import (
 
 // SetupMonitoringConfigWebhookWithManager sets up the webhook with the manager.
 func SetupMonitoringConfigWebhookWithManager(mgr manager.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&everestv1alpha1.MonitoringConfig{}).
+	return ctrl.NewWebhookManagedBy(mgr, &everestv1alpha1.MonitoringConfig{}).
 		WithValidator(&MonitoringConfigValidator{
 			Client:    mgr.GetClient(),
 			apiReader: mgr.GetAPIReader(),
@@ -60,26 +58,21 @@ type MonitoringConfigValidator struct {
 }
 
 // ValidateCreate validates the creation of a DatabaseCluster.
-func (v *MonitoringConfigValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	return nil, v.validateMonitoringConfig(ctx, obj)
+func (v *MonitoringConfigValidator) ValidateCreate(ctx context.Context, m *everestv1alpha1.MonitoringConfig) (admission.Warnings, error) {
+	return nil, v.validateMonitoringConfig(ctx, m)
 }
 
 // ValidateUpdate validates the update of a DatabaseCluster.
-func (v *MonitoringConfigValidator) ValidateUpdate(ctx context.Context, _, newObj runtime.Object) (admission.Warnings, error) {
-	return nil, v.validateMonitoringConfig(ctx, newObj)
+func (v *MonitoringConfigValidator) ValidateUpdate(ctx context.Context, _, m *everestv1alpha1.MonitoringConfig) (admission.Warnings, error) {
+	return nil, v.validateMonitoringConfig(ctx, m)
 }
 
 // ValidateDelete validates the deletion of a DatabaseCluster.
-func (v *MonitoringConfigValidator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+func (v *MonitoringConfigValidator) ValidateDelete(_ context.Context, _ *everestv1alpha1.MonitoringConfig) (admission.Warnings, error) {
 	return nil, nil
 }
 
-func (v *MonitoringConfigValidator) validateMonitoringConfig(ctx context.Context, obj runtime.Object) error {
-	m, ok := obj.(*everestv1alpha1.MonitoringConfig)
-	if !ok {
-		return fmt.Errorf("expected a MonitoringConfig, got %T", obj)
-	}
-
+func (v *MonitoringConfigValidator) validateMonitoringConfig(ctx context.Context, m *everestv1alpha1.MonitoringConfig) error {
 	if !m.DeletionTimestamp.IsZero() {
 		return nil
 	}
