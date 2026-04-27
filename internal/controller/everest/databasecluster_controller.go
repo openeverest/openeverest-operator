@@ -76,8 +76,8 @@ const (
 )
 
 var everestFinalizers = []string{
+	consts.DBBackupCleanupFinalizer,
 	consts.UpstreamClusterCleanupFinalizer,
-	consts.ForegroundDeletionFinalizer,
 }
 
 // DatabaseClusterReconciler reconciles a DatabaseCluster object.
@@ -161,8 +161,15 @@ func (r *DatabaseClusterReconciler) reconcileDB(
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		db.Status.Status = everestv1alpha1.AppStateDeleting
-		return ctrl.Result{Requeue: !done}, r.Status().Update(ctx, db)
+		namespacedName := client.ObjectKeyFromObject(db)
+		updErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			if cErr := r.Get(ctx, namespacedName, db); cErr != nil {
+				return cErr
+			}
+			db.Status.Status = everestv1alpha1.AppStateDeleting
+			return r.Status().Update(ctx, db)
+		})
+		return ctrl.Result{Requeue: !done}, client.IgnoreNotFound(updErr)
 	}
 
 	// Update the status of the DatabaseCluster object after the reconciliation.
