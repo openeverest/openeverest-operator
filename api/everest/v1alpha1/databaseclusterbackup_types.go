@@ -53,6 +53,8 @@ type DatabaseClusterBackupSpec struct {
 
 // DatabaseClusterBackupStatus defines the observed state of DatabaseClusterBackup.
 type DatabaseClusterBackupStatus struct {
+	// Size is the size of the backup.
+	Size *string `json:"size,omitempty"`
 	// Created is the timestamp of the upstream backup's creation.
 	CreatedAt *metav1.Time `json:"created,omitempty"`
 	// Completed is the time when the job was completed.
