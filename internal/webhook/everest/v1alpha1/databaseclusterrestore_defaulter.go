@@ -17,11 +17,8 @@ package v1alpha1
 
 import (
 	"context"
-	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
 )
@@ -36,15 +33,8 @@ import (
 // as it is used only for temporary operations and does not need to be deeply copied.
 type DatabaseClusterRestoreCustomDefaulter struct{}
 
-var _ webhook.CustomDefaulter = &DatabaseClusterRestoreCustomDefaulter{}
-
 // Default implements webhook.CustomDefaulter so a webhook will be registered for the Kind DatabaseClusterRestore.
-func (d *DatabaseClusterRestoreCustomDefaulter) Default(ctx context.Context, obj runtime.Object) error {
-	dbcr, ok := obj.(*everestv1alpha1.DatabaseClusterRestore)
-	if !ok {
-		return fmt.Errorf("expected an DatabaseClusterRestore object but got %T", obj)
-	}
-
+func (d *DatabaseClusterRestoreCustomDefaulter) Default(ctx context.Context, dbcr *everestv1alpha1.DatabaseClusterRestore) error {
 	logger := logf.FromContext(ctx).WithName("DatabaseClusterRestoreDefaulter").WithValues(
 		"name", dbcr.GetName(),
 		"namespace", dbcr.GetNamespace(),

@@ -21,13 +21,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
@@ -50,8 +48,7 @@ var (
 
 // SetupDatabaseClusterBackupWebhookWithManager registers the webhook for DatabaseClusterBackup in the manager.
 func SetupDatabaseClusterBackupWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&everestv1alpha1.DatabaseClusterBackup{}).
+	return ctrl.NewWebhookManagedBy(mgr, &everestv1alpha1.DatabaseClusterBackup{}).
 		WithValidator(&DatabaseClusterBackupCustomValidator{
 			Client: mgr.GetClient(),
 		}).
@@ -73,18 +70,11 @@ type DatabaseClusterBackupCustomValidator struct {
 	Client client.Client
 }
 
-var (
-	_                              webhook.CustomValidator = &DatabaseClusterBackupCustomValidator{}
-	databaseClusterBackupGroupKind                         = everestv1alpha1.GroupVersion.WithKind("DatabaseClusterBackup").GroupKind()
-)
+var databaseClusterBackupGroupKind = everestv1alpha1.GroupVersion.WithKind("DatabaseClusterBackup").GroupKind()
 
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterBackup.
-func (v *DatabaseClusterBackupCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *DatabaseClusterBackupCustomValidator) ValidateCreate(ctx context.Context, dbcb *everestv1alpha1.DatabaseClusterBackup) (admission.Warnings, error) {
 	var allErrs field.ErrorList
-	dbcb, ok := obj.(*everestv1alpha1.DatabaseClusterBackup)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseClusterBackup object but got %T", obj)
-	}
 	logger := logf.FromContext(ctx).WithName("DatabaseClusterBackupCustomValidator").WithValues(
 		"name", dbcb.GetName(),
 		"namespace", dbcb.GetNamespace(),
@@ -146,17 +136,8 @@ func (v *DatabaseClusterBackupCustomValidator) ValidateCreate(ctx context.Contex
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterBackup.
-func (v *DatabaseClusterBackupCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+func (v *DatabaseClusterBackupCustomValidator) ValidateUpdate(ctx context.Context, oldDbcb, newDbcb *everestv1alpha1.DatabaseClusterBackup) (admission.Warnings, error) {
 	var allErrs field.ErrorList
-	oldDbcb, ok := oldObj.(*everestv1alpha1.DatabaseClusterBackup)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseClusterBackup object for the oldObj but got %T", oldObj)
-	}
-
-	newDbcb, ok := newObj.(*everestv1alpha1.DatabaseClusterBackup)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseClusterBackup object for the newObj but got %T", newObj)
-	}
 
 	logger := logf.FromContext(ctx).WithName("DatabaseClusterBackupCustomValidator").WithValues(
 		"name", oldDbcb.GetName(),
@@ -180,11 +161,7 @@ func (v *DatabaseClusterBackupCustomValidator) ValidateUpdate(ctx context.Contex
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type DatabaseClusterBackup.
-func (v *DatabaseClusterBackupCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	dbcb, ok := obj.(*everestv1alpha1.DatabaseClusterBackup)
-	if !ok {
-		return nil, fmt.Errorf("expected a DatabaseClusterBackup object but got %T", obj)
-	}
+func (v *DatabaseClusterBackupCustomValidator) ValidateDelete(ctx context.Context, dbcb *everestv1alpha1.DatabaseClusterBackup) (admission.Warnings, error) {
 	logger := logf.FromContext(ctx).WithName("DatabaseClusterBackupCustomValidator").WithValues(
 		"name", dbcb.GetName(),
 		"namespace", dbcb.GetNamespace(),

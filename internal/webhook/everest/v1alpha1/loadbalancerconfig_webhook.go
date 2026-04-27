@@ -57,8 +57,7 @@ var (
 
 // SetupLoadBalancerConfigWebhookWithManager sets up the webhook with the manager.
 func SetupLoadBalancerConfigWebhookWithManager(mgr manager.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(&everestv1alpha1.LoadBalancerConfig{}).
+	return ctrl.NewWebhookManagedBy(mgr, &everestv1alpha1.LoadBalancerConfig{}).
 		WithValidator(&LoadBalancerConfigValidator{
 			Client: mgr.GetClient(),
 		}).
@@ -73,27 +72,12 @@ type LoadBalancerConfigValidator struct {
 }
 
 // ValidateCreate validates the creation of a DatabaseCluster.
-func (v *LoadBalancerConfigValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	lbc, ok := obj.(*everestv1alpha1.LoadBalancerConfig)
-	if !ok {
-		return nil, errUnexpectedObject(obj)
-	}
-
+func (v *LoadBalancerConfigValidator) ValidateCreate(ctx context.Context, lbc *everestv1alpha1.LoadBalancerConfig) (admission.Warnings, error) {
 	return nil, v.validateLoadBalancerConfig(ctx, lbc)
 }
 
 // ValidateUpdate validates the update of a DatabaseCluster.
-func (v *LoadBalancerConfigValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	oldLbc, ok := oldObj.(*everestv1alpha1.LoadBalancerConfig)
-	if !ok {
-		return nil, errUnexpectedObject(oldObj)
-	}
-
-	newLbc, ok := newObj.(*everestv1alpha1.LoadBalancerConfig)
-	if !ok {
-		return nil, errUnexpectedObject(newObj)
-	}
-
+func (v *LoadBalancerConfigValidator) ValidateUpdate(ctx context.Context, oldLbc, newLbc *everestv1alpha1.LoadBalancerConfig) (admission.Warnings, error) {
 	if utils.IsEverestReadOnlyObject(oldLbc) && !reflect.DeepEqual(oldLbc.Spec, newLbc.Spec) {
 		// default config update is not allowed
 		return nil, errUpdateDefaultLBC(newLbc.Name)
@@ -103,12 +87,7 @@ func (v *LoadBalancerConfigValidator) ValidateUpdate(ctx context.Context, oldObj
 }
 
 // ValidateDelete validates the deletion of a DatabaseCluster.
-func (v *LoadBalancerConfigValidator) ValidateDelete(_ context.Context, obj runtime.Object) (admission.Warnings, error) {
-	lbc, ok := obj.(*everestv1alpha1.LoadBalancerConfig)
-	if !ok {
-		return nil, errUnexpectedObject(obj)
-	}
-
+func (v *LoadBalancerConfigValidator) ValidateDelete(_ context.Context, lbc *everestv1alpha1.LoadBalancerConfig) (admission.Warnings, error) {
 	if utils.IsEverestReadOnlyObject(lbc) {
 		// default config deletion is not allowed
 		return nil, errDeleteDefaultLBC(lbc.Name)
