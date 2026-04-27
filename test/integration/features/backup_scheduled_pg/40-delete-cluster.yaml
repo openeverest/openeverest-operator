@@ -6,4 +6,3 @@ commands:
   - command: kubectl patch dbb/test-scheduled-backup-2 -n $NAMESPACE -p '{"metadata":{"finalizers":["everest.percona.com/dbb-storage-protection", "foregroundDeletion"]}}' --type merge
   - script: kubectl -n $NAMESPACE delete db/test-pg-cluster --wait=false && sleep 3
   - command: kubectl patch perconapgclusters/test-pg-cluster -n $NAMESPACE -p '{"metadata":{"finalizers":null}}' --type merge
-  - command: kubectl delete perconapgbackup/test-scheduled-backup-2 -n $NAMESPACE --wait=false

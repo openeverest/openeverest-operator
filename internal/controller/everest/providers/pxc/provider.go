@@ -43,6 +43,7 @@ const (
 
 	finalizerDeletePXCPodsInOrder = "percona.com/delete-pxc-pods-in-order"
 	finalizerDeletePXCPVC         = "percona.com/delete-pxc-pvc"
+	finalizerDeleteProxySQLPVC    = "percona.com/delete-proxysql-pvc"
 	finalizerDeletePXCSSL         = "percona.com/delete-ssl"
 )
 
@@ -267,8 +268,6 @@ func (p *Provider) RunPreReconcileHook(ctx context.Context) (providers.HookResul
 
 // Cleanup runs the cleanup routines and returns true if the cleanup is done.
 func (p *Provider) Cleanup(ctx context.Context, database *everestv1alpha1.DatabaseCluster) (bool, error) {
-	// Even though we no longer set the DBBackupCleanupFinalizer, we still need
-	// to handle the cleanup to ensure backward compatibility.
 	done, err := common.HandleDBBackupsCleanup(ctx, p.C, database)
 	if err != nil || !done {
 		return done, err

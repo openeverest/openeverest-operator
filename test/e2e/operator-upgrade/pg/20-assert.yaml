@@ -33,19 +33,7 @@ metadata:
   name: test-pg-cluster
 spec:
   backups:
-    enabled: true
-    pgbackrest:
-      global:
-        repo1-retention-full: "1"
-      repos:
-        - name: repo1
-          volume:
-            volumeClaimSpec:
-              accessModes:
-                - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 1G
+    enabled: false
 status:
   state: ready
   pgbouncer:
