@@ -326,7 +326,7 @@ func handleDBBackupsCleanup(
 		// The 5s sleep gives the backup controller's finalizer loop enough time to
 		// complete all its writes and clear AnnotationBackupInProgress before we
 		// trigger cluster deletion, closing the race window.
-		time.Sleep(5 * time.Second) //nolint:gomnd
+		time.Sleep(5 * time.Second) //nolint:mnd
 
 		controllerutil.RemoveFinalizer(database, consts.DBBackupCleanupFinalizer)
 		return true, c.Update(ctx, database)
