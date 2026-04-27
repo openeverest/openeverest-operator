@@ -321,6 +321,8 @@ func handleDBBackupsCleanup(
 		//      recreates them.
 		//   4. The secrets are left behind permanently after the cluster is gone.
 		//
+		// https://github.com/percona/percona-postgresql-operator/issues/1564
+		//
 		// The 5s sleep gives the backup controller's finalizer loop enough time to
 		// complete all its writes and clear AnnotationBackupInProgress before we
 		// trigger cluster deletion, closing the race window.
