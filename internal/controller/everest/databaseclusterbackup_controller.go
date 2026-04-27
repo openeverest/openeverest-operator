@@ -395,6 +395,7 @@ func (r *DatabaseClusterBackupReconciler) getBackupStatus(
 		backupStatus.CompletedAt = psmdbCR.Status.CompletedAt
 		backupStatus.CreatedAt = &psmdbCR.CreationTimestamp
 		backupStatus.Destination = &psmdbCR.Status.Destination
+		backupStatus.Size = &psmdbCR.Status.Size
 		backupStatus.LatestRestorableTime = psmdbCR.Status.LatestRestorableTime
 	case everestv1alpha1.DatabaseEnginePostgresql:
 		pgCR := &pgv2.PerconaPGBackup{
