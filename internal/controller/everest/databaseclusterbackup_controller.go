@@ -665,10 +665,19 @@ func (r *DatabaseClusterBackupReconciler) tryCreatePG(ctx context.Context, obj c
 		return err
 	}
 
+	// Only process pgbackrest backups with a repoName specified.
+	// volumeSnapshot method is not currently supported by this controller.
+	if pgBackup.Spec.Method != nil && *pgBackup.Spec.Method != pgv2.BackupMethodPGBackrest {
+		return nil
+	}
+	if pgBackup.Spec.RepoName == nil {
+		return nil
+	}
+
 	// We want to ignore backups that are done to the hardcoded PVC-based repo1.
 	// This repo only exists to allow users to spin up a PG cluster without specifying a backup storage.
 	// Therefore, we don't want to allow users to restore from these backups so shouldn't create a DBB CR from repo1.
-	if pgBackup.Spec.RepoName == "repo1" && len(pg.Spec.Backups.PGBackRest.Repos) > 0 && pg.Spec.Backups.PGBackRest.Repos[0].Volume != nil {
+	if *pgBackup.Spec.RepoName == "repo1" && len(pg.Spec.Backups.PGBackRest.Repos) > 0 && pg.Spec.Backups.PGBackRest.Repos[0].Volume != nil {
 		return nil
 	}
 
@@ -704,7 +713,7 @@ func (r *DatabaseClusterBackupReconciler) tryCreatePG(ctx context.Context, obj c
 	}
 	name, nErr := backupStorageName(pgBackup.Spec.RepoName, pg, storages)
 	if nErr != nil {
-		return nErr
+		return fmt.Errorf("failed to find backup storage for repo: %w", nErr)
 	}
 
 	backup.Spec.BackupStorageName = name
@@ -1050,7 +1059,8 @@ func (r *DatabaseClusterBackupReconciler) reconcilePG(
 	if !backup.HasCompleted() {
 		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, pgCR, func() error {
 			pgCR.Spec.PGCluster = backup.Spec.DBClusterName
-			pgCR.Spec.RepoName = repoName
+			pgCR.Spec.Method = ptr.To(pgv2.BackupMethodPGBackrest)
+			pgCR.Spec.RepoName = ptr.To(repoName)
 			pgCR.Spec.Options = []string{
 				"--type=full",
 			}
@@ -1064,9 +1074,12 @@ func (r *DatabaseClusterBackupReconciler) reconcilePG(
 	return false, nil
 }
 
-func backupStorageName(repoName string, pg *pgv2.PerconaPGCluster, storages *everestv1alpha1.BackupStorageList) (string, error) {
+func backupStorageName(repoName *string, pg *pgv2.PerconaPGCluster, storages *everestv1alpha1.BackupStorageList) (string, error) {
+	if repoName == nil {
+		return "", errors.New("repoName cannot be nil")
+	}
 	for _, repo := range pg.Spec.Backups.PGBackRest.Repos {
-		if repo.Name == repoName {
+		if repo.Name == *repoName {
 			for _, storage := range storages.Items {
 				if pg.Namespace == storage.Namespace &&
 					repo.S3.Region == storage.Spec.Region &&
@@ -1077,7 +1090,7 @@ func backupStorageName(repoName string, pg *pgv2.PerconaPGCluster, storages *eve
 			}
 		}
 	}
-	return "", fmt.Errorf("failed to find backup storage for repo %s", repoName)
+	return "", fmt.Errorf("failed to find backup storage for repo %s", *repoName)
 }
 
 func (r *DatabaseClusterBackupReconciler) handleStorageProtectionFinalizer(

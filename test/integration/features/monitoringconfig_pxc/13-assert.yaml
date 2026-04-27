@@ -53,7 +53,7 @@ spec:
         cpu: 220m
         memory: 330M
       limits:
-        cpu: "1"
+        cpu: 1
         memory: 1G
 ---
 apiVersion: everest.percona.com/v1alpha1

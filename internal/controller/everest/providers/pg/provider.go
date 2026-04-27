@@ -19,7 +19,9 @@ package pg
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/AlekSi/pointer"
 	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
 	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
 	"github.com/percona/everest-operator/internal/consts"
@@ -237,11 +240,103 @@ func verifyPVCResizingStatus(ctx context.Context, c client.Client, name, namespa
 	return false, nil
 }
 
+func ensureBackupsDisabled(ctx context.Context, c client.Client, database *everestv1alpha1.DatabaseCluster) error {
+	pg := &pgv2.PerconaPGCluster{}
+	if err := c.Get(ctx, types.NamespacedName{Name: database.GetName(), Namespace: database.GetNamespace()}, pg); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return fmt.Errorf("failed to get PostgreSQL cluster: %w", err)
+		}
+		return nil
+	}
+	pg.Spec.Backups.Enabled = pointer.To[bool](false)
+	if err := c.Update(ctx, pg); err != nil {
+		return fmt.Errorf("failed to update PostgreSQL cluster to disable backup schedules: %w", err)
+	}
+	return nil
+}
+
+// handleDBBackupsCleanup handles the cleanup of the dbbackup objects.
+// Returns true if cleanup is complete.
+func handleDBBackupsCleanup(
+	ctx context.Context,
+	c client.Client,
+	database *everestv1alpha1.DatabaseCluster,
+) (bool, error) {
+	if controllerutil.ContainsFinalizer(database, consts.DBBackupCleanupFinalizer) {
+		// Disable backups on the cluster before deleting the PerconaPGBackup CR.
+		//
+		// Why this is necessary:
+		// As long as backups are enabled, the operator runs a WAL watcher goroutine
+		// (WatchCommitTimestamps) that continuously sends GenericEvents to the backup
+		// controller's reconcile queue. Each enqueue causes the BackupSucceeded reconcile
+		// branch to run, which writes LatestRestorableTime to the PerconaPGBackup status
+		// and removes FinalizerKeepJob from the underlying Job. These writes in turn
+		// trigger new cluster reconciles via the owned-object watch. The result is a
+		// constant stream of cluster reconcile loops while any Succeeded backup exists.
+		//
+		// Each of those reconcile loops calls reconcileBackupJob(), which recreates a
+		// PerconaPGBackup CR for any backup Job it finds without one. If we delete the
+		// CR while this stream is active, there is a window between the CR disappearing
+		// and the Kubernetes GC setting DeletionTimestamp on the owned Job. Any reconcile
+		// loop landing in that window will create a new CR, undoing the deletion.
+		//
+		// Setting Spec.Backups.Enabled=false stops the WAL watcher goroutine and makes
+		// the crunchy reconciler skip all pgBackRest management (clearing its status and
+		// returning early). This drains the constant flow of reconcile triggers before
+		// we delete the CR, so by the time we issue the delete the Job's DeletionTimestamp
+		// is already set and reconcileBackupJob() will not recreate the CR.
+		err := ensureBackupsDisabled(ctx, c, database)
+		if err != nil {
+			return false, err
+		}
+
+		if done, err := common.DeleteBackupsForDatabase(ctx, c, database.GetName(), database.GetNamespace()); err != nil {
+			return false, err
+		} else if !done {
+			return false, nil
+		}
+
+		// Wait for the backup controller to fully finish reconciling deleted backups
+		// before deleting the cluster.
+		//
+		// When a PerconaPGBackup is deleted, its controller runs a finalizer
+		// (internal.percona.com/delete-backup) via finishBackup(), which performs
+		// several cleanup steps: removing the pgbackrest backup annotation from the
+		// crunchy PostgresCluster, stripping pgbackrest labels from the backup Job,
+		// clearing the ManualBackup status on the crunchy PostgresCluster, and finally
+		// removing the backup-in-progress annotation. Each of these steps involves
+		// writing directly to the crunchy PostgresCluster object, which wakes up the
+		// crunchy reconciler. The backup controller retries this loop every 5 seconds
+		// until AnnotationBackupInProgress is cleared, so writes can continue for
+		// several seconds after the PerconaPGBackup object has disappeared from the API.
+		//
+		// If the cluster is deleted while those writes are still happening, the
+		// following race occurs:
+		//   1. The Percona cluster reconciler runs the delete-pvc/delete-ssl finalizers,
+		//      deleting user and TLS secrets.
+		//   2. The backup controller writes to the crunchy PostgresCluster, waking the
+		//      crunchy reconciler.
+		//   3. If the crunchy reconciler runs before Delete(postgresCluster) sets a
+		//      DeletionTimestamp, it sees a live cluster with missing secrets and
+		//      recreates them.
+		//   4. The secrets are left behind permanently after the cluster is gone.
+		//
+		// https://github.com/percona/percona-postgresql-operator/issues/1564
+		//
+		// The 5s sleep gives the backup controller's finalizer loop enough time to
+		// complete all its writes and clear AnnotationBackupInProgress before we
+		// trigger cluster deletion, closing the race window.
+		time.Sleep(5 * time.Second) //nolint:mnd
+
+		controllerutil.RemoveFinalizer(database, consts.DBBackupCleanupFinalizer)
+		return true, c.Update(ctx, database)
+	}
+	return true, nil
+}
+
 // Cleanup runs the cleanup routines and returns true if the cleanup is done.
 func (p *Provider) Cleanup(ctx context.Context, database *everestv1alpha1.DatabaseCluster) (bool, error) {
-	// Even though we no longer set the DBBackupCleanupFinalizer, we still need
-	// to handle the cleanup to ensure backward compatibility.
-	done, err := common.HandleDBBackupsCleanup(ctx, p.C, database)
+	done, err := handleDBBackupsCleanup(ctx, p.C, database)
 	if err != nil || !done {
 		return done, err
 	}

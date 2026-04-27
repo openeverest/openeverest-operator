@@ -793,7 +793,7 @@ func HandleDBBackupsCleanup(
 	database *everestv1alpha1.DatabaseCluster,
 ) (bool, error) {
 	if controllerutil.ContainsFinalizer(database, consts.DBBackupCleanupFinalizer) {
-		if done, err := deleteBackupsForDatabase(ctx, c, database.GetName(), database.GetNamespace()); err != nil {
+		if done, err := DeleteBackupsForDatabase(ctx, c, database.GetName(), database.GetNamespace()); err != nil {
 			return false, err
 		} else if !done {
 			return false, nil
@@ -806,7 +806,7 @@ func HandleDBBackupsCleanup(
 
 // Delete all dbbackups for the given database.
 // Returns true if no dbbackups are found.
-func deleteBackupsForDatabase(
+func DeleteBackupsForDatabase(
 	ctx context.Context,
 	c client.Client,
 	dbName, dbNs string,
@@ -823,6 +823,10 @@ func deleteBackupsForDatabase(
 			// Already deleting, continue to next.
 			continue
 		}
+		if controllerutil.ContainsFinalizer(&backup, everestv1alpha1.InUseResourceFinalizer) {
+			// Backup is in use, wait for it to be released.
+			continue
+		}
 		if err := c.Delete(ctx, &backup); err != nil {
 			return false, err
 		}
@@ -830,7 +834,7 @@ func deleteBackupsForDatabase(
 	return false, nil
 }
 
-// HandleUpstreamClusterCleanup handles the cleanup of the psdmb objects.
+// HandleUpstreamClusterCleanup handles the cleanup of the upstream cluster objects.
 // Returns true if cleanup is complete.
 func HandleUpstreamClusterCleanup(
 	ctx context.Context,
@@ -838,37 +842,42 @@ func HandleUpstreamClusterCleanup(
 	database *everestv1alpha1.DatabaseCluster,
 	upstream client.Object,
 ) (bool, error) {
-	if controllerutil.ContainsFinalizer(database, consts.UpstreamClusterCleanupFinalizer) { //nolint:nestif
-		// first check that all dbb are deleted since the upstream backups may need the upstream cluster to be present.
-		backupList, err := DatabaseClusterBackupsThatReferenceObject(ctx, c, consts.DBClusterBackupDBClusterNameField, database.GetNamespace(), database.GetName())
-		if err != nil {
-			return false, err
-		}
-		if len(backupList.Items) != 0 {
-			return false, nil
-		}
-
-		err = c.Get(ctx, types.NamespacedName{
-			Name:      database.Name,
-			Namespace: database.Namespace,
-		}, upstream)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				controllerutil.RemoveFinalizer(database, consts.UpstreamClusterCleanupFinalizer)
-				return true, c.Update(ctx, database)
-			}
-			return false, err
-		}
-
-		err = c.Delete(ctx, upstream)
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return true, nil
-			}
-			return false, err
-		}
+	if !controllerutil.ContainsFinalizer(database, consts.UpstreamClusterCleanupFinalizer) {
+		return true, nil
 	}
-	return true, nil
+
+	// Wait for the DBB cleanup finalizer to be removed first — backups may need
+	// the upstream cluster to still be present while they are being deleted.
+	if controllerutil.ContainsFinalizer(database, consts.DBBackupCleanupFinalizer) {
+		return false, nil
+	}
+
+	err := c.Get(ctx, types.NamespacedName{Name: database.Name, Namespace: database.Namespace}, upstream)
+	if k8serrors.IsNotFound(err) {
+		patch := client.MergeFrom(database.DeepCopy())
+		controllerutil.RemoveFinalizer(database, consts.UpstreamClusterCleanupFinalizer)
+		return true, c.Patch(ctx, database, patch)
+	}
+	if err != nil {
+		return false, err
+	}
+
+	if !upstream.GetDeletionTimestamp().IsZero() {
+		// Already deleting, wait for it to be fully removed.
+		return false, nil
+	}
+
+	if err := c.Delete(ctx, upstream); err != nil {
+		if !k8serrors.IsNotFound(err) {
+			return false, err
+		}
+		// Object already gone (race between Get and Delete), remove finalizer.
+		patch := client.MergeFrom(database.DeepCopy())
+		controllerutil.RemoveFinalizer(database, consts.UpstreamClusterCleanupFinalizer)
+		return true, c.Patch(ctx, database, patch)
+	}
+	// Deletion initiated, wait for it to be fully removed.
+	return false, nil
 }
 
 // IsOwnedBy checks if the child object is owned by the parent object.
