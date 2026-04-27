@@ -232,6 +232,9 @@ spec:
                   for PITR restore
                 format: date-time
                 type: string
+              size:
+                description: Size is the size of the backup.
+                type: string
               state:
                 description: State is the DatabaseBackup state.
                 type: string
