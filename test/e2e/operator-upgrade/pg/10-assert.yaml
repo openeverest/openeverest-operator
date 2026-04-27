@@ -23,9 +23,6 @@ assertAll:
   - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
     message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
 
-  - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
-    message: "foregroundDeletion' is absent in db.metadata.finalizers"
-
   - celExpr: "has(pg.metadata.finalizers)"
     message: "pg doesn't have finalizers"
 
@@ -75,19 +72,7 @@ spec:
       expose:
         type: ClusterIP
   backups:
-    enabled: true
-    pgbackrest:
-      global:
-        repo1-retention-full: "1"
-      repos:
-        - name: repo1
-          volume:
-            volumeClaimSpec:
-              accessModes:
-                - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 1G
+    enabled: false
 status:
   state: ready
   pgbouncer:

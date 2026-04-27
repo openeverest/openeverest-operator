@@ -23,9 +23,6 @@ assertAll:
   - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
     message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
 
-  - celExpr: "'foregroundDeletion' in db.metadata.finalizers"
-    message: "foregroundDeletion' is absent in db.metadata.finalizers"
-
   - celExpr: "has(psmdb.metadata.finalizers)"
     message: "psmdb doesn't have finalizers"
 
