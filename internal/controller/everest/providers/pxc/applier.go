@@ -70,6 +70,10 @@ func (p *applier) Metadata() error {
 			controllerutil.AddFinalizer(p.PerconaXtraDBCluster, f)
 		}
 
+		if p.DB.Spec.Proxy.Type == everestv1alpha1.ProxyTypeProxySQL {
+			controllerutil.AddFinalizer(p.PerconaXtraDBCluster, finalizerDeleteProxySQLPVC)
+		}
+
 		// remove legacy finalizers.
 		for _, f := range []string{
 			"delete-pxc-pods-in-order",
@@ -119,10 +123,13 @@ func configureStorage(
 	}
 	currentSize := getCurrentStorageSize()
 
-	setStorageSize := func(size resource.Quantity) {
+	storageClass := db.Spec.Engine.Storage.Class
+	desiredSize := db.Spec.Engine.Storage.Size
+
+	setStorageSize := func(size resource.Quantity, storageClass *string) {
 		desired.PXC.PodSpec.VolumeSpec = &pxcv1.VolumeSpec{
 			PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
-				StorageClassName: db.Spec.Engine.Storage.Class,
+				StorageClassName: storageClass,
 				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: size,
@@ -132,7 +139,60 @@ func configureStorage(
 		}
 	}
 
-	return common.ConfigureStorage(ctx, c, db, currentSize, setStorageSize)
+	return common.ConfigureStorage(ctx, c, db, currentSize, desiredSize, storageClass, setStorageSize)
+}
+
+func configureProxySQLStorage(
+	ctx context.Context,
+	c client.Client,
+	desired *pxcv1.PerconaXtraDBClusterSpec,
+	current *pxcv1.PerconaXtraDBClusterSpec,
+	db *everestv1alpha1.DatabaseCluster,
+) error {
+
+	getCurrentProxySQLStorageSize := func() resource.Quantity {
+		if db.Status.Status == everestv1alpha1.AppStateNew ||
+			current == nil ||
+			current.ProxySQL == nil ||
+			current.ProxySQL.PodSpec.VolumeSpec == nil ||
+			current.ProxySQL.PodSpec.VolumeSpec.PersistentVolumeClaim == nil {
+			return resource.Quantity{}
+		}
+		return current.ProxySQL.PodSpec.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage]
+	}
+
+	getDesiredProxySQLStorageSize := func() resource.Quantity {
+		if db.Spec.Proxy.Storage == nil || db.Spec.Proxy.Storage.Size.IsZero() {
+			return resource.MustParse("2Gi")
+		}
+		return db.Spec.Proxy.Storage.Size
+	}
+
+	getStorageClass := func() *string {
+		if db.Spec.Proxy.Storage == nil || db.Spec.Proxy.Storage.Class == nil {
+			return db.Spec.Engine.Storage.Class
+		}
+		return db.Spec.Proxy.Storage.Class
+	}
+
+	currentSize := getCurrentProxySQLStorageSize()
+	desiredSize := getDesiredProxySQLStorageSize()
+	storageClass := getStorageClass()
+
+	setStorageProxySQLStorageSize := func(size resource.Quantity, storageClass *string) {
+		desired.ProxySQL.PodSpec.VolumeSpec = &pxcv1.VolumeSpec{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
+				StorageClassName: storageClass,
+				Resources: corev1.VolumeResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceStorage: size,
+					},
+				},
+			},
+		}
+	}
+
+	return common.ConfigureStorage(ctx, c, db, currentSize, desiredSize, storageClass, setStorageProxySQLStorageSize)
 }
 
 // generatePass generates a random password.
@@ -479,6 +539,7 @@ func defaultSpec() pxcv1.PerconaXtraDBClusterSpec {
 						corev1.ResourceMemory: resource.MustParse("1G"),
 						corev1.ResourceCPU:    resource.MustParse("600m"),
 					},
+					Requests: corev1.ResourceList{},
 				},
 				ReadinessProbes: corev1.Probe{TimeoutSeconds: haProxyProbesTimeout},
 				LivenessProbes:  corev1.Probe{TimeoutSeconds: haProxyProbesTimeout},
@@ -492,6 +553,7 @@ func defaultSpec() pxcv1.PerconaXtraDBClusterSpec {
 						corev1.ResourceMemory: resource.MustParse("1G"),
 						corev1.ResourceCPU:    resource.MustParse("600m"),
 					},
+					Requests: corev1.ResourceList{},
 				},
 			},
 		},
@@ -701,7 +763,7 @@ func (p *applier) applyProxySQLCfg() error {
 		// We now set the requests to the same value as the limits, however, we need to ensure that
 		// they're not automatically applied when Everest is upgraded, otherwise it leads to a proxy restart.
 		if shouldUpdateRequests ||
-			p.currentPerconaXtraDBClusterSpec.HAProxy.Resources.Requests.Cpu().
+			p.currentPerconaXtraDBClusterSpec.ProxySQL.Resources.Requests.Cpu().
 				Equal(p.DB.Spec.Proxy.Resources.CPU) {
 			proxySQL.Resources.Requests[corev1.ResourceCPU] = p.DB.Spec.Proxy.Resources.CPU
 		}
@@ -714,12 +776,17 @@ func (p *applier) applyProxySQLCfg() error {
 		// We now set the requests to the same value as the limits, however, we need to ensure that
 		// they're not automatically applied when Everest is upgraded, otherwise it leads to a proxy restart.
 		if shouldUpdateRequests ||
-			p.currentPerconaXtraDBClusterSpec.HAProxy.Resources.Requests.Cpu().
-				Equal(p.DB.Spec.Proxy.Resources.CPU) {
+			p.currentPerconaXtraDBClusterSpec.ProxySQL.Resources.Requests.Memory().
+				Equal(p.DB.Spec.Proxy.Resources.Memory) {
 			proxySQL.Resources.Requests[corev1.ResourceMemory] = p.DB.Spec.Proxy.Resources.Memory
 		}
 	}
 	p.PerconaXtraDBCluster.Spec.ProxySQL = proxySQL
+
+	if err := configureProxySQLStorage(p.ctx, p.C, &p.PerconaXtraDBCluster.Spec, &p.currentPerconaXtraDBClusterSpec, p.DB); err != nil {
+		return err
+	}
+
 	return nil
 }
 

@@ -99,7 +99,7 @@ spec:
     secret: everest-secrets-pg-mc-pmm
     imagePullPolicy: IfNotPresent
     image: percona/pmm-client:latest
-    querySource: pgstatmonitor
+    querySource: pgstatstatements
     resources:
       requests:
         cpu: 220m
