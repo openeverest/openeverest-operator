@@ -149,7 +149,6 @@ func configureProxySQLStorage(
 	current *pxcv1.PerconaXtraDBClusterSpec,
 	db *everestv1alpha1.DatabaseCluster,
 ) error {
-
 	getCurrentProxySQLStorageSize := func() resource.Quantity {
 		if db.Status.Status == everestv1alpha1.AppStateNew ||
 			current == nil ||
