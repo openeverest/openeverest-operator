@@ -152,6 +152,10 @@ func (p *applier) Engine() error {
 	return nil
 }
 
+func (p *applier) Users() error {
+	return nil
+}
+
 func (p *applier) EngineFeatures() error {
 	if pointer.Get(p.DB.Spec.EngineFeatures).PSMDB == nil {
 		// Nothing to do.

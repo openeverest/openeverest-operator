@@ -192,6 +192,33 @@ func (p *applier) EngineFeatures() error {
 	return nil
 }
 
+func (p *applier) Users() error {
+	db := p.DB
+	pg := p.PerconaPGCluster
+	totalUsers := len(db.Spec.Users.PG)
+	if db.Spec.Users == nil || totalUsers == 0 {
+		return nil
+	}
+
+	users := make([]crunchyv1beta1.PostgresUserSpec, totalUsers)
+
+	for i, v := range db.Spec.Users.PG {
+		user := crunchyv1beta1.PostgresUserSpec{
+			Name:                    crunchyv1beta1.PostgresIdentifier(v.Name),
+			Databases:               toPostgresIdentifiers(v.Databases),
+			Options:                 v.Options,
+			Password:                &crunchyv1beta1.PostgresPasswordSpec{Type: v.Password.Type},
+			GrantPublicSchemaAccess: &v.GrantPublicSchemaAccess,
+			SecretName:              crunchyv1beta1.PostgresIdentifier(v.SecretName),
+		}
+		users[i] = user
+	}
+
+	pg.Spec.Users = users
+
+	return nil
+}
+
 func (p *applier) Proxy() error {
 	engine := p.DBEngine
 	pg := p.PerconaPGCluster
@@ -1391,4 +1418,16 @@ func configureStorage(
 	}
 
 	return common.ConfigureStorage(ctx, c, db, currentSize, desiredSize, storageClass, setStorageSize)
+}
+
+func toPostgresIdentifiers(in []string) []crunchyv1beta1.PostgresIdentifier {
+	if len(in) == 0 {
+		return nil
+	}
+
+	out := make([]crunchyv1beta1.PostgresIdentifier, len(in))
+	for i, v := range in {
+		out[i] = crunchyv1beta1.PostgresIdentifier(v)
+	}
+	return out
 }

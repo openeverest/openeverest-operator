@@ -161,6 +161,7 @@ type Applier interface {
 	Backup() error
 	Metadata() error
 	ResetDefaults() error
+	Users() error
 }
 
 // Storage is the storage configuration.
@@ -427,6 +428,107 @@ type EngineFeaturesStatus struct {
 	// PostgreSQL *PostgreSQLEngineFeaturesStatus `json:"postgresql,omitempty"`
 }
 
+// SecretKeyRef references a key within a Kubernetes Secret
+// that stores sensitive data such as a database password.
+type SecretKeyRef struct {
+	// Name is the name of the Kubernetes Secret resource.
+	Name string `json:"name"`
+
+	// Key is the specific key within the Secret data that contains the value.
+	Key string `json:"key"`
+}
+
+// PXCUser defines a database user for Percona XtraDB Cluster (MySQL).
+type PXCUser struct {
+	// Name is the username to be created in the database.
+	Name string `json:"name"`
+
+	// Dbs is the list of databases this user has access to.
+	// If empty, privileges may apply globally depending on grants.
+	Dbs []string `json:"dbs,omitempty"`
+
+	// Grants defines the set of privileges (e.g., SELECT, INSERT)
+	// assigned to the user.
+	Grants []string `json:"grants,omitempty"`
+
+	// Hosts specifies allowed client hosts for this user (e.g., "%", "localhost").
+	Hosts []string `json:"hosts,omitempty"`
+
+	// WithGrantOption indicates whether the user can grant its privileges to others.
+	WithGrantOption bool `json:"withGrantOption,omitempty"`
+
+	// PasswordSecretRef references the Secret containing the user's password.
+	PasswordSecretRef SecretKeyRef `json:"passwordSecretRef"`
+}
+
+// PSMDBUserRole defines a role assigned to a MongoDB user.
+type PSMDBUserRole struct {
+	// Name is the role name (e.g., readWrite, dbAdmin).
+	Name string `json:"name"`
+
+	// DB is the database where the role is applied.
+	DB string `json:"db"`
+}
+
+// PSMDBUser defines a database user for Percona Server for MongoDB.
+type PSMDBUser struct {
+	// Name is the username to be created in MongoDB.
+	Name string `json:"name"`
+
+	// DB is the authentication database for the user.
+	// Defaults to "admin" if not specified.
+	DB string `json:"db,omitempty"`
+
+	// Roles is the list of roles assigned to the user.
+	Roles []PSMDBUserRole `json:"roles"`
+
+	// PasswordSecretRef references the Secret containing the user's password.
+	PasswordSecretRef SecretKeyRef `json:"passwordSecretRef"`
+}
+
+// PasswordSpec defines a Type of password for Percona PostgreSQL clusters.
+type PasswordSpec struct {
+	// Type of password to generate. Defaults to ASCII.
+	Type string `json:"type,omitempty"`
+}
+
+// PGUser defines a database user for Percona PostgreSQL clusters.
+type PGUser struct {
+	// Name is the username to be created in PostgreSQL.
+	Name string `json:"name"`
+
+	// Databases is the list of databases this user has access to.
+	Databases []string `json:"databases,omitempty"`
+
+	// Options defines PostgreSQL role attributes
+	Options string `json:"options,omitempty"`
+
+	// Password defines password generation properties.
+	// If not set, default password behavior will be used.
+	// +optional
+	Password *PasswordSpec `json:"password,omitempty"`
+
+	// GrantPublicSchemaAccess controls whether the user is granted access
+	// to the public schema in the specified databases.
+	GrantPublicSchemaAccess bool `json:"grantPublicSchemaAccess,omitempty"`
+
+	// SecretName is the name of the Kubernetes Secret containing the user's password.
+	SecretName string `json:"secretName,omitempty"`
+}
+
+// DatabaseClusterUsers groups database user definitions per engine.
+// Only the field corresponding to the selected database engine should be set.
+type DatabaseClusterUsers struct {
+	// PXC contains users for Percona XtraDB Cluster (MySQL).
+	PXC []PXCUser `json:"pxc,omitempty"`
+
+	// PSMDB contains users for Percona Server for MongoDB.
+	PSMDB []PSMDBUser `json:"psmdb,omitempty"`
+
+	// PG contains users for Percona PostgreSQL clusters.
+	PG []PGUser `json:"pg,omitempty"`
+}
+
 // DatabaseClusterSpec defines the desired state of DatabaseCluster.
 type DatabaseClusterSpec struct {
 	// Paused is a flag to stop the cluster
@@ -454,6 +556,8 @@ type DatabaseClusterSpec struct {
 	PodSchedulingPolicyName string `json:"podSchedulingPolicyName,omitempty"`
 	// EngineFeatures represents configuration of additional features for the database engine.
 	EngineFeatures *EngineFeatures `json:"engineFeatures,omitempty"`
+	// Users specifies the set of database users for this cluster
+	Users *DatabaseClusterUsers `json:"users,omitempty"`
 }
 
 // IntoDBRestoreDataSource converts the DataSource into a DatabaseClusterRestoreDataSource.

@@ -548,6 +548,161 @@ spec:
                 - enabled
                 - shards
                 type: object
+              users:
+                description: Users specifies the set of database users for this cluster
+                properties:
+                  pg:
+                    description: PG contains users for Percona PostgreSQL clusters.
+                    items:
+                      description: PGUser defines a database user for Percona PostgreSQL
+                        clusters.
+                      properties:
+                        databases:
+                          description: Databases is the list of databases this user
+                            has access to.
+                          items:
+                            type: string
+                          type: array
+                        grantPublicSchemaAccess:
+                          description: |-
+                            GrantPublicSchemaAccess controls whether the user is granted access
+                            to the public schema in the specified databases.
+                          type: boolean
+                        name:
+                          description: Name is the username to be created in PostgreSQL.
+                          type: string
+                        options:
+                          description: Options defines PostgreSQL role attributes
+                          type: string
+                        password:
+                          description: |-
+                            Password defines password generation properties.
+                            If not set, default password behavior will be used.
+                          properties:
+                            type:
+                              description: Type of password to generate. Defaults
+                                to ASCII.
+                              type: string
+                          type: object
+                        secretName:
+                          description: SecretName is the name of the Kubernetes Secret
+                            containing the user's password.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  psmdb:
+                    description: PSMDB contains users for Percona Server for MongoDB.
+                    items:
+                      description: PSMDBUser defines a database user for Percona Server
+                        for MongoDB.
+                      properties:
+                        db:
+                          description: |-
+                            DB is the authentication database for the user.
+                            Defaults to "admin" if not specified.
+                          type: string
+                        name:
+                          description: Name is the username to be created in MongoDB.
+                          type: string
+                        passwordSecretRef:
+                          description: PasswordSecretRef references the Secret containing
+                            the user's password.
+                          properties:
+                            key:
+                              description: Key is the specific key within the Secret
+                                data that contains the value.
+                              type: string
+                            name:
+                              description: Name is the name of the Kubernetes Secret
+                                resource.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
+                        roles:
+                          description: Roles is the list of roles assigned to the
+                            user.
+                          items:
+                            description: PSMDBUserRole defines a role assigned to
+                              a MongoDB user.
+                            properties:
+                              db:
+                                description: DB is the database where the role is
+                                  applied.
+                                type: string
+                              name:
+                                description: Name is the role name (e.g., readWrite,
+                                  dbAdmin).
+                                type: string
+                            required:
+                            - db
+                            - name
+                            type: object
+                          type: array
+                      required:
+                      - name
+                      - passwordSecretRef
+                      - roles
+                      type: object
+                    type: array
+                  pxc:
+                    description: PXC contains users for Percona XtraDB Cluster (MySQL).
+                    items:
+                      description: PXCUser defines a database user for Percona XtraDB
+                        Cluster (MySQL).
+                      properties:
+                        dbs:
+                          description: |-
+                            Dbs is the list of databases this user has access to.
+                            If empty, privileges may apply globally depending on grants.
+                          items:
+                            type: string
+                          type: array
+                        grants:
+                          description: |-
+                            Grants defines the set of privileges (e.g., SELECT, INSERT)
+                            assigned to the user.
+                          items:
+                            type: string
+                          type: array
+                        hosts:
+                          description: Hosts specifies allowed client hosts for this
+                            user (e.g., "%", "localhost").
+                          items:
+                            type: string
+                          type: array
+                        name:
+                          description: Name is the username to be created in the database.
+                          type: string
+                        passwordSecretRef:
+                          description: PasswordSecretRef references the Secret containing
+                            the user's password.
+                          properties:
+                            key:
+                              description: Key is the specific key within the Secret
+                                data that contains the value.
+                              type: string
+                            name:
+                              description: Name is the name of the Kubernetes Secret
+                                resource.
+                              type: string
+                          required:
+                          - key
+                          - name
+                          type: object
+                        withGrantOption:
+                          description: WithGrantOption indicates whether the user
+                            can grant its privileges to others.
+                          type: boolean
+                      required:
+                      - name
+                      - passwordSecretRef
+                      type: object
+                    type: array
+                type: object
             required:
             - engine
             type: object

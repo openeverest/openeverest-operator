@@ -340,6 +340,30 @@ func (p *applier) Engine() error {
 	return nil
 }
 
+func (p *applier) Users() error {
+	if p.DB.Spec.Users == nil || len(p.DB.Spec.Users.PXC) == 0 {
+		return nil
+	}
+
+	users := make([]pxcv1.User, 0, len(p.DB.Spec.Users.PXC))
+	for _, u := range p.DB.Spec.Users.PXC {
+		users = append(users, pxcv1.User{
+			Name:            u.Name,
+			DBs:             u.Dbs,
+			Grants:          u.Grants,
+			Hosts:           u.Hosts,
+			WithGrantOption: u.WithGrantOption,
+			PasswordSecretRef: &pxcv1.SecretKeySelector{
+				Name: u.PasswordSecretRef.Name,
+				Key:  u.PasswordSecretRef.Key,
+			},
+		})
+	}
+
+	p.Spec.Users = users
+	return nil
+}
+
 func (p *applier) EngineFeatures() error {
 	// Nothing to do here for PXC
 	return nil
