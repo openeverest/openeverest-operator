@@ -296,6 +296,12 @@ func handleDBBackupsCleanup(
 			return false, nil
 		}
 
+		if done, err := common.DeleteRestoresForDatabase(ctx, c, database.GetName(), database.GetNamespace()); err != nil {
+			return false, err
+		} else if !done {
+			return false, nil
+		}
+
 		// Wait for the backup controller to fully finish reconciling deleted backups
 		// before deleting the cluster.
 		//
