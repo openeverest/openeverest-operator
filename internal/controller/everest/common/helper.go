@@ -834,6 +834,36 @@ func DeleteBackupsForDatabase(
 	return false, nil
 }
 
+// DeleteRestoresForDatabase deletes all DatabaseClusterRestores for the given database.
+// Returns true if no restores remain.
+func DeleteRestoresForDatabase(
+	ctx context.Context,
+	c client.Client,
+	dbName, dbNs string,
+) (bool, error) {
+	restoreList, err := DatabaseClusterRestoresThatReferenceObject(ctx, c, consts.DBClusterRestoreDBClusterNameField, dbNs, dbName)
+	if err != nil {
+		return false, err
+	}
+	if len(restoreList.Items) == 0 {
+		return true, nil
+	}
+	for _, restore := range restoreList.Items {
+		if !restore.GetDeletionTimestamp().IsZero() {
+			// Already deleting, continue to next.
+			continue
+		}
+		if controllerutil.ContainsFinalizer(&restore, everestv1alpha1.InUseResourceFinalizer) {
+			// Restore is in use, wait for it to be released.
+			continue
+		}
+		if err := c.Delete(ctx, &restore); err != nil {
+			return false, err
+		}
+	}
+	return false, nil
+}
+
 // HandleUpstreamClusterCleanup handles the cleanup of the upstream cluster objects.
 // Returns true if cleanup is complete.
 func HandleUpstreamClusterCleanup(
