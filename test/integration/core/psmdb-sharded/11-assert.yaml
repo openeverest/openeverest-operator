@@ -1,0 +1,26 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get dbc/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: test-psmdb-sharded-cluster
+    ref: db
+assertAll:
+  - celExpr: "db.status.status == 'ready'"
+    message: "db.status.status is not 'ready'"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-sharded-cluster
+status:
+  status: ready
