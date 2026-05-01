@@ -5,9 +5,10 @@ timeout: 10
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
 metadata:
-  name: test-psmdb-sharded-cluster
+  name: test-psmdb-cluster
 spec:
   engine:
+    crVersion: 1.21.2
     replicas: 1
     resources:
       cpu: "1"
@@ -15,7 +16,6 @@ spec:
     storage:
       size: 25Gi
     type: psmdb
-    userSecretsName: everest-secrets-test-psmdb-sharded-cluster
   sharding:
     enabled: true
     shards: 1

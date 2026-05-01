@@ -1,7 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestStep
-timeout: 10
-commands:
-  # Use a JSON merge patch so the empty string is sent explicitly.
-  # An inline YAML resource would drop config:"" due to omitempty and leave the old value in place.
-  - command: kubectl patch dbc/test-psmdb-sharded-cluster -n $NAMESPACE --type=merge -p '{"spec":{"proxy":{"config":""}}}'

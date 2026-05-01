@@ -2,45 +2,46 @@ apiVersion: kuttl.dev/v1
 kind: TestAssert
 timeout: 30
 collectors:
-  - command: kubectl get dbc/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
-  - command: kubectl get psmdb/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get dbc/test-psmdb-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
   - type: pod
     namespace: everest-system
     selector: control-plane=controller-manager
     tail: 100
+commands:
+  - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PSMDB_OPERATOR_VERSION} dbc/test-psmdb-cluster -n ${NAMESPACE}
 resourceRefs:
   - apiVersion: everest.percona.com/v1alpha1
     kind: DatabaseCluster
-    name: test-psmdb-sharded-cluster
+    name: test-psmdb-cluster
     ref: db
   - apiVersion: psmdb.percona.com/v1
     kind: PerconaServerMongoDB
-    name: test-psmdb-sharded-cluster
+    name: test-psmdb-cluster
     ref: psmdb
 assertAll:
+  - celExpr: "psmdb.spec.sharding.enabled == true"
+    message: "psmdb.spec.sharding.enabled is not true"
+
+  - celExpr: "psmdb.spec.replsets.size() == 1"
+    message: "psmdb.spec.replsets does not have exactly 1 entry (1 shard = 1 replset)"
+
+  - celExpr: "psmdb.spec.sharding.mongos.size == 1"
+    message: "psmdb.spec.sharding.mongos.size does not equal engine replicas (1)"
+
   - celExpr: "has(psmdb.spec.sharding.mongos.configuration) && psmdb.spec.sharding.mongos.configuration != ''"
     message: "psmdb.spec.sharding.mongos.configuration is empty — proxy.config was not propagated"
 
   - celExpr: "psmdb.spec.sharding.mongos.configuration.contains('operationProfiling')"
     message: "psmdb.spec.sharding.mongos.configuration does not contain 'operationProfiling'"
-
-  - celExpr: "psmdb.spec.sharding.mongos.configuration.contains('slowOp')"
-    message: "psmdb.spec.sharding.mongos.configuration does not contain 'slowOp'"
----
-apiVersion: everest.percona.com/v1alpha1
-kind: DatabaseCluster
-metadata:
-  name: test-psmdb-sharded-cluster
-spec:
-  proxy:
-    config: "operationProfiling:\n  mode: slowOp\n"
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDB
 metadata:
-  name: test-psmdb-sharded-cluster
+  name: test-psmdb-cluster
 spec:
   sharding:
+    enabled: true
     mongos:
       configuration: "operationProfiling:\n  mode: slowOp\n"
