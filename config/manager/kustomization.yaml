@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/openeverest/openeverest-operator
-  newTag: 1.15.1
+  newTag: 1.15.2
