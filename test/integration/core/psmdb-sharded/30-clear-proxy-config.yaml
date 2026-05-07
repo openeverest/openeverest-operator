@@ -1,0 +1,5 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+commands:
+  - command: kubectl patch dbc/test-psmdb-sharded-cluster -n $NAMESPACE --type=merge -p '{"spec":{"proxy":{"config":""}}}'

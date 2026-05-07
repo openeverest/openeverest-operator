@@ -1147,19 +1147,19 @@ func TestProxy_MongosConfiguration(t *testing.T) {
 		wantConfig      psmdbv1.MongoConfiguration
 	}{
 		{
-			name:            "sharding enabled with proxy.config propagates to mongos",
+			name:            "Sharded cluster with proxy.config",
 			proxyConfig:     "operationProfiling:\n  mode: slowOp\n",
 			shardingEnabled: true,
 			wantConfig:      psmdbv1.MongoConfiguration("operationProfiling:\n  mode: slowOp\n"),
 		},
 		{
-			name:            "sharding enabled with empty proxy.config leaves mongos.configuration empty",
+			name:            "Sharded cluster without proxy.config",
 			proxyConfig:     "",
 			shardingEnabled: true,
 			wantConfig:      psmdbv1.MongoConfiguration(""),
 		},
 		{
-			name:            "sharding disabled does not propagate proxy.config",
+			name:            "Non-sharded cluster with proxy.config",
 			proxyConfig:     "operationProfiling:\n  mode: slowOp\n",
 			shardingEnabled: false,
 			wantConfig:      "",
