@@ -984,7 +984,7 @@ func (p *applier) addBackupStorages(
 			continue
 		}
 
-		spec, err := p.getStoragesSpec(backup.Spec.BackupStorageName)
+		spec, err := p.getStoragesSpec(backup.Spec.BackupStorageName, backup.Spec.BackupJobResources)
 		if err != nil {
 			return err
 		}
@@ -1001,7 +1001,7 @@ func (p *applier) addBackupStorages(
 			return nil
 		}
 
-		spec, err := p.getStoragesSpec(storageName)
+		spec, err := p.getStoragesSpec(storageName, nil)
 		if err != nil {
 			return err
 		}
@@ -1034,13 +1034,30 @@ func (p *applier) getStorageNameFromDataSource(
 	return storageName, nil
 }
 
-func (p *applier) getStoragesSpec(backupStorageName string) (*pxcv1.BackupStorageSpec, error) {
+func (p *applier) getStoragesSpec(backupStorageName string, resources *everestv1alpha1.Resources) (*pxcv1.BackupStorageSpec, error) {
 	spec, backupStorage, err := p.genPXCStorageSpec(
 		backupStorageName,
 		p.DB.GetNamespace(),
 	)
 	if err != nil {
 		return nil, errors.Join(err, fmt.Errorf("failed to generate PXC storage spec for %s", backupStorageName))
+	}
+
+	if resources != nil {
+		if spec.Resources.Limits == nil {
+			spec.Resources.Limits = corev1.ResourceList{}
+		}
+		if spec.Resources.Requests == nil {
+			spec.Resources.Requests = corev1.ResourceList{}
+		}
+		if !resources.CPU.IsZero() {
+			spec.Resources.Limits[corev1.ResourceCPU] = resources.CPU
+			spec.Resources.Requests[corev1.ResourceCPU] = resources.CPU
+		}
+		if !resources.Memory.IsZero() {
+			spec.Resources.Limits[corev1.ResourceMemory] = resources.Memory
+			spec.Resources.Requests[corev1.ResourceMemory] = resources.Memory
+		}
 	}
 
 	switch backupStorage.Spec.Type {
