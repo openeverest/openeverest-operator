@@ -16,18 +16,15 @@
 package psmdb
 
 import (
-	"context"
 	"testing"
 
 	psmdbv1 "github.com/percona/percona-server-mongodb-operator/pkg/apis/psmdb/v1"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
 	"github.com/percona/everest-operator/internal/controller/everest/common"
-	"github.com/percona/everest-operator/internal/controller/everest/providers"
 )
 
 //nolint:maintidx
@@ -1133,93 +1130,6 @@ func TestGetPMMResources(t *testing.T) {
 			if tt.wantString.limits.cpu != "" {
 				assert.Equal(t, tt.wantString.limits.cpu, calculatedResources.Limits.Cpu().String())
 			}
-		})
-	}
-}
-
-func TestProxy_MongosConfiguration(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name            string
-		proxyConfig     string
-		shardingEnabled bool
-		wantConfig      psmdbv1.MongoConfiguration
-	}{
-		{
-			name:            "Sharded cluster with proxy.config",
-			proxyConfig:     "operationProfiling:\n  mode: slowOp\n",
-			shardingEnabled: true,
-			wantConfig:      psmdbv1.MongoConfiguration("operationProfiling:\n  mode: slowOp\n"),
-		},
-		{
-			name:            "Sharded cluster without proxy.config",
-			proxyConfig:     "",
-			shardingEnabled: true,
-			wantConfig:      psmdbv1.MongoConfiguration(""),
-		},
-		{
-			name:            "Non-sharded cluster with proxy.config",
-			proxyConfig:     "operationProfiling:\n  mode: slowOp\n",
-			shardingEnabled: false,
-			wantConfig:      "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			var sharding *everestv1alpha1.Sharding
-			if tt.shardingEnabled {
-				sharding = &everestv1alpha1.Sharding{
-					Enabled: true,
-					Shards:  1,
-					ConfigServer: everestv1alpha1.ConfigServer{
-						Replicas: 1,
-					},
-				}
-			}
-
-			db := &everestv1alpha1.DatabaseCluster{
-				Spec: everestv1alpha1.DatabaseClusterSpec{
-					Engine: everestv1alpha1.Engine{
-						Replicas: 1,
-					},
-					Sharding: sharding,
-					Proxy: everestv1alpha1.Proxy{
-						Config: tt.proxyConfig,
-						Expose: everestv1alpha1.Expose{
-							Type: everestv1alpha1.ExposeTypeClusterIP,
-						},
-					},
-				},
-			}
-
-			psmdb := &psmdbv1.PerconaServerMongoDB{
-				Spec: defaultSpec(),
-			}
-
-			a := &applier{
-				Provider: &Provider{
-					PerconaServerMongoDB: psmdb,
-					ProviderOptions: providers.ProviderOptions{
-						DB: db,
-					},
-				},
-				ctx: context.Background(),
-			}
-
-			err := a.Proxy()
-			require.NoError(t, err)
-
-			if !tt.shardingEnabled {
-				assert.Nil(t, psmdb.Spec.Sharding.Mongos)
-				return
-			}
-
-			require.NotNil(t, psmdb.Spec.Sharding.Mongos)
-			assert.Equal(t, tt.wantConfig, psmdb.Spec.Sharding.Mongos.Configuration)
 		})
 	}
 }

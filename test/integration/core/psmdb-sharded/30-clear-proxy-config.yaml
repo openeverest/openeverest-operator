@@ -1,5 +1,11 @@
 apiVersion: kuttl.dev/v1
 kind: TestStep
 timeout: 10
-commands:
-  - command: kubectl patch dbc/test-psmdb-sharded-cluster -n $NAMESPACE --type=merge -p '{"spec":{"proxy":{"config":""}}}'
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-sharded-cluster
+spec:
+  proxy:
+    config: ""

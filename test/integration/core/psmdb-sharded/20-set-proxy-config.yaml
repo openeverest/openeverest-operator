@@ -7,23 +7,7 @@ kind: DatabaseCluster
 metadata:
   name: test-psmdb-sharded-cluster
 spec:
-  engine:
-    replicas: 1
-    resources:
-      cpu: "1"
-      memory: 4G
-    storage:
-      size: 25Gi
-    type: psmdb
-    userSecretsName: everest-secrets-test-psmdb-sharded-cluster
-  sharding:
-    enabled: true
-    shards: 1
-    configServer:
-      replicas: 1
   proxy:
     config: |
       operationProfiling:
         mode: slowOp
-    expose:
-      type: internal
