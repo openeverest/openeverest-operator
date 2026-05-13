@@ -1,0 +1,29 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get dbc/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get perconapgcluster/test-pg-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: pgv2.percona.com/v2
+    kind: PerconaPGCluster
+    name: test-pg-cluster
+    ref: pg
+assertAll:
+  - celExpr: "pg.spec.proxy.pgBouncer.config.global['pool_mode'] == 'transaction'"
+    message: "pgBouncer.config.global.pool_mode is not 'transaction'"
+
+  - celExpr: "pg.spec.proxy.pgBouncer.config.global['max_client_conn'] == '1000'"
+    message: "pgBouncer.config.global.max_client_conn is not '1000'"
+
+  - celExpr: "pg.spec.proxy.pgBouncer.config.databases['myapp'] == 'host=primary-pg port=5432'"
+    message: "pgBouncer.config.databases.myapp is not set correctly"
+
+  - celExpr: "pg.spec.proxy.pgBouncer.config.users['pgbouncer'] == 'pool_mode=session'"
+    message: "pgBouncer.config.users.pgbouncer is not set correctly"

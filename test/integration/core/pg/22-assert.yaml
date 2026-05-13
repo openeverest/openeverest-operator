@@ -1,0 +1,26 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get dbc/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get perconapgcluster/test-pg-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: pgv2.percona.com/v2
+    kind: PerconaPGCluster
+    name: test-pg-cluster
+    ref: pg
+assertAll:
+  - celExpr: "!has(pg.spec.proxy.pgBouncer.config.global)"
+    message: "pgBouncer.config.global was not cleared"
+
+  - celExpr: "!has(pg.spec.proxy.pgBouncer.config.databases)"
+    message: "pgBouncer.config.databases was not cleared"
+
+  - celExpr: "!has(pg.spec.proxy.pgBouncer.config.users)"
+    message: "pgBouncer.config.users was not cleared"
