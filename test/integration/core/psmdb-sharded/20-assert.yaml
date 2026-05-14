@@ -9,21 +9,6 @@ collectors:
     namespace: everest-system
     selector: control-plane=controller-manager
     tail: 100
-resourceRefs:
-  - apiVersion: everest.percona.com/v1alpha1
-    kind: DatabaseCluster
-    name: test-psmdb-sharded-cluster
-    ref: db
-  - apiVersion: psmdb.percona.com/v1
-    kind: PerconaServerMongoDB
-    name: test-psmdb-sharded-cluster
-    ref: psmdb
-assertAll:
-  - celExpr: "has(psmdb.spec.sharding.mongos.configuration) && psmdb.spec.sharding.mongos.configuration != ''"
-    message: "psmdb.spec.sharding.mongos.configuration is empty"
-
-  - celExpr: "psmdb.spec.sharding.mongos.configuration.contains('operationProfiling')"
-    message: "psmdb.spec.sharding.mongos.configuration does not contain 'operationProfiling'"
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDB

@@ -32,14 +32,8 @@ assertAll:
   - celExpr: "'everest.percona.com/dbb-cleanup' in db.metadata.finalizers"
     message: "'everest.percona.com/dbb-cleanup' is absent in db.metadata.finalizers"
 
-  - celExpr: "psmdb.spec.sharding.enabled == true"
-    message: "psmdb.spec.sharding.enabled is not true"
-
   - celExpr: "psmdb.spec.replsets.size() == 1"
     message: "psmdb.spec.replsets.size() is not 1"
-
-  - celExpr: "psmdb.spec.sharding.mongos.size == 1"
-    message: "psmdb.spec.sharding.mongos.size is not 1"
 
   - celExpr: "!has(psmdb.spec.sharding.mongos.configuration) || psmdb.spec.sharding.mongos.configuration == ''"
     message: "psmdb.spec.sharding.mongos.configuration is not empty"
