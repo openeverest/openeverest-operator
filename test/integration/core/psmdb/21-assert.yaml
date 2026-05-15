@@ -15,8 +15,8 @@ resourceRefs:
     name: test-psmdb-cluster
     ref: psmdb
 assertAll:
-  - celExpr: "!has(psmdb.spec.replsets[0].configuration) || !psmdb.spec.replsets[0].configuration.contains('maxIncomingConnections')"
-    message: "psmdb.spec.replsets[0].configuration contains proxy.config value"
+  - celExpr: "!has(psmdb.spec.sharding.mongos)"
+    message: "psmdb.spec.sharding.mongos is set for non-sharded cluster"
 ---
 apiVersion: psmdb.percona.com/v1
 kind: PerconaServerMongoDB

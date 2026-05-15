@@ -9,12 +9,11 @@ collectors:
     namespace: everest-system
     selector: control-plane=controller-manager
     tail: 100
----
-apiVersion: psmdb.percona.com/v1
-kind: PerconaServerMongoDB
-metadata:
-  name: test-psmdb-sharded-cluster
-spec:
-  sharding:
-    mongos:
-      configuration: ""
+resourceRefs:
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: test-psmdb-sharded-cluster
+    ref: psmdb
+assertAll:
+  - celExpr: "!has(psmdb.spec.sharding.mongos.configuration) || psmdb.spec.sharding.mongos.configuration == ''"
+    message: "psmdb.spec.sharding.mongos.configuration is not empty"

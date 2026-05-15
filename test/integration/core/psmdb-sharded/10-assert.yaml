@@ -34,9 +34,6 @@ assertAll:
 
   - celExpr: "psmdb.spec.replsets.size() == 1"
     message: "psmdb.spec.replsets.size() is not 1"
-
-  - celExpr: "!has(psmdb.spec.sharding.mongos.configuration) || psmdb.spec.sharding.mongos.configuration == ''"
-    message: "psmdb.spec.sharding.mongos.configuration is not empty"
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster

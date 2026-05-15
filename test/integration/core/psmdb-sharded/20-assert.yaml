@@ -17,4 +17,6 @@ metadata:
 spec:
   sharding:
     mongos:
-      configuration: "operationProfiling:\n  mode: slowOp\n"
+      configuration: |
+        operationProfiling:
+          mode: slowOp
