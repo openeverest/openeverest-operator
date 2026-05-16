@@ -27,3 +27,56 @@ assertAll:
 
   - celExpr: "pg.spec.proxy.pgBouncer.config.users['pgbouncer'] == 'pool_mode=session'"
     message: "pgBouncer.config.users.pgbouncer is not set correctly"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-pg-cluster
+spec:
+  backup:
+    pitr:
+      enabled: false
+  engine:
+    replicas: 3
+    resources:
+      cpu: "1"
+      memory: 2G
+    storage:
+      size: 25Gi
+    type: postgresql
+  proxy:
+    expose:
+      type: internal
+    replicas: 3
+    resources:
+      cpu: "1"
+      memory: 30M
+    type: pgbouncer
+    config: |
+      [pgbouncer]
+      pool_mode = transaction
+      max_client_conn = 1000
+
+      [databases]
+      myapp = host=primary-pg port=5432
+
+      [users]
+      pgbouncer = pool_mode=session
+status:
+  status: ready
+---
+apiVersion: pgv2.percona.com/v2
+kind: PerconaPGCluster
+metadata:
+  name: test-pg-cluster
+spec:
+  proxy:
+    pgBouncer:
+      config:
+        global:
+          pool_mode: transaction
+          max_client_conn: "1000"
+        databases:
+          myapp: host=primary-pg port=5432
+        users:
+          pgbouncer: pool_mode=session
