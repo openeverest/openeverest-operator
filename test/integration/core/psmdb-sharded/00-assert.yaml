@@ -1,0 +1,28 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - command: kubectl get databaseengines/percona-server-mongodb-operator -n ${NAMESPACE} -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+commands:
+  - command: kubectl wait --for=jsonpath='{.status.operatorVersion}'=${PSMDB_OPERATOR_VERSION} databaseengines/percona-server-mongodb-operator -n ${NAMESPACE}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: percona-server-mongodb-operator
+spec:
+  replicas: 0
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseEngine
+metadata:
+  name: percona-server-mongodb-operator
+spec:
+  type: psmdb
+status:
+  status: installed
