@@ -1,0 +1,22 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get dbc/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: test-psmdb-sharded-cluster
+spec:
+  sharding:
+    mongos:
+      configuration: |
+        operationProfiling:
+          mode: slowOp
