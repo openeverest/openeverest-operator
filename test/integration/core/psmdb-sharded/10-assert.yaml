@@ -1,0 +1,69 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get dbc/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+commands:
+  - command: kubectl wait --for=jsonpath='{.status.crVersion}'=${PSMDB_OPERATOR_VERSION} dbc/test-psmdb-sharded-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=jsonpath='{.spec.engine.version}'=${PSMDB_DB_ENGINE_VERSION} dbc/test-psmdb-sharded-cluster -n ${NAMESPACE}
+  - command: kubectl wait --for=jsonpath='{.spec.image}'="percona/percona-server-mongodb:${PSMDB_DB_ENGINE_VERSION}" psmdb/test-psmdb-sharded-cluster -n ${NAMESPACE}
+resourceRefs:
+  - apiVersion: everest.percona.com/v1alpha1
+    kind: DatabaseCluster
+    name: test-psmdb-sharded-cluster
+    ref: db
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: test-psmdb-sharded-cluster
+    ref: psmdb
+assertAll:
+  - celExpr: "has(db.metadata.finalizers)"
+    message: "db doesn't have finalizers"
+
+  - celExpr: "'everest.percona.com/upstream-cluster-cleanup' in db.metadata.finalizers"
+    message: "'everest.percona.com/upstream-cluster-cleanup' is absent in db.metadata.finalizers"
+
+  - celExpr: "'everest.percona.com/dbb-cleanup' in db.metadata.finalizers"
+    message: "'everest.percona.com/dbb-cleanup' is absent in db.metadata.finalizers"
+
+  - celExpr: "psmdb.spec.replsets.size() == 1"
+    message: "psmdb.spec.replsets.size() is not 1"
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-sharded-cluster
+spec:
+  engine:
+    replicas: 1
+    resources:
+      cpu: "1"
+      memory: 4G
+    storage:
+      size: 25Gi
+    type: psmdb
+    userSecretsName: everest-secrets-test-psmdb-sharded-cluster
+  sharding:
+    enabled: true
+    shards: 1
+    configServer:
+      replicas: 1
+  proxy:
+    expose:
+      type: internal
+---
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: test-psmdb-sharded-cluster
+spec:
+  sharding:
+    enabled: true
+    mongos:
+      size: 1
