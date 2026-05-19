@@ -37,10 +37,13 @@ func TestDatabaseClusterDefaulter(t *testing.T) {
 	_ = everestv1alpha1.AddToScheme(scheme)
 
 	const (
-		ns            = "test-ns"
-		secretName    = "s3-creds"
-		testAccessKey = "ZmFrZUFjY2Vzc0tleQ==" // base64 for "fakeAccessKey"
-		testSecretKey = "ZmFrZVNlY3JldEtleQ==" //nolint:gosec // base64 for "fakeSecretKey"
+		ns         = "test-ns"
+		secretName = "s3-creds"
+		// 32-char plain-alphanumeric strings: previously misclassified as
+		// base64 by the old IsBase64Encoded heuristic (length % 4 == 0).
+		// Regression case for openeverest/openeverest#2245.
+		testAccessKey = "AKIAIOSFODNN7EXAMPLEAAAAAAAAAAAA"
+		testSecretKey = "wJalrXUtnFEMIKAAAAAAAAAAAAAAAAAA" //nolint:gosec
 	)
 
 	apiObjects := []runtime.Object{
@@ -96,14 +99,14 @@ func TestDatabaseClusterDefaulter(t *testing.T) {
 	err := defaulter.Default(t.Context(), db)
 	require.NoError(t, err)
 
-	// Check that the credentials are removed from the spec
+	// Credentials are removed from the spec.
 	assert.Empty(t, db.Spec.DataSource.DataImport.Source.S3.AccessKeyID)
 	assert.Empty(t, db.Spec.DataSource.DataImport.Source.S3.SecretAccessKey)
 
-	// Check that the secret was created and contains the expected data
+	// Credentials land in StringData verbatim (see openeverest/openeverest#2245).
 	secret := &corev1.Secret{}
 	err = client.Get(t.Context(), types.NamespacedName{Namespace: ns, Name: secretName}, secret)
 	require.NoError(t, err)
-	assert.Equal(t, testAccessKey, string(secret.Data[accessKeyIDSecretKey]))
-	assert.Equal(t, testSecretKey, string(secret.Data[secretAccessKeySecretKey]))
+	assert.Equal(t, testAccessKey, secret.StringData[accessKeyIDSecretKey])
+	assert.Equal(t, testSecretKey, secret.StringData[secretAccessKeySecretKey])
 }

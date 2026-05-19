@@ -27,26 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
-	"github.com/percona/everest-operator/utils"
 )
-
-func TestIsBase64Encoded(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		input    string
-		expected bool
-	}{
-		{"", false},
-		{"Zm9v", true},     // "foo" in base64
-		{"Zm9vYmFy", true}, // "foobar" in base64
-		{"notbase64", false},
-		{"Zm9vYmFyIQ==", true}, // "foobar!" in base64
-		{"Zm9vYmFyIQ", false},  // invalid base64 (wrong padding)
-	}
-	for _, c := range cases {
-		assert.Equal(t, c.expected, utils.IsBase64Encoded(c.input), "input: %q", c.input)
-	}
-}
 
 func TestDataImportJobDefaulter(t *testing.T) {
 	t.Parallel()
@@ -57,8 +38,11 @@ func TestDataImportJobDefaulter(t *testing.T) {
 	const (
 		ns         = "test-ns"
 		secretName = "s3-creds"
-		accessKey  = "ZmFrZUFjY2Vzc0tleQ==" // base64 for "fakeAccessKey"
-		secretKey  = "ZmFrZVNlY3JldEtleQ==" //nolint:gosec // base64 for "fakeSecretKey"
+		// 32-char plain-alphanumeric strings: previously misclassified as
+		// base64 by the old IsBase64Encoded heuristic (length % 4 == 0).
+		// Regression case for openeverest/openeverest#2245.
+		accessKey = "AKIAIOSFODNN7EXAMPLEAAAAAAAAAAAA"
+		secretKey = "wJalrXUtnFEMIKAAAAAAAAAAAAAAAAAA" //nolint:gosec
 	)
 
 	dij := &everestv1alpha1.DataImportJob{
@@ -90,14 +74,15 @@ func TestDataImportJobDefaulter(t *testing.T) {
 	err := defaulter.Default(t.Context(), dij)
 	require.NoError(t, err)
 
-	// Check that the credentials are removed from the spec
+	// Credentials are removed from the spec.
 	assert.Empty(t, dij.Spec.DataImportJobTemplate.Source.S3.AccessKeyID)
 	assert.Empty(t, dij.Spec.DataImportJobTemplate.Source.S3.SecretAccessKey)
 
-	// Check that the secret was created and contains the expected data
+	// Credentials land in StringData verbatim. Writing to Data with these
+	// values would have stored a corrupted (base64-decoded) byte sequence.
 	secret := &corev1.Secret{}
 	err = client.Get(t.Context(), types.NamespacedName{Namespace: ns, Name: secretName}, secret)
 	require.NoError(t, err)
-	assert.Equal(t, accessKey, string(secret.Data[accessKeyIDSecretKey]))
-	assert.Equal(t, secretKey, string(secret.Data[secretAccessKeySecretKey]))
+	assert.Equal(t, accessKey, secret.StringData[accessKeyIDSecretKey])
+	assert.Equal(t, secretKey, secret.StringData[secretAccessKeySecretKey])
 }
