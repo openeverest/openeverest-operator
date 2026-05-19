@@ -284,6 +284,7 @@ func (p *applier) Proxy() error {
 	if !database.Spec.Proxy.Resources.Memory.IsZero() {
 		psmdb.Spec.Sharding.Mongos.Resources.Limits[corev1.ResourceMemory] = database.Spec.Proxy.Resources.Memory
 	}
+	psmdb.Spec.Sharding.Mongos.Configuration = psmdbv1.MongoConfiguration(database.Spec.Proxy.Config)
 	err := p.exposeShardedCluster(&psmdb.Spec.Sharding.Mongos.Expose)
 	if err != nil {
 		return err
