@@ -1,0 +1,19 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get dbc/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get psmdb/test-psmdb-sharded-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+resourceRefs:
+  - apiVersion: psmdb.percona.com/v1
+    kind: PerconaServerMongoDB
+    name: test-psmdb-sharded-cluster
+    ref: psmdb
+assertAll:
+  - celExpr: "!has(psmdb.spec.sharding.mongos.configuration) || psmdb.spec.sharding.mongos.configuration == ''"
+    message: "psmdb.spec.sharding.mongos.configuration is not empty"

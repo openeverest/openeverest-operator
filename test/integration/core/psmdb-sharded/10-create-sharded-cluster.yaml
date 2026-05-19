@@ -1,0 +1,26 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-psmdb-sharded-cluster
+spec:
+  engine:
+    crVersion: 1.21.2
+    replicas: 1
+    resources:
+      cpu: "1"
+      memory: 4G
+    storage:
+      size: 25Gi
+    type: psmdb
+  sharding:
+    enabled: true
+    shards: 1
+    configServer:
+      replicas: 1
+  proxy:
+    expose:
+      type: internal
