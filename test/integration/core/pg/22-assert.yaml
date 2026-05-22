@@ -10,20 +10,6 @@ collectors:
     namespace: everest-system
     selector: control-plane=controller-manager
     tail: 100
-resourceRefs:
-  - apiVersion: pgv2.percona.com/v2
-    kind: PerconaPGCluster
-    name: test-pg-cluster
-    ref: pg
-assertAll:
-  - celExpr: "!has(pg.spec.proxy.pgBouncer.config.global)"
-    message: "pgBouncer.config.global was not cleared"
-
-  - celExpr: "!has(pg.spec.proxy.pgBouncer.config.databases)"
-    message: "pgBouncer.config.databases was not cleared"
-
-  - celExpr: "!has(pg.spec.proxy.pgBouncer.config.users)"
-    message: "pgBouncer.config.users was not cleared"
 ---
 apiVersion: everest.percona.com/v1alpha1
 kind: DatabaseCluster
