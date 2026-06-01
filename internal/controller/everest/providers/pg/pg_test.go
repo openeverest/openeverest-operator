@@ -218,6 +218,134 @@ func TestConfigParser_lineUsesEqualSign(t *testing.T) {
 	}
 }
 
+func TestParsePgBouncerConfig(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		config  string
+		want    crunchyv1beta1.PGBouncerConfiguration
+		wantErr bool
+	}{
+		{
+			name:   "empty input returns zero value",
+			config: "",
+			want:   crunchyv1beta1.PGBouncerConfiguration{},
+		},
+		{
+			name:   "whitespace only input returns zero value",
+			config: "  \n\n\t\n",
+			want:   crunchyv1beta1.PGBouncerConfiguration{},
+		},
+		{
+			name: "flat input (no section header) is treated as [pgbouncer]",
+			config: `
+pool_mode = transaction
+max_client_conn = 1000
+`,
+			want: crunchyv1beta1.PGBouncerConfiguration{
+				Global: map[string]string{
+					"pool_mode":       "transaction",
+					"max_client_conn": "1000",
+				},
+			},
+		},
+		{
+			name: "all three sections populated",
+			config: `
+[pgbouncer]
+pool_mode = transaction
+max_client_conn = 1000
+
+[databases]
+myapp = host=primary-pg port=5432
+
+[users]
+pgbouncer = pool_mode=session
+`,
+			want: crunchyv1beta1.PGBouncerConfiguration{
+				Global: map[string]string{
+					"pool_mode":       "transaction",
+					"max_client_conn": "1000",
+				},
+				Databases: map[string]string{
+					"myapp": "host=primary-pg port=5432",
+				},
+				Users: map[string]string{
+					"pgbouncer": "pool_mode=session",
+				},
+			},
+		},
+		{
+			name: "unknown section returns error",
+			config: `
+[pgbouncer]
+pool_mode = transaction
+
+[bogus]
+foo = bar
+`,
+			wantErr: true,
+		},
+		{
+			name: "duplicate keys within a section: last one wins",
+			config: `
+[pgbouncer]
+pool_mode = session
+pool_mode = transaction
+`,
+			want: crunchyv1beta1.PGBouncerConfiguration{
+				Global: map[string]string{
+					"pool_mode": "transaction",
+				},
+			},
+		},
+		{
+			name:    "malformed line returns error",
+			config:  "this is not a valid ini line",
+			wantErr: true,
+		},
+		{
+			name: "section names are case-insensitive",
+			config: `
+[PGBouncer]
+pool_mode = transaction
+
+[Databases]
+myapp = host=primary-pg
+
+[Users]
+admin = pool_mode=session
+`,
+			want: crunchyv1beta1.PGBouncerConfiguration{
+				Global: map[string]string{
+					"pool_mode": "transaction",
+				},
+				Databases: map[string]string{
+					"myapp": "host=primary-pg",
+				},
+				Users: map[string]string{
+					"admin": "pool_mode=session",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := ParsePgBouncerConfig(tt.config)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestReconcilePGBackRestReposEmptyAddRequest(t *testing.T) {
 	t.Parallel()
 	testRepos := []crunchyv1beta1.PGBackRestRepo{}
