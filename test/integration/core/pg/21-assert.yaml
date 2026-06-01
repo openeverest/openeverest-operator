@@ -1,0 +1,65 @@
+apiVersion: kuttl.dev/v1
+kind: TestAssert
+timeout: 30
+collectors:
+  - command: kubectl get dbc/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get perconapgcluster/test-pg-cluster -n ${NAMESPACE} -o yaml
+
+  - command: kubectl get deploy/everest-controller-manager -n everest-system -o yaml
+  - type: pod
+    namespace: everest-system
+    selector: control-plane=controller-manager
+    tail: 100
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-pg-cluster
+spec:
+  backup:
+    pitr:
+      enabled: false
+  engine:
+    replicas: 3
+    resources:
+      cpu: "1"
+      memory: 2G
+    storage:
+      size: 25Gi
+    type: postgresql
+  proxy:
+    expose:
+      type: internal
+    replicas: 3
+    resources:
+      cpu: "1"
+      memory: 30M
+    type: pgbouncer
+    config: |
+      [pgbouncer]
+      pool_mode = transaction
+      max_client_conn = 1000
+
+      [databases]
+      myapp = host=primary-pg port=5432
+
+      [users]
+      pgbouncer = pool_mode=session
+status:
+  status: ready
+---
+apiVersion: pgv2.percona.com/v2
+kind: PerconaPGCluster
+metadata:
+  name: test-pg-cluster
+spec:
+  proxy:
+    pgBouncer:
+      config:
+        global:
+          pool_mode: transaction
+          max_client_conn: "1000"
+        databases:
+          myapp: host=primary-pg port=5432
+        users:
+          pgbouncer: pool_mode=session
