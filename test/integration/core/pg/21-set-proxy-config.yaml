@@ -1,0 +1,25 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 10
+---
+apiVersion: everest.percona.com/v1alpha1
+kind: DatabaseCluster
+metadata:
+  name: test-pg-cluster
+spec:
+  engine:
+    replicas: 3
+    type: postgresql
+  proxy:
+    replicas: 3
+    type: pgbouncer
+    config: |
+      [pgbouncer]
+      pool_mode = transaction
+      max_client_conn = 1000
+
+      [databases]
+      myapp = host=primary-pg port=5432
+
+      [users]
+      pgbouncer = pool_mode=session

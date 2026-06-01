@@ -24,6 +24,13 @@ import (
 	"strings"
 
 	"github.com/go-ini/ini"
+	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
+)
+
+const (
+	pgBouncerSectionGlobal    = "pgbouncer"
+	pgBouncerSectionDatabases = "databases"
+	pgBouncerSectionUsers     = "users"
 )
 
 // ConfigParser represents a parser for PG config.
@@ -81,6 +88,86 @@ func (p *ConfigParser) newParser(line []byte) (*ini.File, error) {
 	return ini.LoadSources(ini.LoadOptions{
 		KeyValueDelimiters: delims,
 	}, line)
+}
+
+// ParsePgBouncerConfig parses a free-form pgbouncer.ini string into the
+// upstream crunchyv1beta1.PGBouncerConfiguration struct.
+//
+// The input is expected to use the standard pgbouncer.ini sections:
+//
+//	[pgbouncer]   -> mapped to Global
+//	[databases]   -> mapped to Databases
+//	[users]       -> mapped to Users
+//
+// Keys outside any section (i.e. flat `key = value` lines without a section
+// header) are treated as if they belonged to the [pgbouncer] section, so users
+// can paste a minimal snippet without a header. Unknown sections result in an
+// error so users get fast feedback.
+//
+// Duplicate keys within a section are resolved by last-one-wins (the default
+// behavior of the underlying ini parser).
+//
+// An empty input returns a zero-value struct without error (no-op).
+func ParsePgBouncerConfig(config string) (crunchyv1beta1.PGBouncerConfiguration, error) {
+	out := crunchyv1beta1.PGBouncerConfiguration{}
+	if strings.TrimSpace(config) == "" {
+		return out, nil
+	}
+
+	f, err := ini.LoadSources(ini.LoadOptions{
+		IgnoreInlineComment: false,
+	}, []byte(config))
+	if err != nil {
+		return crunchyv1beta1.PGBouncerConfiguration{}, fmt.Errorf("failed to parse pgbouncer config: %w", err)
+	}
+
+	for _, name := range f.SectionStrings() {
+		sec := f.Section(name)
+		// Treat the default (unnamed) section as [pgbouncer] so users can
+		// paste flat key=value lines without a section header.
+		effective := strings.ToLower(name)
+		if name == ini.DefaultSection {
+			effective = pgBouncerSectionGlobal
+		}
+
+		switch effective {
+		case pgBouncerSectionGlobal:
+			if len(sec.Keys()) == 0 {
+				continue
+			}
+			if out.Global == nil {
+				out.Global = make(map[string]string)
+			}
+			for k, v := range sec.KeysHash() {
+				out.Global[k] = v
+			}
+		case pgBouncerSectionDatabases:
+			if len(sec.Keys()) == 0 {
+				continue
+			}
+			if out.Databases == nil {
+				out.Databases = make(map[string]string)
+			}
+			for k, v := range sec.KeysHash() {
+				out.Databases[k] = v
+			}
+		case pgBouncerSectionUsers:
+			if len(sec.Keys()) == 0 {
+				continue
+			}
+			if out.Users == nil {
+				out.Users = make(map[string]string)
+			}
+			for k, v := range sec.KeysHash() {
+				out.Users[k] = v
+			}
+		default:
+			return crunchyv1beta1.PGBouncerConfiguration{}, fmt.Errorf(
+				"unknown pgbouncer config section %q: expected one of [pgbouncer], [databases], [users]", name)
+		}
+	}
+
+	return out, nil
 }
 
 // PG config supports the following two formats per config line:
