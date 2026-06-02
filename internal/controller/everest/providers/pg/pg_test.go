@@ -6482,3 +6482,212 @@ func TestReconcilePGBackRestReposVerifyTLSDisabled(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "n", global["repo1-storage-verify-tls"])
 }
+
+func TestReconcilePGBackRestReposVerifyTLSUnset(t *testing.T) {
+	t.Parallel()
+	testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+		"backupStorage1": {
+			Spec: everestv1alpha1.BackupStorageSpec{
+				Type:        everestv1alpha1.BackupStorageTypeS3,
+				Bucket:      "bucket1",
+				Region:      "region1",
+				EndpointURL: "endpoint1",
+			},
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("SomeAccessKeyID"),
+				"AWS_SECRET_ACCESS_KEY": []byte("SomeSecretAccessKey"),
+			},
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{Spec: everestv1alpha1.DatabaseClusterBackupSpec{BackupStorageName: "backupStorage1"}},
+	}
+
+	_, global, _, err := reconcilePGBackRestRepos(
+		[]crunchyv1beta1.PGBackRestRepo{},
+		[]everestv1alpha1.BackupSchedule{},
+		testBackupRequests,
+		testBackupStorages,
+		testBackupStoragesSecrets,
+		testEngineStorage,
+		&everestv1alpha1.DatabaseCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test",
+				UID:  "123",
+			},
+		},
+		false,
+	)
+	require.NoError(t, err)
+	assert.NotContains(t, global, "repo1-storage-verify-tls")
+}
+
+func TestReconcilePGBackRestReposForcePathStyle(t *testing.T) {
+	t.Parallel()
+
+	db := &everestv1alpha1.DatabaseCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", UID: "123"},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("key"),
+				"AWS_SECRET_ACCESS_KEY": []byte("secret"),
+			},
+		},
+	}
+	testBackupRequests := []everestv1alpha1.DatabaseClusterBackup{
+		{Spec: everestv1alpha1.DatabaseClusterBackupSpec{BackupStorageName: "backupStorage1"}},
+	}
+
+	t.Run("forcePathStyle=true", func(t *testing.T) {
+		t.Parallel()
+		testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+			"backupStorage1": {
+				Spec: everestv1alpha1.BackupStorageSpec{
+					Type:           everestv1alpha1.BackupStorageTypeS3,
+					Bucket:         "bucket1",
+					Region:         "region1",
+					ForcePathStyle: pointer.ToBool(true),
+				},
+			},
+		}
+		_, global, _, err := reconcilePGBackRestRepos(
+			[]crunchyv1beta1.PGBackRestRepo{},
+			[]everestv1alpha1.BackupSchedule{},
+			testBackupRequests,
+			testBackupStorages,
+			testBackupStoragesSecrets,
+			testEngineStorage,
+			db,
+			false,
+		)
+		require.NoError(t, err)
+		assert.Equal(t, "path", global["repo1-s3-uri-style"])
+	})
+
+	t.Run("forcePathStyle=false", func(t *testing.T) {
+		t.Parallel()
+		testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+			"backupStorage1": {
+				Spec: everestv1alpha1.BackupStorageSpec{
+					Type:           everestv1alpha1.BackupStorageTypeS3,
+					Bucket:         "bucket1",
+					Region:         "region1",
+					ForcePathStyle: pointer.ToBool(false),
+				},
+			},
+		}
+		_, global, _, err := reconcilePGBackRestRepos(
+			[]crunchyv1beta1.PGBackRestRepo{},
+			[]everestv1alpha1.BackupSchedule{},
+			testBackupRequests,
+			testBackupStorages,
+			testBackupStoragesSecrets,
+			testEngineStorage,
+			db,
+			false,
+		)
+		require.NoError(t, err)
+		assert.NotContains(t, global, "repo1-s3-uri-style")
+	})
+}
+
+func TestReconcilePGBackRestReposVerifyTLSSchedulePath(t *testing.T) {
+	t.Parallel()
+
+	db := &everestv1alpha1.DatabaseCluster{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", UID: "123"},
+	}
+	testSchedule := "0 0 * * *"
+	testBackupSchedules := []everestv1alpha1.BackupSchedule{
+		{
+			Enabled:           true,
+			Name:              "schedule1",
+			Schedule:          testSchedule,
+			BackupStorageName: "backupStorage1",
+		},
+	}
+	testBackupStoragesSecrets := map[string]*corev1.Secret{
+		"backupStorage1": {
+			Data: map[string][]byte{
+				"AWS_ACCESS_KEY_ID":     []byte("key"),
+				"AWS_SECRET_ACCESS_KEY": []byte("secret"),
+			},
+		},
+	}
+
+	t.Run("verifyTLS=true via addNewSchedules", func(t *testing.T) {
+		t.Parallel()
+		testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+			"backupStorage1": {
+				Spec: everestv1alpha1.BackupStorageSpec{
+					Type:      everestv1alpha1.BackupStorageTypeS3,
+					Bucket:    "bucket1",
+					Region:    "region1",
+					VerifyTLS: pointer.ToBool(true),
+				},
+			},
+		}
+		_, global, _, err := reconcilePGBackRestRepos(
+			[]crunchyv1beta1.PGBackRestRepo{},
+			testBackupSchedules,
+			[]everestv1alpha1.DatabaseClusterBackup{},
+			testBackupStorages,
+			testBackupStoragesSecrets,
+			testEngineStorage,
+			db,
+			false,
+		)
+		require.NoError(t, err)
+		assert.NotContains(t, global, "repo1-storage-verify-tls")
+	})
+
+	t.Run("verifyTLS=true via reconcileExistingSchedules", func(t *testing.T) {
+		t.Parallel()
+		existingRepos := []crunchyv1beta1.PGBackRestRepo{
+			{
+				Name: "repo1",
+				S3: &crunchyv1beta1.RepoS3{
+					Bucket:   "bucket1",
+					Region:   "region1",
+					Endpoint: "endpoint1",
+				},
+				BackupSchedules: &crunchyv1beta1.PGBackRestBackupSchedules{
+					Full: &testSchedule,
+				},
+			},
+		}
+		testBackupStorages := map[string]everestv1alpha1.BackupStorage{
+			"backupStorage1": {
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "backupStorage1",
+					Namespace: db.Namespace,
+				},
+				Spec: everestv1alpha1.BackupStorageSpec{
+					Type:        everestv1alpha1.BackupStorageTypeS3,
+					Bucket:      "bucket1",
+					Region:      "region1",
+					EndpointURL: "endpoint1",
+					VerifyTLS:   pointer.ToBool(true),
+				},
+			},
+		}
+		_, global, _, err := reconcilePGBackRestRepos(
+			existingRepos,
+			testBackupSchedules,
+			[]everestv1alpha1.DatabaseClusterBackup{},
+			testBackupStorages,
+			testBackupStoragesSecrets,
+			testEngineStorage,
+			db,
+			false,
+		)
+		require.NoError(t, err)
+		assert.NotContains(t, global, "repo1-storage-verify-tls")
+	})
+}
