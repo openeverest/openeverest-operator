@@ -100,11 +100,11 @@ func (p *pgReposReconciler) addRepoToPGGlobal(
 	if retentionCopies != nil {
 		p.pgBackRestGlobal[fmt.Sprintf(pgBackRestRetentionTmpl, repoName)] = strconv.Itoa(getPGRetentionCopies(*retentionCopies))
 	}
-	if verify := pointer.Get(verifyTLS); !verify {
+	if verifyTLS != nil && !*verifyTLS {
 		// See: https://pgbackrest.org/configuration.html#section-repository/option-repo-storage-verify-tls
 		p.pgBackRestGlobal[fmt.Sprintf(pgBackRestStorageVerifyTmpl, repoName)] = "n"
 	}
-	if forceStyle := pointer.Get(forcePathStyle); !forceStyle {
+	if forceStyle := pointer.Get(forcePathStyle); forceStyle {
 		// See: https://pgbackrest.org/configuration.html#section-repository/option-repo-s3-uri-style
 		p.pgBackRestGlobal[fmt.Sprintf(pgBackRestStorageForcePathTmpl, repoName)] = pgBackRestStoragePathStyle
 	}
@@ -193,7 +193,7 @@ func (p *pgReposReconciler) reconcileBackups(
 		// Keep track of backup storages which are already in use by a repo
 		p.backupStoragesInRepos[backup.Spec.BackupStorageName] = struct{}{}
 
-		p.addRepoToPGGlobal(backupStorage.Spec.VerifyTLS, repo.Name, backupStorages[repo.Name].Spec.ForcePathStyle, nil, db)
+		p.addRepoToPGGlobal(backupStorage.Spec.VerifyTLS, repo.Name, backupStorage.Spec.ForcePathStyle, nil, db)
 		err = updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backup.Spec.BackupStorageName], repo)
 		if err != nil {
 			return errors.Join(err, errors.New("failed to add backup storage credentials to PGBackrest secret data"))
@@ -246,7 +246,8 @@ func (p *pgReposReconciler) reconcileExistingSchedules(
 			// Keep track of backup storages which are already in use by a repo
 			p.backupStoragesInRepos[backupSchedule.BackupStorageName] = struct{}{}
 
-			p.addRepoToPGGlobal(backupStorages[repo.Name].Spec.VerifyTLS, repo.Name, backupStorages[repo.Name].Spec.ForcePathStyle, &backupSchedule.RetentionCopies, db)
+			bs := backupStorages[backupSchedule.BackupStorageName]
+			p.addRepoToPGGlobal(bs.Spec.VerifyTLS, repo.Name, bs.Spec.ForcePathStyle, &backupSchedule.RetentionCopies, db)
 			err := updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backupSchedule.BackupStorageName], repo)
 			if err != nil {
 				return errors.Join(err, errors.New("failed to add backup storage credentials to PGBackrest secret data"))
@@ -296,8 +297,8 @@ func (p *pgReposReconciler) reconcileRepos(
 				// Keep track of backup storages which are already in use by a repo
 				p.backupStoragesInRepos[backupSchedule.BackupStorageName] = struct{}{}
 
-				p.addRepoToPGGlobal(backupStorages[repo.Name].Spec.VerifyTLS,
-					repo.Name, backupStorages[repo.Name].Spec.ForcePathStyle,
+				p.addRepoToPGGlobal(backupStorages[backupSchedule.BackupStorageName].Spec.VerifyTLS,
+					repo.Name, backupStorages[backupSchedule.BackupStorageName].Spec.ForcePathStyle,
 					&backupSchedule.RetentionCopies, db,
 				)
 				err := updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backupSchedule.BackupStorageName], repo)
@@ -385,7 +386,7 @@ func (p *pgReposReconciler) addNewSchedules( //nolint:gocognit
 		// Keep track of backup storages which are already in use by a repo
 		p.backupStoragesInRepos[backupSchedule.BackupStorageName] = struct{}{}
 
-		p.addRepoToPGGlobal(backupStorage.Spec.VerifyTLS, repo.Name, backupStorages[repo.Name].Spec.ForcePathStyle, &backupSchedule.RetentionCopies, db)
+		p.addRepoToPGGlobal(backupStorage.Spec.VerifyTLS, repo.Name, backupStorage.Spec.ForcePathStyle, &backupSchedule.RetentionCopies, db)
 		err = updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backupSchedule.BackupStorageName], repo)
 		if err != nil {
 			return errors.Join(err, errors.New("failed to add backup storage credentials to PGBackrest secret data"))
