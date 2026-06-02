@@ -639,7 +639,7 @@ func (p *applier) addBackupStoragesByRestores(
 					Region:                backupStorage.Spec.Region,
 					EndpointURL:           backupStorage.Spec.EndpointURL,
 					Prefix:                common.BackupStoragePrefix(database),
-					InsecureSkipTLSVerify: !pointer.Get(backupStorage.Spec.VerifyTLS),
+					InsecureSkipTLSVerify: backupStorage.Spec.VerifyTLS != nil && !*backupStorage.Spec.VerifyTLS,
 				},
 			}
 		}
@@ -697,7 +697,7 @@ func (p *applier) addBackupStoragesByDatabaseClusterBackups(
 					Region:                backupStorage.Spec.Region,
 					EndpointURL:           backupStorage.Spec.EndpointURL,
 					Prefix:                common.BackupStoragePrefix(database),
-					InsecureSkipTLSVerify: !pointer.Get(backupStorage.Spec.VerifyTLS),
+					InsecureSkipTLSVerify: backupStorage.Spec.VerifyTLS != nil && !*backupStorage.Spec.VerifyTLS,
 				},
 			}
 		}
@@ -753,7 +753,7 @@ func (p *applier) getBackupTasks(
 					Region:                backupStorage.Spec.Region,
 					EndpointURL:           backupStorage.Spec.EndpointURL,
 					Prefix:                common.BackupStoragePrefix(database),
-					InsecureSkipTLSVerify: !pointer.Get(backupStorage.Spec.VerifyTLS),
+					InsecureSkipTLSVerify: backupStorage.Spec.VerifyTLS != nil && !*backupStorage.Spec.VerifyTLS,
 				},
 			}
 		}

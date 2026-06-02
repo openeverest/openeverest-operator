@@ -817,7 +817,7 @@ func getPGRestoreOptions(
 	if pointer.Get(backupStorage.Spec.ForcePathStyle) {
 		options = append(options, "--"+fmt.Sprintf(pgBackRestStorageForcePathTmpl, repoName)+"="+pgBackRestStoragePathStyle)
 	}
-	if !pointer.Get(backupStorage.Spec.VerifyTLS) {
+	if backupStorage.Spec.VerifyTLS != nil && !*backupStorage.Spec.VerifyTLS {
 		options = append(options, "--no-"+fmt.Sprintf(pgBackRestStorageVerifyTmpl, repoName))
 	}
 
