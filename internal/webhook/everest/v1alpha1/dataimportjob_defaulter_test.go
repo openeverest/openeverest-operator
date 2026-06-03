@@ -78,8 +78,6 @@ func TestDataImportJobDefaulter(t *testing.T) {
 	assert.Empty(t, dij.Spec.DataImportJobTemplate.Source.S3.AccessKeyID)
 	assert.Empty(t, dij.Spec.DataImportJobTemplate.Source.S3.SecretAccessKey)
 
-	// Credentials land in StringData verbatim. Writing to Data with these
-	// values would have stored a corrupted (base64-decoded) byte sequence.
 	secret := &corev1.Secret{}
 	err = client.Get(t.Context(), types.NamespacedName{Namespace: ns, Name: secretName}, secret)
 	require.NoError(t, err)
