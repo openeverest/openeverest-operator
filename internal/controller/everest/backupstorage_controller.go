@@ -109,6 +109,9 @@ func (r *BackupStorageReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		if err = controllerutil.SetControllerReference(bs, bsSecret, r.Scheme); err != nil {
 			return ctrl.Result{}, err
 		}
+		if bsSecret.Annotations != nil {
+			delete(bsSecret.Annotations, consts.CleanupAfterAnnotation)
+		}
 		if err = r.Update(ctx, bsSecret); err != nil {
 			return ctrl.Result{}, err
 		}

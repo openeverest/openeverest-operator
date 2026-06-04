@@ -30,4 +30,6 @@ const (
 	ManagedByDataImportAnnotation = EverestAnnotationPrefix + "managed-by-data-import"
 	// ManagedByDataImportAnnotationValueTrue is the value for the ManagedByDataImportAnnotation to indicate that the resource is managed by data import.
 	ManagedByDataImportAnnotationValueTrue = "true"
+	// CleanupAfterAnnotation is the annotation used to indicate that a resource should be cleaned up after a certain time.
+	CleanupAfterAnnotation = EverestAnnotationPrefix + "cleanup-after"
 )
