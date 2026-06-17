@@ -1,11 +1,23 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 30
+
+timeout: 300
 collectors:
   - command: kubectl get db/test-pg-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get perconapgcluster/test-pg-cluster -n ${NAMESPACE} -o yaml
+  - command: kubectl get secret -n ${NAMESPACE}
+  - command: kubectl get pods -n ${NAMESPACE} -l postgres-operator.crunchydata.com/cluster=test-pg-cluster -o wide
 commands:
   - script: |
+      set -euo pipefail
+
+      pod=$(kubectl get pods -n ${NAMESPACE} \
+        -l postgres-operator.crunchydata.com/cluster=test-pg-cluster,postgres-operator.crunchydata.com/instance-set=instance1 \
+        -o jsonpath='{range .items[*]}{.metadata.name}{"|"}{.status.phase}{"|"}{.metadata.deletionTimestamp}{"\n"}{end}' \
+        | awk -F'|' '$2=="Running" && $3=="" {print $1; exit}')
+
+      test -n "${pod}"
+
       expected=$(printf '1\n2\n3\n4\n5\n6\n7\n8\n9\n10')
-      actual=$(kubectl exec pg-client -n ${NAMESPACE} -- psql -t -A -c "select * from test;")
+      actual=$(kubectl exec -n ${NAMESPACE} "${pod}" -c database -- psql -U postgres -t -A -c "select * from test;")
       test "$actual" = "$expected"

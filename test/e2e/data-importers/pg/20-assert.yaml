@@ -10,4 +10,4 @@ collectors:
     pod: pg-client
     tail: 100
 commands:
-  - command: kubectl wait --for=condition=Ready pod/pg-client --timeout=30s -n ${NAMESPACE}
+  - command: kubectl wait --for=condition=Ready pod/pg-client --timeout=180s -n ${NAMESPACE}

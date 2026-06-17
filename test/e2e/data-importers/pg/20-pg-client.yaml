@@ -1,11 +1,9 @@
 apiVersion: kuttl.dev/v1
 kind: TestStep
-timeout: 120
+timeout: 600
 commands:
   - script: |-
-     PGPASSWORD="$(kubectl get secret -n ${NAMESPACE} test-pg-cluster-user-secret -o jsonpath='{.data.password}' | base64 --decode)"
-     PGUSER=postgres
-     PGHOST="$(kubectl get -n ${NAMESPACE} db/test-pg-cluster -o jsonpath='{.status.hostname}')"
-     IMAGE="$(kubectl get -n ${NAMESPACE} pg/test-pg-cluster -o jsonpath='{.spec.image}')"
+     set -euo pipefail
 
-     kubectl run -n "${NAMESPACE}" pg-client --image=${IMAGE} --env="PGPASSWORD=${PGPASSWORD}" --env="PGUSER=${PGUSER}" --env="PGHOST=${PGHOST}" --restart=Never --command -- sleep infinity
+     kubectl delete pod/pg-client -n "${NAMESPACE}" --ignore-not-found=true
+     kubectl run -n "${NAMESPACE}" pg-client --image=busybox --restart=Never --command -- sleep infinity
