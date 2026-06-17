@@ -1,9 +1,0 @@
-apiVersion: kuttl.dev/v1
-kind: TestAssert
-timeout: 30
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: importing-seen
-
