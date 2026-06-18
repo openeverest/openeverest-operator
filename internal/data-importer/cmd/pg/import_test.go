@@ -22,6 +22,7 @@ import (
 	"github.com/aws/smithy-go/ptr"
 	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -225,11 +226,11 @@ func TestPGClusterDataResourcesDeleted(t *testing.T) {
 			t.Parallel()
 
 			scheme := runtime.NewScheme()
-			assert.NoError(t, corev1.AddToScheme(scheme))
+			require.NoError(t, corev1.AddToScheme(scheme))
 
 			c := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(tt.objects...).Build()
 			ready, err := pgClusterDataResourcesDeleted(context.Background(), c, "ns", "db")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.wantReady, ready)
 		})
 	}
