@@ -17,7 +17,7 @@ spec:
     dataImport:
       dataImporterName: everest-percona-pg-operator
       source:
-        path: "/pg/backup/db/20251211-155011F"
+        path: "/pg/backup/db/20260618-090032F"
         s3:
           bucket: everest-operator
           region: us-east-1
@@ -29,7 +29,6 @@ spec:
           secretAccessKey: minioadmin
   engine:
     type: postgresql
-    version: "17.9"
     replicas: 2
     storage:
       size: 1G
