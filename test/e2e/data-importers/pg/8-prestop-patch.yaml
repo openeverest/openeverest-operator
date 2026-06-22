@@ -1,0 +1,22 @@
+apiVersion: kuttl.dev/v1
+kind: TestStep
+timeout: 180
+commands:
+  - script: |
+      # Delay old instance shutdown to reproduce the delete/recreate race deterministically.
+      for _ in $(seq 1 120); do
+        sts=$(kubectl get sts -n ${NAMESPACE} \
+          -l postgres-operator.crunchydata.com/cluster=test-pg-cluster,postgres-operator.crunchydata.com/instance-set=instance1 \
+          -o name 2>/dev/null | head -n 1)
+
+        if [ -n "${sts}" ]; then
+          kubectl patch -n ${NAMESPACE} "${sts}" --type=strategic -p '{"spec":{"template":{"spec":{"terminationGracePeriodSeconds":120,"containers":[{"name":"database","lifecycle":{"preStop":{"exec":{"command":["bash","-c","sleep 110"]}}}}]}}}}'
+          exit 0
+        fi
+
+        sleep 1
+      done
+
+      echo "failed to find StatefulSet to patch"
+      exit 1
+
