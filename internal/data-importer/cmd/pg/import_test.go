@@ -15,15 +15,19 @@
 package pg
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/aws/smithy-go/ptr"
 	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestParseBackupPath(t *testing.T) {
@@ -160,6 +164,74 @@ func TestAddPGDataSource(t *testing.T) {
 			expectedMemory := resource.MustParse("128Mi")
 			assert.Equal(t, expectedCPU, pgBackRest.Resources.Limits[corev1.ResourceCPU], "CPU limit should match")
 			assert.Equal(t, expectedMemory, pgBackRest.Resources.Limits[corev1.ResourceMemory], "Memory limit should match")
+		})
+	}
+}
+
+func TestPGClusterDataResourcesDeleted(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		objects   []runtime.Object
+		wantReady bool
+	}{
+		{
+			name:      "no resources left",
+			objects:   nil,
+			wantReady: true,
+		},
+		{
+			name: "pod with cluster label still exists",
+			objects: []runtime.Object{
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster-pod",
+					Namespace: "ns",
+					Labels:    map[string]string{crunchyClusterLabelKey: "db"},
+				}},
+			},
+			wantReady: false,
+		},
+		{
+			name: "pvc with cluster label still exists",
+			objects: []runtime.Object{
+				&corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
+					Name:      "cluster-pvc",
+					Namespace: "ns",
+					Labels:    map[string]string{crunchyClusterLabelKey: "db"},
+				}},
+			},
+			wantReady: false,
+		},
+		{
+			name: "resources for another cluster are ignored",
+			objects: []runtime.Object{
+				&corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+					Name:      "other-cluster-pod",
+					Namespace: "ns",
+					Labels:    map[string]string{crunchyClusterLabelKey: "other-db"},
+				}},
+				&corev1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{
+					Name:      "other-cluster-pvc",
+					Namespace: "ns",
+					Labels:    map[string]string{crunchyClusterLabelKey: "other-db"},
+				}},
+			},
+			wantReady: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			scheme := runtime.NewScheme()
+			require.NoError(t, corev1.AddToScheme(scheme))
+
+			c := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(tt.objects...).Build()
+			ready, err := pgClusterDataResourcesDeleted(context.Background(), c, "ns", "db")
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantReady, ready)
 		})
 	}
 }
