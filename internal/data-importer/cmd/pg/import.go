@@ -340,6 +340,35 @@ func addPGDataSource(
 
 const defaultRetryInterval = time.Second * 30
 
+const (
+	defaultPGCleanupTimeout = time.Minute * 10
+	crunchyClusterLabelKey  = "postgres-operator.crunchydata.com/cluster"
+)
+
+func pgClusterDataResourcesDeleted(
+	ctx context.Context,
+	k8sClient client.Client,
+	namespace, clusterName string,
+) (bool, error) {
+	pods := &corev1.PodList{}
+	if err := k8sClient.List(ctx, pods,
+		client.InNamespace(namespace),
+		client.MatchingLabels{crunchyClusterLabelKey: clusterName},
+	); err != nil {
+		return false, fmt.Errorf("failed to list PostgreSQL pods for %s/%s: %w", namespace, clusterName, err)
+	}
+
+	pvcs := &corev1.PersistentVolumeClaimList{}
+	if err := k8sClient.List(ctx, pvcs,
+		client.InNamespace(namespace),
+		client.MatchingLabels{crunchyClusterLabelKey: clusterName},
+	); err != nil {
+		return false, fmt.Errorf("failed to list PostgreSQL PVCs for %s/%s: %w", namespace, clusterName, err)
+	}
+
+	return len(pods.Items) == 0 && len(pvcs.Items) == 0, nil
+}
+
 // We need to re-create the upstream PGCluster with the newly added dataSource config.
 // The reason for re-creating rather than updating is that the DB needs to be bootstrapped again
 // otherwise the PG instances will not come up successfully.
@@ -366,6 +395,13 @@ func restorePGCluster(
 		return fmt.Errorf("failed to wait for PerconaPGCluster %s/%s deletion: %w", pg.GetNamespace(), pg.GetName(), err)
 	}
 
+	if err := wait.PollUntilContextTimeout(ctx, defaultRetryInterval, defaultPGCleanupTimeout,
+		false, func(ctx context.Context) (bool, error) {
+			return pgClusterDataResourcesDeleted(ctx, k8sClient, pg.GetNamespace(), pg.GetName())
+		}); err != nil {
+		return fmt.Errorf("failed to wait for PostgreSQL pods/PVCs cleanup for %s/%s: %w", pg.GetNamespace(), pg.GetName(), err)
+	}
+
 	if err := k8sClient.Create(ctx, pg); err != nil {
 		return fmt.Errorf("failed to create PerconaPGCluster %s/%s: %w", pg.GetNamespace(), pg.GetName(), err)
 	}
@@ -380,6 +416,7 @@ func restorePGCluster(
 	}); err != nil {
 		return fmt.Errorf("failed to wait for PerconaPGCluster %s/%s to be ready: %w", pg.GetNamespace(), pg.GetName(), err)
 	}
+
 	return nil
 }
 
