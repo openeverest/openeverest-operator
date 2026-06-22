@@ -22,7 +22,7 @@ spec:
     dataImport:
       dataImporterName: everest-percona-pg-operator
       source:
-        path: "/pg/backup/db/20251211-155011F"
+        path: "/pg/backup/db/20260618-090032F"
         s3:
           endpointURL: https://minio.minio.svc
           bucket: everest-operator
@@ -31,10 +31,10 @@ spec:
           verifyTLS: false
           forcePathStyle: true
   engine:
-    replicas: 3
+    replicas: 2
     type: postgresql
   proxy:
-    replicas: 3
+    replicas: 2
 status:
   status: initializing
 ---
@@ -55,9 +55,9 @@ spec:
           requests:
             storage: 1G
       name: instance1
-      replicas: 3
+      replicas: 2
   proxy:
     pgBouncer:
-      replicas: 3
+      replicas: 2
 status:
   state: initializing
