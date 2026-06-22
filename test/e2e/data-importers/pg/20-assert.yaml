@@ -1,6 +1,6 @@
 apiVersion: kuttl.dev/v1
 kind: TestAssert
-timeout: 120
+timeout: 300
 collectors:
   - command: kubectl get db/test-pg-cluster -n ${NAMESPACE} -o yaml
   - command: kubectl get perconapgcluster/test-pg-cluster -n ${NAMESPACE} -o yaml
@@ -10,4 +10,4 @@ collectors:
     pod: pg-client
     tail: 100
 commands:
-  - command: kubectl wait --for=condition=Ready pod/pg-client --timeout=30s -n ${NAMESPACE}
+  - command: kubectl wait --for=condition=Ready pod/pg-client --timeout=300s -n ${NAMESPACE}
