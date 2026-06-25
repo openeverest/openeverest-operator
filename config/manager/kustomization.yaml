@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/chilagrow/openeverest-operator-dev
-  newTag: 0.0.0-rc1
+  newTag: 0.0.0-rc2
