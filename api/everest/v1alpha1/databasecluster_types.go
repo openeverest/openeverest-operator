@@ -171,12 +171,106 @@ type Storage struct {
 	Class *string `json:"class,omitempty"`
 }
 
-// Resources are the resource requirements.
-type Resources struct {
+// ResourceSpec holds CPU and Memory resource quantities.
+type ResourceSpec struct {
 	// CPU is the CPU resource requirements
 	CPU resource.Quantity `json:"cpu,omitempty"`
 	// Memory is the memory resource requirements
 	Memory resource.Quantity `json:"memory,omitempty"`
+}
+
+// Resources are the resource requirements.
+type Resources struct {
+	// CPU is the CPU resource requirements.
+	//
+	// Deprecated: use Limits.CPU instead. When Limits is unset, this value is
+	// used as the CPU limit (and, for engines that historically did so, as the
+	// CPU request as well). It is ignored when Limits is set.
+	// +optional
+	CPU resource.Quantity `json:"cpu,omitempty"`
+	// Memory is the memory resource requirements.
+	//
+	// Deprecated: use Limits.Memory instead. When Limits is unset, this value is
+	// used as the memory limit (and, for engines that historically did so, as
+	// the memory request as well). It is ignored when Limits is set.
+	// +optional
+	Memory resource.Quantity `json:"memory,omitempty"`
+	// Limits are the resource limits applied to each replica.
+	// If set, it takes precedence over the deprecated CPU and Memory fields.
+	// +optional
+	Limits *ResourceSpec `json:"limits,omitempty"`
+	// Requests are the resource requests applied to each replica.
+	// If unset, the request behavior is engine-specific: some engines mirror
+	// the effective limits while others leave requests unset.
+	// +optional
+	Requests *ResourceSpec `json:"requests,omitempty"`
+}
+
+// EffectiveLimits returns the resource limits that should be applied, preferring
+// the explicit Limits field and falling back to the deprecated CPU and Memory
+// fields when Limits is unset.
+func (r *Resources) EffectiveLimits() ResourceSpec {
+	if r.Limits != nil {
+		return *r.Limits
+	}
+	return ResourceSpec{
+		CPU:    r.CPU,
+		Memory: r.Memory,
+	}
+}
+
+// EffectiveRequests returns the explicitly requested resources, or nil when no
+// requests were specified.
+func (r *Resources) EffectiveRequests() *ResourceSpec {
+	if r.Requests != nil {
+		return &ResourceSpec{
+			CPU:    r.Requests.CPU,
+			Memory: r.Requests.Memory,
+		}
+	}
+	return nil
+}
+
+// ToResourceRequirements builds a corev1.ResourceRequirements from the effective
+// limits and requests. Only non-zero quantities are set so that callers preserve
+// the existing "skip when zero" semantics.
+//
+// When mirrorRequests is true and a request value is not explicitly provided,
+// the corresponding effective limit is used as the request. When false, requests
+// are only set from explicitly provided request values.
+func (r *Resources) ToResourceRequirements(mirrorRequests bool) corev1.ResourceRequirements {
+	limits := r.EffectiveLimits()
+	requests := r.EffectiveRequests()
+
+	out := corev1.ResourceRequirements{
+		Limits:   corev1.ResourceList{},
+		Requests: corev1.ResourceList{},
+	}
+
+	if !limits.CPU.IsZero() {
+		out.Limits[corev1.ResourceCPU] = limits.CPU
+	}
+	if !limits.Memory.IsZero() {
+		out.Limits[corev1.ResourceMemory] = limits.Memory
+	}
+
+	// CPU request.
+	switch {
+	case requests != nil && !requests.CPU.IsZero():
+		out.Requests[corev1.ResourceCPU] = requests.CPU
+	case (requests == nil || requests.CPU.IsZero()) && mirrorRequests && !limits.CPU.IsZero():
+		out.Requests[corev1.ResourceCPU] = limits.CPU
+	}
+
+	// Memory request.
+	switch {
+	case requests != nil && !requests.Memory.IsZero():
+		out.Requests[corev1.ResourceMemory] = requests.Memory
+	case (requests == nil || requests.Memory.IsZero()) && mirrorRequests && !limits.Memory.IsZero():
+		out.Requests[corev1.ResourceMemory] = limits.Memory
+	}
+
+	return out
 }
 
 // Engine is the engine configuration.
@@ -210,7 +304,7 @@ type Engine struct {
 
 // Size returns the size of the engine.
 func (e *Engine) Size() EngineSize {
-	m := e.Resources.Memory
+	m := e.Resources.EffectiveLimits().Memory
 	// mem >= Large
 	if m.Cmp(MemoryLargeSize) >= 0 {
 		return EngineSizeLarge

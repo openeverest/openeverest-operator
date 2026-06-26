@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -88,6 +89,16 @@ func TestDatabaseCluster_Size(t *testing.T) {
 			engine:       Engine{Resources: Resources{Memory: resource.MustParse("64Gi")}},
 			expectedSize: EngineSizeLarge,
 		},
+		{
+			// Limits takes precedence over the deprecated Memory field.
+			engine:       Engine{Resources: Resources{Memory: resource.MustParse("2Gi"), Limits: &ResourceSpec{Memory: resource.MustParse("8Gi")}}},
+			expectedSize: EngineSizeMedium,
+		},
+		{
+			// Requests does not affect sizing.
+			engine:       Engine{Resources: Resources{Limits: &ResourceSpec{Memory: resource.MustParse("32Gi")}, Requests: &ResourceSpec{Memory: resource.MustParse("2Gi")}}},
+			expectedSize: EngineSizeLarge,
+		},
 	}
 
 	for i, tc := range testCases {
@@ -98,4 +109,95 @@ func TestDatabaseCluster_Size(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestResources_ToResourceRequirements(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name           string
+		resources      Resources
+		mirrorRequests bool
+		wantLimits     corev1.ResourceList
+		wantRequests   corev1.ResourceList
+	}{
+		{
+			name:           "legacy fields with mirror sets requests equal to limits",
+			resources:      Resources{CPU: resource.MustParse("1"), Memory: resource.MustParse("2Gi")},
+			mirrorRequests: true,
+			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
+			wantRequests:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
+		},
+		{
+			name:           "legacy fields without mirror leaves requests empty",
+			resources:      Resources{CPU: resource.MustParse("1"), Memory: resource.MustParse("2Gi")},
+			mirrorRequests: false,
+			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
+			wantRequests:   corev1.ResourceList{},
+		},
+		{
+			name: "explicit limits and requests are honored separately",
+			resources: Resources{
+				Limits:   &ResourceSpec{CPU: resource.MustParse("2"), Memory: resource.MustParse("4Gi")},
+				Requests: &ResourceSpec{CPU: resource.MustParse("1"), Memory: resource.MustParse("2Gi")},
+			},
+			mirrorRequests: false,
+			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
+		},
+		{
+			name: "explicit limits take precedence over legacy fields",
+			resources: Resources{
+				CPU:    resource.MustParse("8"),
+				Memory: resource.MustParse("16Gi"),
+				Limits: &ResourceSpec{CPU: resource.MustParse("2"), Memory: resource.MustParse("4Gi")},
+			},
+			mirrorRequests: true,
+			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+		},
+		{
+			name: "partial requests mirror only the missing values",
+			resources: Resources{
+				Limits:   &ResourceSpec{CPU: resource.MustParse("2"), Memory: resource.MustParse("4Gi")},
+				Requests: &ResourceSpec{CPU: resource.MustParse("1")},
+			},
+			mirrorRequests: true,
+			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+		},
+		{
+			name:           "zero values produce empty maps",
+			resources:      Resources{},
+			mirrorRequests: true,
+			wantLimits:     corev1.ResourceList{},
+			wantRequests:   corev1.ResourceList{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := tc.resources.ToResourceRequirements(tc.mirrorRequests)
+			if !resourceListEqual(got.Limits, tc.wantLimits) {
+				t.Errorf("limits = %v, want %v", got.Limits, tc.wantLimits)
+			}
+			if !resourceListEqual(got.Requests, tc.wantRequests) {
+				t.Errorf("requests = %v, want %v", got.Requests, tc.wantRequests)
+			}
+		})
+	}
+}
+
+func resourceListEqual(a, b corev1.ResourceList) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		other, ok := b[k]
+		if !ok || v.Cmp(other) != 0 {
+			return false
+		}
+	}
+	return true
 }

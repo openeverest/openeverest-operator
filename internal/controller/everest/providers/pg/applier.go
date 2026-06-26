@@ -149,11 +149,17 @@ func (p *applier) Engine() error {
 	pg.Spec.InstanceSets = defaultSpec().InstanceSets
 
 	pg.Spec.InstanceSets[0].Replicas = &database.Spec.Engine.Replicas
-	if !database.Spec.Engine.Resources.CPU.IsZero() {
-		pg.Spec.InstanceSets[0].Resources.Limits[corev1.ResourceCPU] = database.Spec.Engine.Resources.CPU
+	engineResources := database.Spec.Engine.Resources.ToResourceRequirements(false)
+	for name, qty := range engineResources.Limits {
+		pg.Spec.InstanceSets[0].Resources.Limits[name] = qty
 	}
-	if !database.Spec.Engine.Resources.Memory.IsZero() {
-		pg.Spec.InstanceSets[0].Resources.Limits[corev1.ResourceMemory] = database.Spec.Engine.Resources.Memory
+	if len(engineResources.Requests) > 0 {
+		if pg.Spec.InstanceSets[0].Resources.Requests == nil {
+			pg.Spec.InstanceSets[0].Resources.Requests = corev1.ResourceList{}
+		}
+		for name, qty := range engineResources.Requests {
+			pg.Spec.InstanceSets[0].Resources.Requests[name] = qty
+		}
 	}
 
 	var currentInstSet *pgv2.PGInstanceSetSpec
@@ -245,11 +251,17 @@ func (p *applier) Proxy() error {
 		return fmt.Errorf("invalid expose type %s", database.Spec.Proxy.Expose.Type)
 	}
 
-	if !database.Spec.Proxy.Resources.CPU.IsZero() {
-		pg.Spec.Proxy.PGBouncer.Resources.Limits[corev1.ResourceCPU] = database.Spec.Proxy.Resources.CPU
+	proxyResources := database.Spec.Proxy.Resources.ToResourceRequirements(false)
+	for name, qty := range proxyResources.Limits {
+		pg.Spec.Proxy.PGBouncer.Resources.Limits[name] = qty
 	}
-	if !database.Spec.Proxy.Resources.Memory.IsZero() {
-		pg.Spec.Proxy.PGBouncer.Resources.Limits[corev1.ResourceMemory] = database.Spec.Proxy.Resources.Memory
+	if len(proxyResources.Requests) > 0 {
+		if pg.Spec.Proxy.PGBouncer.Resources.Requests == nil {
+			pg.Spec.Proxy.PGBouncer.Resources.Requests = corev1.ResourceList{}
+		}
+		for name, qty := range proxyResources.Requests {
+			pg.Spec.Proxy.PGBouncer.Resources.Requests[name] = qty
+		}
 	}
 
 	if database.Spec.Proxy.Config != "" {
