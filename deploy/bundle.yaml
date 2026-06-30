@@ -9195,6 +9195,7 @@ rules:
   - watch
 - apiGroups:
   - postgres-operator.crunchydata.com
+  - upstream.pgv2.percona.com
   resources:
   - postgresclusters
   verbs:

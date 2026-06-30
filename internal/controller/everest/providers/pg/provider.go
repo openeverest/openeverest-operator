@@ -23,7 +23,7 @@ import (
 
 	"github.com/AlekSi/pointer"
 	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
-	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
+	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/upstream.pgv2.percona.com/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -128,7 +128,11 @@ func (p *Provider) isDatabaseUpgrading(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
+// The legacy postgres-operator.crunchydata.com group is retained alongside the new
+// upstream.pgv2.percona.com group so the operator keeps access to PostgresClusters during
+// an upgrade from PGO < v3.0.0, before the PG operator itself has been upgraded.
 // +kubebuilder:rbac:groups=postgres-operator.crunchydata.com,resources=postgresclusters,verbs=get;list;watch
+// +kubebuilder:rbac:groups=upstream.pgv2.percona.com,resources=postgresclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch
 
 // Status builds the DatabaseCluster Status based on the current state of the PerconaPGCluster.
