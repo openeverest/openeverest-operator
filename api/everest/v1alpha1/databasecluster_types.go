@@ -231,14 +231,19 @@ func (r *Resources) EffectiveRequests() *ResourceSpec {
 	return nil
 }
 
+// UsesLegacyResourceFields reports whether the user relies solely on the
+// deprecated CPU/Memory fields, i.e. neither of the new Limits/Requests fields
+// is set. Engines that historically derived requests from limits use this to
+// decide whether to apply that backward-compatible behavior.
+func (r *Resources) UsesLegacyResourceFields() bool {
+	return r.Limits == nil && r.Requests == nil
+}
+
 // ToResourceRequirements builds a corev1.ResourceRequirements from the effective
-// limits and requests. Only non-zero quantities are set so that callers preserve
-// the existing "skip when zero" semantics.
-//
-// When mirrorRequests is true and a request value is not explicitly provided,
-// the corresponding effective limit is used as the request. When false, requests
-// are only set from explicitly provided request values.
-func (r *Resources) ToResourceRequirements(mirrorRequests bool) corev1.ResourceRequirements {
+// limits and requests, respecting the user's intent exactly: requests are set
+// only from explicitly provided request values. Only non-zero quantities are set
+// so that callers preserve the existing "skip when zero" semantics.
+func (r *Resources) ToResourceRequirements() corev1.ResourceRequirements {
 	limits := r.EffectiveLimits()
 	requests := r.EffectiveRequests()
 
@@ -254,20 +259,11 @@ func (r *Resources) ToResourceRequirements(mirrorRequests bool) corev1.ResourceR
 		out.Limits[corev1.ResourceMemory] = limits.Memory
 	}
 
-	// CPU request.
-	switch {
-	case requests != nil && !requests.CPU.IsZero():
+	if requests != nil && !requests.CPU.IsZero() {
 		out.Requests[corev1.ResourceCPU] = requests.CPU
-	case (requests == nil || requests.CPU.IsZero()) && mirrorRequests && !limits.CPU.IsZero():
-		out.Requests[corev1.ResourceCPU] = limits.CPU
 	}
-
-	// Memory request.
-	switch {
-	case requests != nil && !requests.Memory.IsZero():
+	if requests != nil && !requests.Memory.IsZero() {
 		out.Requests[corev1.ResourceMemory] = requests.Memory
-	case (requests == nil || requests.Memory.IsZero()) && mirrorRequests && !limits.Memory.IsZero():
-		out.Requests[corev1.ResourceMemory] = limits.Memory
 	}
 
 	return out

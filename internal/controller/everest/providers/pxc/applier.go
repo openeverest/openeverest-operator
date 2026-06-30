@@ -304,15 +304,7 @@ func (p *applier) Engine() error {
 		return err
 	}
 
-	{
-		engineResources := p.DB.Spec.Engine.Resources.ToResourceRequirements(true)
-		for name, qty := range engineResources.Limits {
-			pxc.Spec.PXC.Resources.Limits[name] = qty
-		}
-		for name, qty := range engineResources.Requests {
-			pxc.Spec.PXC.Resources.Requests[name] = qty
-		}
-	}
+	applyEngineResources(&pxc.Spec.PXC.Resources, p.DB.Spec.Engine.Resources)
 	hasDBSpecChanged := func() bool {
 		return p.DB.Status.ObservedGeneration > 0 && p.DB.Status.ObservedGeneration != p.DB.Generation
 	}
@@ -503,6 +495,35 @@ func (p *applier) PodSchedulingPolicy() error {
 	return nil
 }
 
+// legacyMirroredResources translates res into Kubernetes resource requirements,
+// reproducing PXC's historical behavior of setting the requests equal to the
+// limits when the user relies solely on the deprecated cpu/memory fields. When
+// the user opts into the explicit Limits/Requests fields, their intent is
+// respected exactly and no mirroring occurs.
+func legacyMirroredResources(res everestv1alpha1.Resources) corev1.ResourceRequirements {
+	reqs := res.ToResourceRequirements()
+	if res.UsesLegacyResourceFields() {
+		for name, qty := range reqs.Limits {
+			reqs.Requests[name] = qty
+		}
+	}
+	return reqs
+}
+
+// applyEngineResources sets the PXC engine pod resources from res onto dst,
+// which starts from the engine defaults (whose requests are seeded equal to the
+// limits). When the user opts into the explicit Limits/Requests fields, the
+// seeded request defaults are dropped first so that any request dimension the
+// user did not specify stays unset; Kubernetes then defaults that request to the
+// matching limit at pod admission. The deprecated-fields path keeps merging onto
+// the defaults to preserve historical behavior.
+func applyEngineResources(dst *corev1.ResourceRequirements, res everestv1alpha1.Resources) {
+	if !res.UsesLegacyResourceFields() {
+		dst.Requests = corev1.ResourceList{}
+	}
+	common.ApplyResourceRequirements(dst, legacyMirroredResources(res))
+}
+
 func defaultSpec() pxcv1.PerconaXtraDBClusterSpec {
 	maxUnavailable := intstr.FromInt(1)
 	return pxcv1.PerconaXtraDBClusterSpec{
@@ -662,7 +683,7 @@ func (p *applier) applyHAProxyCfg() error {
 	haProxy.ImagePullPolicy = haProxyImagePullPolicy
 
 	shouldUpdateRequests := common.IsNewDatabaseCluster(p.DB.Status.Status)
-	proxyResources := p.DB.Spec.Proxy.Resources.ToResourceRequirements(true)
+	proxyResources := legacyMirroredResources(p.DB.Spec.Proxy.Resources)
 	if cpu, ok := proxyResources.Limits[corev1.ResourceCPU]; ok {
 		// When the limits are changed, triggers a pod restart, hence ensuring the requests are applied automatically (next block),
 		// as it depends on the cluster being in the 'init' state (shouldUpdateRequests).
@@ -760,7 +781,7 @@ func (p *applier) applyProxySQLCfg() error {
 	proxySQL.Image = image
 
 	shouldUpdateRequests := common.IsNewDatabaseCluster(p.DB.Status.Status)
-	proxyResources := p.DB.Spec.Proxy.Resources.ToResourceRequirements(true)
+	proxyResources := legacyMirroredResources(p.DB.Spec.Proxy.Resources)
 	if cpu, ok := proxyResources.Limits[corev1.ResourceCPU]; ok {
 		// When the limits are changed, triggers a pod restart, hence ensuring the requests are applied automatically (next block),
 		// as it depends on the cluster being in the 'init' state (shouldUpdateRequests).

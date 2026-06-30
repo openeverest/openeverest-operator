@@ -149,18 +149,7 @@ func (p *applier) Engine() error {
 	pg.Spec.InstanceSets = defaultSpec().InstanceSets
 
 	pg.Spec.InstanceSets[0].Replicas = &database.Spec.Engine.Replicas
-	engineResources := database.Spec.Engine.Resources.ToResourceRequirements(false)
-	for name, qty := range engineResources.Limits {
-		pg.Spec.InstanceSets[0].Resources.Limits[name] = qty
-	}
-	if len(engineResources.Requests) > 0 {
-		if pg.Spec.InstanceSets[0].Resources.Requests == nil {
-			pg.Spec.InstanceSets[0].Resources.Requests = corev1.ResourceList{}
-		}
-		for name, qty := range engineResources.Requests {
-			pg.Spec.InstanceSets[0].Resources.Requests[name] = qty
-		}
-	}
+	common.ApplyResourceRequirements(&pg.Spec.InstanceSets[0].Resources, database.Spec.Engine.Resources.ToResourceRequirements())
 
 	var currentInstSet *pgv2.PGInstanceSetSpec
 	if len(p.currentPGSpec.InstanceSets) > 0 {
@@ -251,18 +240,7 @@ func (p *applier) Proxy() error {
 		return fmt.Errorf("invalid expose type %s", database.Spec.Proxy.Expose.Type)
 	}
 
-	proxyResources := database.Spec.Proxy.Resources.ToResourceRequirements(false)
-	for name, qty := range proxyResources.Limits {
-		pg.Spec.Proxy.PGBouncer.Resources.Limits[name] = qty
-	}
-	if len(proxyResources.Requests) > 0 {
-		if pg.Spec.Proxy.PGBouncer.Resources.Requests == nil {
-			pg.Spec.Proxy.PGBouncer.Resources.Requests = corev1.ResourceList{}
-		}
-		for name, qty := range proxyResources.Requests {
-			pg.Spec.Proxy.PGBouncer.Resources.Requests[name] = qty
-		}
-	}
+	common.ApplyResourceRequirements(&pg.Spec.Proxy.PGBouncer.Resources, database.Spec.Proxy.Resources.ToResourceRequirements())
 
 	if database.Spec.Proxy.Config != "" {
 		cfg, err := ParsePgBouncerConfig(database.Spec.Proxy.Config)

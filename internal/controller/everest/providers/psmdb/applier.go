@@ -234,18 +234,7 @@ func (p *applier) configureReplSetSpec(spec *psmdbv1.ReplsetSpec, name string) e
 		return fmt.Errorf("failed to configure replset storage: %w", err)
 	}
 
-	engineResources := dbEngine.Resources.ToResourceRequirements(false)
-	for name, qty := range engineResources.Limits {
-		spec.Resources.Limits[name] = qty
-	}
-	if len(engineResources.Requests) > 0 {
-		if spec.Resources.Requests == nil {
-			spec.Resources.Requests = corev1.ResourceList{}
-		}
-		for name, qty := range engineResources.Requests {
-			spec.Resources.Requests[name] = qty
-		}
-	}
+	common.ApplyResourceRequirements(&spec.Resources, dbEngine.Resources.ToResourceRequirements())
 	return nil
 }
 
@@ -284,18 +273,7 @@ func (p *applier) Proxy() error {
 	}
 	psmdb.Spec.Sharding.Mongos.Size = size
 
-	proxyResources := database.Spec.Proxy.Resources.ToResourceRequirements(false)
-	for name, qty := range proxyResources.Limits {
-		psmdb.Spec.Sharding.Mongos.Resources.Limits[name] = qty
-	}
-	if len(proxyResources.Requests) > 0 {
-		if psmdb.Spec.Sharding.Mongos.Resources.Requests == nil {
-			psmdb.Spec.Sharding.Mongos.Resources.Requests = corev1.ResourceList{}
-		}
-		for name, qty := range proxyResources.Requests {
-			psmdb.Spec.Sharding.Mongos.Resources.Requests[name] = qty
-		}
-	}
+	common.ApplyResourceRequirements(&psmdb.Spec.Sharding.Mongos.Resources, database.Spec.Proxy.Resources.ToResourceRequirements())
 	psmdb.Spec.Sharding.Mongos.Configuration = psmdbv1.MongoConfiguration(database.Spec.Proxy.Config)
 	err := p.exposeShardedCluster(&psmdb.Spec.Sharding.Mongos.Expose)
 	if err != nil {

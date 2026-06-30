@@ -115,25 +115,16 @@ func TestResources_ToResourceRequirements(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name           string
-		resources      Resources
-		mirrorRequests bool
-		wantLimits     corev1.ResourceList
-		wantRequests   corev1.ResourceList
+		name         string
+		resources    Resources
+		wantLimits   corev1.ResourceList
+		wantRequests corev1.ResourceList
 	}{
 		{
-			name:           "legacy fields with mirror sets requests equal to limits",
-			resources:      Resources{CPU: resource.MustParse("1"), Memory: resource.MustParse("2Gi")},
-			mirrorRequests: true,
-			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
-			wantRequests:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
-		},
-		{
-			name:           "legacy fields without mirror leaves requests empty",
-			resources:      Resources{CPU: resource.MustParse("1"), Memory: resource.MustParse("2Gi")},
-			mirrorRequests: false,
-			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
-			wantRequests:   corev1.ResourceList{},
+			name:         "legacy fields populate limits and leave requests empty",
+			resources:    Resources{CPU: resource.MustParse("1"), Memory: resource.MustParse("2Gi")},
+			wantLimits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
+			wantRequests: corev1.ResourceList{},
 		},
 		{
 			name: "explicit limits and requests are honored separately",
@@ -141,49 +132,85 @@ func TestResources_ToResourceRequirements(t *testing.T) {
 				Limits:   &ResourceSpec{CPU: resource.MustParse("2"), Memory: resource.MustParse("4Gi")},
 				Requests: &ResourceSpec{CPU: resource.MustParse("1"), Memory: resource.MustParse("2Gi")},
 			},
-			mirrorRequests: false,
-			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
-			wantRequests:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
+			wantLimits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("2Gi")},
 		},
 		{
-			name: "explicit limits take precedence over legacy fields",
+			name: "explicit limits take precedence over deprecated fields",
 			resources: Resources{
 				CPU:    resource.MustParse("8"),
 				Memory: resource.MustParse("16Gi"),
 				Limits: &ResourceSpec{CPU: resource.MustParse("2"), Memory: resource.MustParse("4Gi")},
 			},
-			mirrorRequests: true,
-			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
-			wantRequests:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantLimits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests: corev1.ResourceList{},
 		},
 		{
-			name: "partial requests mirror only the missing values",
+			name: "partial requests are respected exactly without filling missing values",
 			resources: Resources{
 				Limits:   &ResourceSpec{CPU: resource.MustParse("2"), Memory: resource.MustParse("4Gi")},
 				Requests: &ResourceSpec{CPU: resource.MustParse("1")},
 			},
-			mirrorRequests: true,
-			wantLimits:     corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
-			wantRequests:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantLimits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")},
 		},
 		{
-			name:           "zero values produce empty maps",
-			resources:      Resources{},
-			mirrorRequests: true,
-			wantLimits:     corev1.ResourceList{},
-			wantRequests:   corev1.ResourceList{},
+			name:         "zero values produce empty maps",
+			resources:    Resources{},
+			wantLimits:   corev1.ResourceList{},
+			wantRequests: corev1.ResourceList{},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got := tc.resources.ToResourceRequirements(tc.mirrorRequests)
+			got := tc.resources.ToResourceRequirements()
 			if !resourceListEqual(got.Limits, tc.wantLimits) {
 				t.Errorf("limits = %v, want %v", got.Limits, tc.wantLimits)
 			}
 			if !resourceListEqual(got.Requests, tc.wantRequests) {
 				t.Errorf("requests = %v, want %v", got.Requests, tc.wantRequests)
+			}
+		})
+	}
+}
+
+func TestResources_UsesLegacyResourceFields(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name      string
+		resources Resources
+		want      bool
+	}{
+		{
+			name:      "only deprecated fields set",
+			resources: Resources{CPU: resource.MustParse("1"), Memory: resource.MustParse("2Gi")},
+			want:      true,
+		},
+		{
+			name:      "empty resources",
+			resources: Resources{},
+			want:      true,
+		},
+		{
+			name:      "explicit limits set",
+			resources: Resources{Limits: &ResourceSpec{CPU: resource.MustParse("1")}},
+			want:      false,
+		},
+		{
+			name:      "explicit requests set",
+			resources: Resources{Requests: &ResourceSpec{CPU: resource.MustParse("1")}},
+			want:      false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := tc.resources.UsesLegacyResourceFields(); got != tc.want {
+				t.Errorf("UsesLegacyResourceFields() = %v, want %v", got, tc.want)
 			}
 		})
 	}
