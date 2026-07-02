@@ -9194,14 +9194,6 @@ rules:
   - update
   - watch
 - apiGroups:
-  - postgres-operator.crunchydata.com
-  resources:
-  - postgresclusters
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
   - psmdb.percona.com
   resources:
   - perconaservermongodbbackups
