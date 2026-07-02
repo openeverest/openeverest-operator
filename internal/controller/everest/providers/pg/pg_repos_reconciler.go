@@ -25,7 +25,7 @@ import (
 
 	"github.com/AlekSi/pointer"
 	"github.com/go-ini/ini"
-	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
+	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/upstream.pgv2.percona.com/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
