@@ -23,7 +23,7 @@ import (
 
 	"github.com/AlekSi/pointer"
 	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
-	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
+	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/upstream.pgv2.percona.com/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -128,7 +128,6 @@ func (p *Provider) isDatabaseUpgrading(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
-// +kubebuilder:rbac:groups=postgres-operator.crunchydata.com,resources=postgresclusters,verbs=get;list;watch
 // +kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch
 
 // Status builds the DatabaseCluster Status based on the current state of the PerconaPGCluster.
@@ -153,7 +152,7 @@ func (p *Provider) Status(ctx context.Context) (everestv1alpha1.DatabaseClusterS
 		status.Status = everestv1alpha1.AppStateRestoring
 	}
 
-	if ok, err := isPVCResizing(ctx, p.C, p.DB.GetName(), p.DB.GetNamespace()); err != nil {
+	if ok, err := isPVCResizing(ctx, p.C, pg); err != nil {
 		return status, false, err
 	} else if ok {
 		status.Status = everestv1alpha1.AppStateResizingVolumes
@@ -201,16 +200,7 @@ func (p *Provider) Status(ctx context.Context) (everestv1alpha1.DatabaseClusterS
 	return status, true, nil
 }
 
-func isPVCResizing(ctx context.Context, c client.Client, name, namespace string) (bool, error) {
-	pg := &crunchyv1beta1.PostgresCluster{}
-	if err := c.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, pg); client.IgnoreNotFound(err) != nil {
-		if client.IgnoreNotFound(err) != nil {
-			return false, fmt.Errorf("failed to get PostgreSQL cluster: %w", err)
-		}
-		// If the PG cluster is not found, we assume it's not resizing.
-		return false, nil
-	}
-
+func isPVCResizing(ctx context.Context, c client.Client, pg *pgv2.PerconaPGCluster) (bool, error) {
 	isResizing := meta.IsStatusConditionTrue(pg.Status.Conditions, crunchyv1beta1.PersistentVolumeResizing)
 	if !isResizing {
 		return false, nil
@@ -220,7 +210,7 @@ func isPVCResizing(ctx context.Context, c client.Client, name, namespace string)
 	// reporting a false positive.
 	// See: https://perconadev.atlassian.net/browse/K8SPG-747
 	// TODO: Remove this once K8SPG-747 is fixed.
-	return verifyPVCResizingStatus(ctx, c, name, namespace)
+	return verifyPVCResizingStatus(ctx, c, pg.GetName(), pg.GetNamespace())
 }
 
 func verifyPVCResizingStatus(ctx context.Context, c client.Client, name, namespace string) (bool, error) {

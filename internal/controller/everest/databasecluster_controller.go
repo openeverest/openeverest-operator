@@ -27,7 +27,6 @@ import (
 	"github.com/AlekSi/pointer"
 	"github.com/go-logr/logr"
 	pgv2 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/pgv2.percona.com/v2"
-	crunchyv1beta1 "github.com/percona/percona-postgresql-operator/v2/pkg/apis/postgres-operator.crunchydata.com/v1beta1"
 	psmdbv1 "github.com/percona/percona-server-mongodb-operator/pkg/apis/psmdb/v1"
 	pxcv1 "github.com/percona/percona-xtradb-cluster-operator/pkg/apis/pxc/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -1077,14 +1076,6 @@ func (r *DatabaseClusterReconciler) ReconcileWatchers(ctx context.Context) error
 			sources = append(sources, newPXCRestoreWatchSource(r.Cache))
 		}
 
-		// Since PerconaPGCluster does not expose any info about volume resizing,
-		// we need to directly watch the PostgresCluster objects to track the status.
-		// See: https://perconadev.atlassian.net/browse/K8SPG-748
-		// TODO: Remove this once K8SPG-748 is addressed.
-		if dbEngineType == everestv1alpha1.DatabaseEnginePostgresql {
-			sources = append(sources, newCrunchyWatchSource(r.Cache))
-		}
-
 		if err := r.controller.addWatchers(string(dbEngineType), sources...); err != nil {
 			return err
 		}
@@ -1144,23 +1135,6 @@ func newPXCRestoreWatchSource(cache cache.Cache) source.Source { //nolint:iretur
 			}
 		}),
 		predicate.ResourceVersionChangedPredicate{},
-		common.DefaultNamespaceFilter,
-	)
-}
-
-func newCrunchyWatchSource(cache cache.Cache) source.Source { //nolint:ireturn
-	return source.TypedKind[client.Object](cache, &crunchyv1beta1.PostgresCluster{},
-		&handler.EnqueueRequestForObject{},
-		// We are watching PostgresCluster objects since PerconaPGCluster lacks status
-		// info about volume resizing. So we will attach an event filter to only trigger
-		// reconciliations when the volume is being resized.
-		predicate.NewPredicateFuncs(func(obj client.Object) bool {
-			pgc, ok := obj.(*crunchyv1beta1.PostgresCluster)
-			if !ok {
-				return false
-			}
-			return meta.IsStatusConditionTrue(pgc.Status.Conditions, crunchyv1beta1.PersistentVolumeResizing)
-		}),
 		common.DefaultNamespaceFilter,
 	)
 }
