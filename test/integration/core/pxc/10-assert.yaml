@@ -194,7 +194,8 @@ spec:
       = 1\nwsrep_sync_wait = 3\nwsrep_trx_fragment_size = 1048576\nwsrep_trx_fragment_unit
       = bytes\nwsrep-provider-options = evs.delayed_keep_period=PT545S;evs.inactive_timeout=PT90S;gmcast.peer_timeout=PT11S;gmcast.time_wait=PT13S;pc.linger=PT45S;evs.delay_margin=PT22S;evs.suspect_timeout=PT45S;gcs.fc_limit=96;gcs.max_packet_size=98304;evs.send_window=768;evs.user_send_window=768;evs.join_retrans_period=PT3S;evs.inactive_check_period=PT3S;evs.stats_report_period=PT1M;evs.max_install_timeouts=3;pc.announce_timeout=PT45S;pc.recovery=true;gcache.size=477560113;gcache.recover=yes;\n
       \   "
-    expose: {}
+    expose:
+      type: ClusterIP
     lifecycle: {}
     livenessProbes:
       timeoutSeconds: 450
@@ -209,7 +210,6 @@ spec:
       requests:
         cpu: "1"
         memory: 2G
-    serviceType: ClusterIP
     sidecarResources: {}
     size: 3
     volumeSpec:
