@@ -29,4 +29,4 @@ sleep 10
 kubectl delete apiservice v1.packages.operators.coreos.com --ignore-not-found=true || true
 kubectl get crd -o name | grep .coreos.com$ | xargs --no-run-if-empty kubectl delete || true
 kubectl get crd -o name | grep .percona.com$ | xargs --no-run-if-empty kubectl delete || true
-kubectl delete crd postgresclusters.postgres-operator.crunchydata.com --ignore-not-found=true || true
+kubectl delete crd postgresclusters.upstream.pgv2.percona.com --ignore-not-found=true || true
