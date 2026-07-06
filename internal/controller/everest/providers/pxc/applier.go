@@ -534,7 +534,6 @@ func defaultSpec() pxcv1.PerconaXtraDBClusterSpec {
 		},
 		PXC: &pxcv1.PXCSpec{
 			PodSpec: &pxcv1.PodSpec{
-				ServiceType: corev1.ServiceTypeClusterIP,
 				PodDisruptionBudget: &pxcv1.PodDisruptionBudgetSpec{
 					MaxUnavailable: &maxUnavailable,
 				},
@@ -548,6 +547,9 @@ func defaultSpec() pxcv1.PerconaXtraDBClusterSpec {
 						corev1.ResourceCPU:    resource.MustParse("600m"),
 					},
 				},
+			},
+			Expose: pxcv1.ServiceExpose{
+				Type: corev1.ServiceTypeClusterIP,
 			},
 		},
 		PMM: &pxcv1.PMMSpec{},
