@@ -35,6 +35,74 @@ import (
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
 )
 
+func TestApplyResourceRequirements(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		dst          corev1.ResourceRequirements
+		src          corev1.ResourceRequirements
+		wantLimits   corev1.ResourceList
+		wantRequests corev1.ResourceList
+	}{
+		{
+			name: "src overrides matching keys and preserves the rest",
+			dst: corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("600m"), corev1.ResourceMemory: resource.MustParse("1G")},
+				Requests: corev1.ResourceList{},
+			},
+			src: corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2")},
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")},
+			},
+			wantLimits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("1G")},
+			wantRequests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")},
+		},
+		{
+			name: "nil dst maps are initialized as needed",
+			dst:  corev1.ResourceRequirements{},
+			src: corev1.ResourceRequirements{
+				Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+				Requests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+			},
+			wantLimits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("2Gi")},
+		},
+		{
+			name: "empty src leaves dst untouched",
+			dst: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("600m")},
+			},
+			src:          corev1.ResourceRequirements{},
+			wantLimits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("600m")},
+			wantRequests: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dst := tc.dst
+			ApplyResourceRequirements(&dst, tc.src)
+			assert.True(t, resourceListsEqual(dst.Limits, tc.wantLimits), "limits = %v, want %v", dst.Limits, tc.wantLimits)
+			assert.True(t, resourceListsEqual(dst.Requests, tc.wantRequests), "requests = %v, want %v", dst.Requests, tc.wantRequests)
+		})
+	}
+}
+
+func resourceListsEqual(a, b corev1.ResourceList) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		other, ok := b[k]
+		if !ok || v.Cmp(other) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func TestGetOperatorVersion(t *testing.T) {
 	t.Parallel()
 	deployment := &appsv1.Deployment{

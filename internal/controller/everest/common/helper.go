@@ -1179,6 +1179,24 @@ func MergeResources(highPriorityResources, lowPriorityResources corev1.ResourceR
 	return mergedResources
 }
 
+// ApplyResourceRequirements copies the limits and requests from src into dst,
+// overriding any existing entry for the same resource name and preserving dst
+// entries that src does not specify. Nil maps in dst are initialized as needed.
+func ApplyResourceRequirements(dst *corev1.ResourceRequirements, src corev1.ResourceRequirements) {
+	for name, qty := range src.Limits {
+		if dst.Limits == nil {
+			dst.Limits = corev1.ResourceList{}
+		}
+		dst.Limits[name] = qty
+	}
+	for name, qty := range src.Requests {
+		if dst.Requests == nil {
+			dst.Requests = corev1.ResourceList{}
+		}
+		dst.Requests[name] = qty
+	}
+}
+
 // GetSplitHorizonDNSConfigNameFromDB returns the SplitHorizonDNSConfigName from the given DatabaseCluster.
 func GetSplitHorizonDNSConfigNameFromDB(db *everestv1alpha1.DatabaseCluster) string {
 	return pointer.Get(pointer.Get(db.Spec.EngineFeatures).PSMDB).SplitHorizonDNSConfigName
