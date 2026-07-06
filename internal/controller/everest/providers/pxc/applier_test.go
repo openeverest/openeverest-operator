@@ -40,6 +40,64 @@ import (
 	"github.com/percona/everest-operator/internal/controller/everest/providers"
 )
 
+func TestApplyEngineResources(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		res          everestv1alpha1.Resources
+		wantLimits   corev1.ResourceList
+		wantRequests corev1.ResourceList
+	}{
+		{
+			name:         "legacy fields mirror requests onto limits",
+			res:          everestv1alpha1.Resources{CPU: resource.MustParse("2"), Memory: resource.MustParse("4Gi")},
+			wantLimits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+		},
+		{
+			name: "explicit limits with partial requests leave the unspecified request unset",
+			res: everestv1alpha1.Resources{
+				Limits:   &everestv1alpha1.ResourceSpec{CPU: resource.MustParse("5"), Memory: resource.MustParse("4Gi")},
+				Requests: &everestv1alpha1.ResourceSpec{CPU: resource.MustParse("3")},
+			},
+			wantLimits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("5"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("3")},
+		},
+		{
+			name: "explicit limits without requests leave all requests unset",
+			res: everestv1alpha1.Resources{
+				Limits: &everestv1alpha1.ResourceSpec{CPU: resource.MustParse("5"), Memory: resource.MustParse("4Gi")},
+			},
+			wantLimits:   corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("5"), corev1.ResourceMemory: resource.MustParse("4Gi")},
+			wantRequests: corev1.ResourceList{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			dst := defaultSpec().PXC.Resources
+			applyEngineResources(&dst, tc.res)
+			assert.True(t, resourceListsEqual(dst.Limits, tc.wantLimits), "limits = %v, want %v", dst.Limits, tc.wantLimits)
+			assert.True(t, resourceListsEqual(dst.Requests, tc.wantRequests), "requests = %v, want %v", dst.Requests, tc.wantRequests)
+		})
+	}
+}
+
+func resourceListsEqual(a, b corev1.ResourceList) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		other, ok := b[k]
+		if !ok || v.Cmp(other) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func TestAddBackupStorages(t *testing.T) {
 	t.Parallel()
 	ns := "some_namespace"

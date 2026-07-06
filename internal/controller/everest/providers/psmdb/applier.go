@@ -234,12 +234,7 @@ func (p *applier) configureReplSetSpec(spec *psmdbv1.ReplsetSpec, name string) e
 		return fmt.Errorf("failed to configure replset storage: %w", err)
 	}
 
-	if !dbEngine.Resources.CPU.IsZero() {
-		spec.MultiAZ.Resources.Limits[corev1.ResourceCPU] = dbEngine.Resources.CPU
-	}
-	if !dbEngine.Resources.Memory.IsZero() {
-		spec.MultiAZ.Resources.Limits[corev1.ResourceMemory] = dbEngine.Resources.Memory
-	}
+	common.ApplyResourceRequirements(&spec.Resources, dbEngine.Resources.ToResourceRequirements())
 	return nil
 }
 
@@ -278,12 +273,7 @@ func (p *applier) Proxy() error {
 	}
 	psmdb.Spec.Sharding.Mongos.Size = size
 
-	if !database.Spec.Proxy.Resources.CPU.IsZero() {
-		psmdb.Spec.Sharding.Mongos.Resources.Limits[corev1.ResourceCPU] = database.Spec.Proxy.Resources.CPU
-	}
-	if !database.Spec.Proxy.Resources.Memory.IsZero() {
-		psmdb.Spec.Sharding.Mongos.Resources.Limits[corev1.ResourceMemory] = database.Spec.Proxy.Resources.Memory
-	}
+	common.ApplyResourceRequirements(&psmdb.Spec.Sharding.Mongos.Resources, database.Spec.Proxy.Resources.ToResourceRequirements())
 	psmdb.Spec.Sharding.Mongos.Configuration = psmdbv1.MongoConfiguration(database.Spec.Proxy.Config)
 	err := p.exposeShardedCluster(&psmdb.Spec.Sharding.Mongos.Expose)
 	if err != nil {
