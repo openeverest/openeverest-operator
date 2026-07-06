@@ -304,14 +304,7 @@ func (p *applier) Engine() error {
 		return err
 	}
 
-	if !p.DB.Spec.Engine.Resources.CPU.IsZero() {
-		pxc.Spec.PXC.PodSpec.Resources.Limits[corev1.ResourceCPU] = p.DB.Spec.Engine.Resources.CPU
-		pxc.Spec.PXC.PodSpec.Resources.Requests[corev1.ResourceCPU] = p.DB.Spec.Engine.Resources.CPU
-	}
-	if !p.DB.Spec.Engine.Resources.Memory.IsZero() {
-		pxc.Spec.PXC.PodSpec.Resources.Limits[corev1.ResourceMemory] = p.DB.Spec.Engine.Resources.Memory
-		pxc.Spec.PXC.PodSpec.Resources.Requests[corev1.ResourceMemory] = p.DB.Spec.Engine.Resources.Memory
-	}
+	applyEngineResources(&pxc.Spec.PXC.Resources, p.DB.Spec.Engine.Resources)
 	hasDBSpecChanged := func() bool {
 		return p.DB.Status.ObservedGeneration > 0 && p.DB.Status.ObservedGeneration != p.DB.Generation
 	}
@@ -502,6 +495,35 @@ func (p *applier) PodSchedulingPolicy() error {
 	return nil
 }
 
+// legacyMirroredResources translates res into Kubernetes resource requirements,
+// reproducing PXC's historical behavior of setting the requests equal to the
+// limits when the user relies solely on the deprecated cpu/memory fields. When
+// the user opts into the explicit Limits/Requests fields, their intent is
+// respected exactly and no mirroring occurs.
+func legacyMirroredResources(res everestv1alpha1.Resources) corev1.ResourceRequirements {
+	reqs := res.ToResourceRequirements()
+	if res.UsesLegacyResourceFields() {
+		for name, qty := range reqs.Limits {
+			reqs.Requests[name] = qty
+		}
+	}
+	return reqs
+}
+
+// applyEngineResources sets the PXC engine pod resources from res onto dst,
+// which starts from the engine defaults (whose requests are seeded equal to the
+// limits). When the user opts into the explicit Limits/Requests fields, the
+// seeded request defaults are dropped first so that any request dimension the
+// user did not specify stays unset; Kubernetes then defaults that request to the
+// matching limit at pod admission. The deprecated-fields path keeps merging onto
+// the defaults to preserve historical behavior.
+func applyEngineResources(dst *corev1.ResourceRequirements, res everestv1alpha1.Resources) {
+	if !res.UsesLegacyResourceFields() {
+		dst.Requests = corev1.ResourceList{}
+	}
+	common.ApplyResourceRequirements(dst, legacyMirroredResources(res))
+}
+
 func defaultSpec() pxcv1.PerconaXtraDBClusterSpec {
 	maxUnavailable := intstr.FromInt(1)
 	return pxcv1.PerconaXtraDBClusterSpec{
@@ -658,35 +680,40 @@ func (p *applier) applyHAProxyCfg() error {
 	if common.IsNewDatabaseCluster(p.DB.Status.Status) {
 		haProxyImagePullPolicy = corev1.PullIfNotPresent
 	} else if p.currentPerconaXtraDBClusterSpec.HAProxy != nil {
-		haProxyImagePullPolicy = p.currentPerconaXtraDBClusterSpec.HAProxy.PodSpec.ImagePullPolicy
+		haProxyImagePullPolicy = p.currentPerconaXtraDBClusterSpec.HAProxy.ImagePullPolicy
 	}
-	haProxy.PodSpec.ImagePullPolicy = haProxyImagePullPolicy
+	haProxy.ImagePullPolicy = haProxyImagePullPolicy
 
 	shouldUpdateRequests := common.IsNewDatabaseCluster(p.DB.Status.Status)
-	if !p.DB.Spec.Proxy.Resources.CPU.IsZero() {
+	proxyResources := legacyMirroredResources(p.DB.Spec.Proxy.Resources)
+	if cpu, ok := proxyResources.Limits[corev1.ResourceCPU]; ok {
 		// When the limits are changed, triggers a pod restart, hence ensuring the requests are applied automatically (next block),
 		// as it depends on the cluster being in the 'init' state (shouldUpdateRequests).
-		haProxy.PodSpec.Resources.Limits[corev1.ResourceCPU] = p.DB.Spec.Proxy.Resources.CPU
+		haProxy.Resources.Limits[corev1.ResourceCPU] = cpu
+	}
+	if cpu, ok := proxyResources.Requests[corev1.ResourceCPU]; ok {
 		// Prior to 1.3.0, we did not set the requests, and this led to some issues.
-		// We now set the requests to the same value as the limits, however, we need to ensure that
+		// We now set the requests, however, we need to ensure that
 		// they're not automatically applied when Everest is upgraded, otherwise it leads to a proxy restart.
 		if shouldUpdateRequests ||
 			p.currentPerconaXtraDBClusterSpec.HAProxy.Resources.Requests.Cpu().
-				Equal(p.DB.Spec.Proxy.Resources.CPU) {
-			haProxy.PodSpec.Resources.Requests[corev1.ResourceCPU] = p.DB.Spec.Proxy.Resources.CPU
+				Equal(cpu) {
+			haProxy.Resources.Requests[corev1.ResourceCPU] = cpu
 		}
 	}
-	if !p.DB.Spec.Proxy.Resources.Memory.IsZero() {
+	if mem, ok := proxyResources.Limits[corev1.ResourceMemory]; ok {
 		// When the limits are changed, triggers a pod restart, hence ensuring the requests are applied automatically (next block),
 		// as it depends on the cluster being in the 'init' state (shouldUpdateRequests).
-		haProxy.PodSpec.Resources.Limits[corev1.ResourceMemory] = p.DB.Spec.Proxy.Resources.Memory
+		haProxy.Resources.Limits[corev1.ResourceMemory] = mem
+	}
+	if mem, ok := proxyResources.Requests[corev1.ResourceMemory]; ok {
 		// Prior to 1.3.0, we did not set the requests, and this led to some issues.
-		// We now set the requests to the same value as the limits, however, we need to ensure that
+		// We now set the requests, however, we need to ensure that
 		// they're not automatically applied when Everest is upgraded, otherwise it leads to a proxy restart.
 		if shouldUpdateRequests ||
 			p.currentPerconaXtraDBClusterSpec.HAProxy.Resources.Requests.Memory().
-				Equal(p.DB.Spec.Proxy.Resources.Memory) {
-			haProxy.PodSpec.Resources.Requests[corev1.ResourceMemory] = p.DB.Spec.Proxy.Resources.Memory
+				Equal(mem) {
+			haProxy.Resources.Requests[corev1.ResourceMemory] = mem
 		}
 	}
 
@@ -756,35 +783,40 @@ func (p *applier) applyProxySQLCfg() error {
 	proxySQL.Image = image
 
 	shouldUpdateRequests := common.IsNewDatabaseCluster(p.DB.Status.Status)
-	if !p.DB.Spec.Proxy.Resources.CPU.IsZero() {
+	proxyResources := legacyMirroredResources(p.DB.Spec.Proxy.Resources)
+	if cpu, ok := proxyResources.Limits[corev1.ResourceCPU]; ok {
 		// When the limits are changed, triggers a pod restart, hence ensuring the requests are applied automatically (next block),
 		// as it depends on the cluster being in the 'init' state (shouldUpdateRequests).
-		proxySQL.Resources.Limits[corev1.ResourceCPU] = p.DB.Spec.Proxy.Resources.CPU
+		proxySQL.Resources.Limits[corev1.ResourceCPU] = cpu
+	}
+	if cpu, ok := proxyResources.Requests[corev1.ResourceCPU]; ok {
 		// Prior to 1.3.0, we did not set the requests, and this led to some issues.
-		// We now set the requests to the same value as the limits, however, we need to ensure that
+		// We now set the requests, however, we need to ensure that
 		// they're not automatically applied when Everest is upgraded, otherwise it leads to a proxy restart.
 		if shouldUpdateRequests ||
 			p.currentPerconaXtraDBClusterSpec.ProxySQL.Resources.Requests.Cpu().
-				Equal(p.DB.Spec.Proxy.Resources.CPU) {
-			proxySQL.Resources.Requests[corev1.ResourceCPU] = p.DB.Spec.Proxy.Resources.CPU
+				Equal(cpu) {
+			proxySQL.Resources.Requests[corev1.ResourceCPU] = cpu
 		}
 	}
-	if !p.DB.Spec.Proxy.Resources.Memory.IsZero() {
+	if mem, ok := proxyResources.Limits[corev1.ResourceMemory]; ok {
 		// When the limits are changed, triggers a pod restart, hence ensuring the requests are applied automatically (next block),
 		// as it depends on the cluster being in the 'init' state (shouldUpdateRequests).
-		proxySQL.Resources.Limits[corev1.ResourceMemory] = p.DB.Spec.Proxy.Resources.Memory
+		proxySQL.Resources.Limits[corev1.ResourceMemory] = mem
+	}
+	if mem, ok := proxyResources.Requests[corev1.ResourceMemory]; ok {
 		// Prior to 1.3.0, we did not set the requests, and this led to some issues.
-		// We now set the requests to the same value as the limits, however, we need to ensure that
+		// We now set the requests, however, we need to ensure that
 		// they're not automatically applied when Everest is upgraded, otherwise it leads to a proxy restart.
 		if shouldUpdateRequests ||
 			p.currentPerconaXtraDBClusterSpec.ProxySQL.Resources.Requests.Memory().
-				Equal(p.DB.Spec.Proxy.Resources.Memory) {
-			proxySQL.Resources.Requests[corev1.ResourceMemory] = p.DB.Spec.Proxy.Resources.Memory
+				Equal(mem) {
+			proxySQL.Resources.Requests[corev1.ResourceMemory] = mem
 		}
 	}
-	p.PerconaXtraDBCluster.Spec.ProxySQL = proxySQL
+	p.Spec.ProxySQL = proxySQL
 
-	if err := configureProxySQLStorage(p.ctx, p.C, &p.PerconaXtraDBCluster.Spec, &p.currentPerconaXtraDBClusterSpec, p.DB); err != nil {
+	if err := configureProxySQLStorage(p.ctx, p.C, &p.Spec, &p.currentPerconaXtraDBClusterSpec, p.DB); err != nil {
 		return err
 	}
 
