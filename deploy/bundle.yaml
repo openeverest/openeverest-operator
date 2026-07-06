@@ -684,16 +684,67 @@ spec:
                         anyOf:
                         - type: integer
                         - type: string
-                        description: CPU is the CPU resource requirements
+                        description: |-
+                          CPU is the CPU resource requirements.
+
+                          Deprecated: use Limits.CPU instead. When Limits is unset, this value is
+                          used as the CPU limit (and, for engines that historically did so, as the
+                          CPU request as well). It is ignored when Limits is set.
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
+                      limits:
+                        description: |-
+                          Limits are the resource limits applied to each replica.
+                          If set, it takes precedence over the deprecated CPU and Memory fields.
+                        properties:
+                          cpu:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: CPU is the CPU resource requirements
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          memory:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Memory is the memory resource requirements
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                        type: object
                       memory:
                         anyOf:
                         - type: integer
                         - type: string
-                        description: Memory is the memory resource requirements
+                        description: |-
+                          Memory is the memory resource requirements.
+
+                          Deprecated: use Limits.Memory instead. When Limits is unset, this value is
+                          used as the memory limit (and, for engines that historically did so, as
+                          the memory request as well). It is ignored when Limits is set.
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
+                      requests:
+                        description: |-
+                          Requests are the resource requests applied to each replica.
+                          If unset, the request behavior is engine-specific: some engines mirror
+                          the effective limits while others leave requests unset.
+                        properties:
+                          cpu:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: CPU is the CPU resource requirements
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          memory:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Memory is the memory resource requirements
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                        type: object
                     type: object
                   storage:
                     description: Storage is the engine storage configuration
@@ -882,16 +933,67 @@ spec:
                         anyOf:
                         - type: integer
                         - type: string
-                        description: CPU is the CPU resource requirements
+                        description: |-
+                          CPU is the CPU resource requirements.
+
+                          Deprecated: use Limits.CPU instead. When Limits is unset, this value is
+                          used as the CPU limit (and, for engines that historically did so, as the
+                          CPU request as well). It is ignored when Limits is set.
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
+                      limits:
+                        description: |-
+                          Limits are the resource limits applied to each replica.
+                          If set, it takes precedence over the deprecated CPU and Memory fields.
+                        properties:
+                          cpu:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: CPU is the CPU resource requirements
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          memory:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Memory is the memory resource requirements
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                        type: object
                       memory:
                         anyOf:
                         - type: integer
                         - type: string
-                        description: Memory is the memory resource requirements
+                        description: |-
+                          Memory is the memory resource requirements.
+
+                          Deprecated: use Limits.Memory instead. When Limits is unset, this value is
+                          used as the memory limit (and, for engines that historically did so, as
+                          the memory request as well). It is ignored when Limits is set.
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                         x-kubernetes-int-or-string: true
+                      requests:
+                        description: |-
+                          Requests are the resource requests applied to each replica.
+                          If unset, the request behavior is engine-specific: some engines mirror
+                          the effective limits while others leave requests unset.
+                        properties:
+                          cpu:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: CPU is the CPU resource requirements
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          memory:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Memory is the memory resource requirements
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                        type: object
                     type: object
                   storage:
                     description: Storage is the proxy storage configuration
