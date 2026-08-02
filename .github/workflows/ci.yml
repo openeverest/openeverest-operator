@@ -9,6 +9,9 @@ env:
   GONOSUMDB: 'github.com/percona'
   GOPRIVATE: 'github.com/percona'
 
+permissions:
+  contents: read
+
 jobs:
   golang-build:
     name: Build Go binary
