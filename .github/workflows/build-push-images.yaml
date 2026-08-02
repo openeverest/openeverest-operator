@@ -44,7 +44,7 @@ jobs:
 
       - name: Docker operator meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             ${{ env.IMAGE_PREFIX }}/${{ env.EVEREST_OPERATOR_DEV_IMAGE_NAME }}
@@ -53,7 +53,7 @@ jobs:
 
       - name: Docker bundle meta
         id: bundle_meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: |
             ${{ env.IMAGE_PREFIX }}/${{ env.EVEREST_OPERATOR_BUNDLE_DEV_IMAGE_NAME }}
