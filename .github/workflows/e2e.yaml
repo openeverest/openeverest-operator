@@ -81,10 +81,10 @@ jobs:
       KUBECONFIG: "/home/runner/.kube/config"
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Go release
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -106,7 +106,7 @@ jobs:
           chmod +x "${TOOLS_PATH}"/eksctl
 
       - name: Configure AWS
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
         with:
           aws-access-key-id: ${{ secrets.EVEREST_EKS_E2E_IAM_USER_ACCESS_KEY }}
           aws-secret-access-key: ${{ secrets.EVEREST_EKS_E2E_IAM_USER_ACCESS_KEY_SECRET }}
