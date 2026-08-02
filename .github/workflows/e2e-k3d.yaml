@@ -13,6 +13,9 @@ env:
   GONOSUMDB: 'github.com/percona'
   GOPRIVATE: 'github.com/percona'
 
+permissions:
+  contents: read
+
 jobs:
   e2e-k3d-test:
     name: test
