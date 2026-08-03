@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	everestv1alpha1 "github.com/percona/everest-operator/api/everest/v1alpha1"
-	"github.com/percona/everest-operator/utils"
 )
 
 // SetupDataImportJobWebhookWithManager sets up the mutation webhook for DataImportJob.
@@ -115,19 +114,14 @@ func mutateS3CredentialsSecret(
 	secret *corev1.Secret,
 	accessKeyID, secretAccessKey string,
 ) error {
-	switch {
-	case utils.IsBase64Encoded(accessKeyID) && utils.IsBase64Encoded(secretAccessKey):
-		secret.Data = map[string][]byte{
-			accessKeyIDSecretKey:     []byte(accessKeyID),
-			secretAccessKeySecretKey: []byte(secretAccessKey),
-		}
-	case !utils.IsBase64Encoded(accessKeyID) && !utils.IsBase64Encoded(secretAccessKey):
-		secret.StringData = map[string]string{
-			accessKeyIDSecretKey:     accessKeyID,
-			secretAccessKeySecretKey: secretAccessKey,
-		}
-	default:
-		return errors.New("both accessKeyID and secretAccessKey must be either base64 encoded or not")
+	// Always treat user-provided credentials as plain strings and write to
+	// StringData; the API server will encode them when persisting. The
+	// previous base64 heuristic produced false positives for plain-text
+	// AWS keys whose length happened to be a multiple of 4, corrupting the
+	// stored secret. See openeverest/openeverest#2245.
+	secret.StringData = map[string]string{
+		accessKeyIDSecretKey:     accessKeyID,
+		secretAccessKeySecretKey: secretAccessKey,
 	}
 	return nil
 }
