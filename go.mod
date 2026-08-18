@@ -420,4 +420,7 @@ tool (
 	mvdan.cc/gofumpt
 )
 
+// PSMDB v1.23.0 pulls in cert-manager v1.21.0, which removed the deprecated
+// cmmeta.ObjectReference type still used by PXC v1.20.0 (built against cert-manager v1.20.2).
+// Pin cert-manager to v1.20.2 until PXC is updated to a version compatible with newer cert-manager.
 replace github.com/cert-manager/cert-manager => github.com/cert-manager/cert-manager v1.20.2
