@@ -351,7 +351,8 @@ func pgClusterDataResourcesDeleted(
 	namespace, clusterName string,
 ) (bool, error) {
 	pods := &corev1.PodList{}
-	if err := k8sClient.List(ctx, pods,
+	if err := k8sClient.List(
+		ctx, pods,
 		client.InNamespace(namespace),
 		client.MatchingLabels{crunchyClusterLabelKey: clusterName},
 	); err != nil {
@@ -359,7 +360,8 @@ func pgClusterDataResourcesDeleted(
 	}
 
 	pvcs := &corev1.PersistentVolumeClaimList{}
-	if err := k8sClient.List(ctx, pvcs,
+	if err := k8sClient.List(
+		ctx, pvcs,
 		client.InNamespace(namespace),
 		client.MatchingLabels{crunchyClusterLabelKey: clusterName},
 	); err != nil {

@@ -177,7 +177,8 @@ func (v *DatabaseClusterBackupCustomValidator) ValidateDelete(ctx context.Contex
 		return nil, apierrors.NewForbidden(
 			everestv1alpha1.GroupVersion.WithResource("databaseclusterbackup").GroupResource(),
 			dbcb.GetName(),
-			errDeleteInUse)
+			errDeleteInUse,
+		)
 	}
 
 	return nil, nil
@@ -221,7 +222,8 @@ func (v *DatabaseClusterBackupCustomValidator) validatePGReposForBackup(ctx cont
 		v.Client,
 		consts.DBClusterBackupDBClusterNameField,
 		db.GetNamespace(),
-		db.GetName())
+		db.GetName(),
+	)
 	if err != nil {
 		return append(allErrs, field.Invalid(dbcbDBClusterNamePath, db.GetName(), err.Error()))
 	}

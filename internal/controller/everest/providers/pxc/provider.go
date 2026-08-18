@@ -69,7 +69,8 @@ func New(
 	err := client.Get(
 		ctx,
 		types.NamespacedName{Name: opts.DB.GetName(), Namespace: opts.DB.GetNamespace()},
-		pxc)
+		pxc,
+	)
 	if err != nil && !k8serrors.IsNotFound(err) {
 		return nil, err
 	}

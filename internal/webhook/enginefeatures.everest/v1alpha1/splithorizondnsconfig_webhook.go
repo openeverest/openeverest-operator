@@ -205,7 +205,8 @@ func (v *SplitHorizonDNSConfigCustomValidator) ValidateDelete(
 		return nil, apierrors.NewForbidden(
 			enginefeatureseverestv1alpha1.GroupVersion.WithResource("splithorizondnsconfig").GroupResource(),
 			shdc.GetName(),
-			errDeleteInUse)
+			errDeleteInUse,
+		)
 	}
 
 	return nil, nil
