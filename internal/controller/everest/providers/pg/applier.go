@@ -616,21 +616,18 @@ func (p *applier) handlePGDataSourceAzure(
 	backupStorage *everestv1alpha1.BackupStorage,
 	database *everestv1alpha1.DatabaseCluster,
 ) error {
-	c := p.C
-	ctx := p.ctx
 	pgBackRestSecretIni, err := ini.Load([]byte{})
 	if err != nil {
 		return errors.Join(err, errors.New("failed to initialize PGBackrest secret data"))
 	}
 
-	backupStorageSecret := &corev1.Secret{}
-	err = c.Get(ctx, types.NamespacedName{Name: backupStorage.Spec.CredentialsSecretName, Namespace: backupStorage.Namespace}, backupStorageSecret)
+	backupStorageSecret, err := p.getBackupStorageSecret(backupStorage)
 	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed to get backup storage secret %s", backupStorage.Spec.CredentialsSecretName))
+		return errors.Join(err, errors.New("failed to get backup storage secret"))
 	}
 
 	err = addBackupStorageCredentialsToPGBackrestSecretIni(
-		everestv1alpha1.BackupStorageTypeAzure, pgBackRestSecretIni, repoName, backupStorageSecret,
+		everestv1alpha1.BackupStorageTypeAzure, pgBackRestSecretIni, repoName, backupStorageSecret, backupStorage.Spec.WorkloadIdentityConfig,
 	)
 	if err != nil {
 		return errors.Join(err, errors.New("failed to add data source storage credentials to PGBackrest secret data"))
@@ -679,20 +676,17 @@ func (p *applier) handlePGDataSourceS3(
 	backupStorage *everestv1alpha1.BackupStorage,
 	database *everestv1alpha1.DatabaseCluster,
 ) error {
-	c := p.C
-	ctx := p.ctx
 	pgBackRestSecretIni, err := ini.Load([]byte{})
 	if err != nil {
 		return errors.Join(err, errors.New("failed to initialize PGBackrest secret data"))
 	}
 
-	backupStorageSecret := &corev1.Secret{}
-	err = c.Get(ctx, types.NamespacedName{Name: backupStorage.Spec.CredentialsSecretName, Namespace: backupStorage.Namespace}, backupStorageSecret)
+	backupStorageSecret, err := p.getBackupStorageSecret(backupStorage)
 	if err != nil {
-		return errors.Join(err, fmt.Errorf("failed to get backup storage secret %s", backupStorage.Spec.CredentialsSecretName))
+		return errors.Join(err, errors.New("failed to get backup storage secret"))
 	}
 
-	err = addBackupStorageCredentialsToPGBackrestSecretIni(everestv1alpha1.BackupStorageTypeS3, pgBackRestSecretIni, repoName, backupStorageSecret)
+	err = addBackupStorageCredentialsToPGBackrestSecretIni(everestv1alpha1.BackupStorageTypeS3, pgBackRestSecretIni, repoName, backupStorageSecret, backupStorage.Spec.WorkloadIdentityConfig)
 	if err != nil {
 		return errors.Join(err, errors.New("failed to add data source storage credentials to PGBackrest secret data"))
 	}
@@ -846,46 +840,83 @@ func globalDatasourceDestination(dest string, db *everestv1alpha1.DatabaseCluste
 	return dest
 }
 
+// getBackupStorageSecret retrieves the credentials secret for a backup storage,
+// returning nil if using workload identity.
+func (p *applier) getBackupStorageSecret(backupStorage *everestv1alpha1.BackupStorage) (*corev1.Secret, error) {
+	if backupStorage.Spec.WorkloadIdentityConfig != nil {
+		return nil, nil
+	}
+
+	backupStorageSecret := &corev1.Secret{}
+	err := p.C.Get(p.ctx, types.NamespacedName{
+		Name:      backupStorage.Spec.CredentialsSecretName,
+		Namespace: backupStorage.Namespace,
+	}, backupStorageSecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get backup storage secret '%s': %w",
+			backupStorage.Spec.CredentialsSecretName, err)
+	}
+	return backupStorageSecret, nil
+}
+
 // Adds the backup storage credentials to the PGBackrest secret data.
 func addBackupStorageCredentialsToPGBackrestSecretIni(
 	storageType everestv1alpha1.BackupStorageType,
 	cfg *ini.File,
 	repoName string,
 	secret *corev1.Secret,
+	workloadIdentityConfig *everestv1alpha1.WorkloadIdentityConfig,
 ) error {
 	switch storageType {
 	case everestv1alpha1.BackupStorageTypeS3:
-		_, err := cfg.Section("global").NewKey(
-			repoName+"-s3-key",
-			string(secret.Data["AWS_ACCESS_KEY_ID"]),
-		)
-		if err != nil {
-			return err
-		}
+		// Only set credentials if workload identity is not configured
+		// When using workload identity (IRSA), credentials are omitted entirely
+		if workloadIdentityConfig == nil || workloadIdentityConfig.AWS == nil {
+			if secret == nil {
+				return fmt.Errorf("either workload identity or credentials secret must be provided for S3 storage")
+			}
+			keyValue := string(secret.Data["AWS_ACCESS_KEY_ID"])
+			keySecretValue := string(secret.Data["AWS_SECRET_ACCESS_KEY"])
 
-		_, err = cfg.Section("global").NewKey(
-			repoName+"-s3-key-secret",
-			string(secret.Data["AWS_SECRET_ACCESS_KEY"]),
-		)
-		if err != nil {
-			return err
+			_, err := cfg.Section("global").NewKey(repoName+"-s3-key", keyValue)
+			if err != nil {
+				return err
+			}
+
+			_, err = cfg.Section("global").NewKey(repoName+"-s3-key-secret", keySecretValue)
+			if err != nil {
+				return err
+			}
 		}
+		// If workload identity is configured, don't set repo-s3-key or repo-s3-key-secret
+		// pgBackRest will use AWS_ROLE_ARN and AWS_WEB_IDENTITY_TOKEN_FILE environment variables
+
 	case everestv1alpha1.BackupStorageTypeAzure:
-		_, err := cfg.Section("global").NewKey(
-			repoName+"-azure-account",
-			string(secret.Data["AZURE_STORAGE_ACCOUNT_NAME"]),
-		)
+		var accountValue, keyValue string
+
+		// Only use static credentials if workload identity is not configured
+		if workloadIdentityConfig == nil || workloadIdentityConfig.Azure == nil {
+			if secret == nil {
+				return fmt.Errorf("either workload identity or credentials secret must be provided for Azure storage")
+			}
+			accountValue = string(secret.Data["AZURE_STORAGE_ACCOUNT_NAME"])
+			keyValue = string(secret.Data["AZURE_STORAGE_ACCOUNT_KEY"])
+		} else {
+			// For workload identity, use the storage account name from the config
+			accountValue = workloadIdentityConfig.Azure.StorageAccountName
+			keyValue = "auto" // Use managed identity for authentication
+		}
+
+		_, err := cfg.Section("global").NewKey(repoName+"-azure-account", accountValue)
 		if err != nil {
 			return err
 		}
 
-		_, err = cfg.Section("global").NewKey(
-			repoName+"-azure-key",
-			string(secret.Data["AZURE_STORAGE_ACCOUNT_KEY"]),
-		)
+		_, err = cfg.Section("global").NewKey(repoName+"-azure-key", keyValue)
 		if err != nil {
 			return err
 		}
+
 	default:
 		return fmt.Errorf("backup storage type %s not supported", storageType)
 	}
@@ -976,13 +1007,9 @@ func (p *applier) addBackupStoragesByRestores(
 			return err
 		}
 
-		// Get the Secret used by the BackupStorage.
-		backupStorageSecret := &corev1.Secret{}
-		key := types.NamespacedName{Name: backupStorage.Spec.CredentialsSecretName, Namespace: backupStorage.GetNamespace()}
-		err = c.Get(ctx, key, backupStorageSecret)
+		backupStorageSecret, err := p.getBackupStorageSecret(backupStorage)
 		if err != nil {
-			return errors.Join(err,
-				fmt.Errorf("failed to get backup storage secret %s", backupStorage.Spec.CredentialsSecretName))
+			return err
 		}
 
 		backupStorages[backupStorage.Name] = *backupStorage
@@ -1032,10 +1059,9 @@ func (p *applier) addBackupStoragesBySchedules(
 			return err
 		}
 
-		backupStorageSecret := &corev1.Secret{}
-		err = c.Get(ctx, types.NamespacedName{Name: backupStorage.Spec.CredentialsSecretName, Namespace: backupStorage.Namespace}, backupStorageSecret)
+		backupStorageSecret, err := p.getBackupStorageSecret(backupStorage)
 		if err != nil {
-			return errors.Join(err, fmt.Errorf("failed to get backup storage secret %s", backupStorage.Spec.CredentialsSecretName))
+			return err
 		}
 
 		backupStorages[backupStorage.Name] = *backupStorage
@@ -1063,16 +1089,58 @@ func (p *applier) addBackupStoragesByOnDemandBackups(
 			return err
 		}
 
-		backupStorageSecret := &corev1.Secret{}
-		err = c.Get(ctx, types.NamespacedName{Name: backupStorage.Spec.CredentialsSecretName, Namespace: backupStorage.Namespace}, backupStorageSecret)
+		backupStorageSecret, err := p.getBackupStorageSecret(backupStorage)
 		if err != nil {
-			return fmt.Errorf("failed to get backup storage secret '%s': %w", backupStorage.Spec.CredentialsSecretName, err)
+			return err
 		}
 
 		backupStorages[backupStorage.Name] = *backupStorage
 		backupStoragesSecrets[backupStorage.Name] = backupStorageSecret
 	}
 	return nil
+}
+
+// buildWorkloadIdentityMetadata builds metadata annotations and labels for workload identity
+// by collecting configuration from all backup storages in use.
+func buildWorkloadIdentityMetadata(
+	backupSchedules []everestv1alpha1.BackupSchedule,
+	backupStorages map[string]everestv1alpha1.BackupStorage,
+) *crunchyv1beta1.Metadata {
+	annotations := make(map[string]string)
+	labels := make(map[string]string)
+
+	// Collect workload identity config from all backup storages in use
+	for _, schedule := range backupSchedules {
+		if !schedule.Enabled {
+			continue
+		}
+
+		backupStorage, ok := backupStorages[schedule.BackupStorageName]
+		if !ok {
+			continue
+		}
+
+		if backupStorage.Spec.WorkloadIdentityConfig != nil {
+			if backupStorage.Spec.WorkloadIdentityConfig.AWS != nil {
+				// AWS IRSA annotation
+				annotations["eks.amazonaws.com/role-arn"] = backupStorage.Spec.WorkloadIdentityConfig.AWS.RoleARN
+			}
+			if backupStorage.Spec.WorkloadIdentityConfig.Azure != nil {
+				// Azure Workload Identity annotation and label
+				annotations["azure.workload.identity/client-id"] = backupStorage.Spec.WorkloadIdentityConfig.Azure.ClientID
+				labels["azure.workload.identity/use"] = "true"
+			}
+		}
+	}
+
+	if len(annotations) == 0 && len(labels) == 0 {
+		return nil
+	}
+
+	return &crunchyv1beta1.Metadata{
+		Annotations: annotations,
+		Labels:      labels,
+	}
 }
 
 func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
@@ -1186,6 +1254,13 @@ func (p *applier) reconcilePGBackupsSpec() (pgv2.Backups, error) {
 
 	newBackups.PGBackRest.Repos = pgBackrestRepos
 	newBackups.PGBackRest.Global = pgBackrestGlobal
+
+	// Set workload identity metadata for pgBackRest
+	metadata := buildWorkloadIdentityMetadata(backupSchedules, backupStorages)
+	if metadata != nil {
+		newBackups.PGBackRest.Metadata = metadata
+	}
+
 	return newBackups, nil
 }
 
