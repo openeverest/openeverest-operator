@@ -46,7 +46,6 @@ spec:
     config: |
      operationProfiling:
         mode: slowOp
-    userSecretsName: everest-secrets-test-psmdb-cluster
     replicas: 3
     storage:
       size: 1G
