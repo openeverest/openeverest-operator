@@ -219,10 +219,11 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 				db.Spec.Engine.UserSecretsName = dbcTestUserSecretName
 			},
 			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
-				errInvalidField(dbcUserSecretsNamePath, dbcTestUserSecretName, apierrors.NewNotFound(apiSchema.GroupResource{
-					Group:    corev1.SchemeGroupVersion.Group,
-					Resource: "secrets",
-				},
+				errInvalidField(dbcUserSecretsNamePath, dbcTestUserSecretName, apierrors.NewNotFound(
+					apiSchema.GroupResource{
+						Group:    corev1.SchemeGroupVersion.Group,
+						Resource: "secrets",
+					},
 					dbcTestUserSecretName,
 				).Error()),
 			}),
@@ -248,10 +249,11 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 				}
 			},
 			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
-				errInvalidField(dbcDataImportPath, "importer", apierrors.NewNotFound(apiSchema.GroupResource{
-					Group:    everestv1alpha1.GroupVersion.Group,
-					Resource: "dataimporters",
-				},
+				errInvalidField(dbcDataImportPath, "importer", apierrors.NewNotFound(
+					apiSchema.GroupResource{
+						Group:    everestv1alpha1.GroupVersion.Group,
+						Resource: "dataimporters",
+					},
 					"importer",
 				).Error()),
 			}),
@@ -317,10 +319,11 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePSMDB
 			},
 			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
-				errInvalidField(dbcProxyExposeLbcPath, "lbc-test", apierrors.NewNotFound(apiSchema.GroupResource{
-					Group:    everestv1alpha1.GroupVersion.Group,
-					Resource: "loadbalancerconfigs",
-				},
+				errInvalidField(dbcProxyExposeLbcPath, "lbc-test", apierrors.NewNotFound(
+					apiSchema.GroupResource{
+						Group:    everestv1alpha1.GroupVersion.Group,
+						Resource: "loadbalancerconfigs",
+					},
 					"lbc-test",
 				).Error()),
 			}),
@@ -388,10 +391,11 @@ func TestDatabaseClusterValidator_ValidateCreate(t *testing.T) { //nolint:mainti
 				db.Spec.Engine.Type = everestv1alpha1.DatabaseEnginePSMDB
 			},
 			wantError: apierrors.NewInvalid(dbClusterGroupKind, dbcTestDbName, field.ErrorList{
-				errInvalidField(dbcPsmdbShdcEngineFeaturePath, "shdc-test", apierrors.NewNotFound(apiSchema.GroupResource{
-					Group:    enginefeatureseverestv1alpha1.GroupVersion.Group,
-					Resource: "splithorizondnsconfigs",
-				},
+				errInvalidField(dbcPsmdbShdcEngineFeaturePath, "shdc-test", apierrors.NewNotFound(
+					apiSchema.GroupResource{
+						Group:    enginefeatureseverestv1alpha1.GroupVersion.Group,
+						Resource: "splithorizondnsconfigs",
+					},
 					"shdc-test",
 				).Error()),
 			}),

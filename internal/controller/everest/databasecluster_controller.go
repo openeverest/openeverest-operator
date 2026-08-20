@@ -798,7 +798,8 @@ func (r *DatabaseClusterReconciler) initWatchers(controller *builder.Builder, de
 
 			return requests
 		}),
-		builder.WithPredicates(predicate.GenerationChangedPredicate{},
+		builder.WithPredicates(
+			predicate.GenerationChangedPredicate{},
 			predicates.GetBackupStoragePredicate(),
 			defaultPredicate,
 		),
@@ -1119,7 +1120,8 @@ func (r *DatabaseClusterReconciler) deleteSecret(ctx context.Context, secretName
 }
 
 func newPXCRestoreWatchSource(cache cache.Cache) source.Source { //nolint:ireturn
-	return source.TypedKind[client.Object](cache, &pxcv1.PerconaXtraDBClusterRestore{},
+	return source.TypedKind[client.Object](
+		cache, &pxcv1.PerconaXtraDBClusterRestore{},
 		handler.EnqueueRequestsFromMapFunc(func(_ context.Context, obj client.Object) []reconcile.Request {
 			pxcRestore, ok := obj.(*pxcv1.PerconaXtraDBClusterRestore)
 			if !ok {

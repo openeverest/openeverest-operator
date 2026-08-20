@@ -15,7 +15,6 @@ spec:
     storage:
       size: 25Gi
     type: psmdb
-    userSecretsName: everest-secrets-test-psmdb-cluster
   proxy:
     expose:
       type: internal

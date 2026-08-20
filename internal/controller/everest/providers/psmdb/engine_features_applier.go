@@ -150,7 +150,8 @@ func (a *EngineFeaturesApplier) applySplitHorizonDNSConfig(ctx context.Context) 
 		psmdbSplitHorizonServerCertBytes, psmdbSplitHorizonServerPrivKeyBytes, err := issueSplitHorizonCertificate(
 			shdcCaSecret.Data["ca.crt"],
 			shdcCaSecret.Data["ca.key"],
-			psmdbSplitHorizonDomains)
+			psmdbSplitHorizonDomains,
+		)
 		if err != nil {
 			return fmt.Errorf("issue split-horizon server TLS certificate: %w", err)
 		}

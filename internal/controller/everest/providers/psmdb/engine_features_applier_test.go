@@ -139,10 +139,11 @@ func Test_engineFeaturesApplier_applySplitHorizonDNSConfig(t *testing.T) { //nol
 			},
 			psmdb:     &psmdbv1.PerconaServerMongoDB{},
 			wantPsmdb: &psmdbv1.PerconaServerMongoDB{},
-			wantErr: k8sError.NewNotFound(schema.GroupResource{
-				Group:    enginefeatureseverestv1alpha1.GroupVersion.Group,
-				Resource: "splithorizondnsconfigs",
-			},
+			wantErr: k8sError.NewNotFound(
+				schema.GroupResource{
+					Group:    enginefeatureseverestv1alpha1.GroupVersion.Group,
+					Resource: "splithorizondnsconfigs",
+				},
 				shdcName,
 			),
 		},

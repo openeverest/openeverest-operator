@@ -131,7 +131,8 @@ func TestGetOperatorVersion(t *testing.T) {
 		types.NamespacedName{
 			Namespace: "super-x",
 			Name:      "percona-xtradb-cluster-operator",
-		})
+		},
+	)
 	require.NoError(t, err)
 	assert.Equal(t, "1.12.0", version.String())
 	assert.NotEqual(t, "1.11.0", version.String())
@@ -142,7 +143,8 @@ func TestGetOperatorVersion(t *testing.T) {
 		types.NamespacedName{
 			Namespace: "non-existent",
 			Name:      "percona-xtradb-cluster-operator",
-		})
+		},
+	)
 	require.Error(t, err)
 }
 

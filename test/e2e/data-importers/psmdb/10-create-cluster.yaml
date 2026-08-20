@@ -47,7 +47,6 @@ spec:
     resources:
       cpu: "1"
       memory: 1G
-    userSecretsName: everest-secrets-test-psmdb-cluster
   proxy:
     type: mongos
     replicas: 3

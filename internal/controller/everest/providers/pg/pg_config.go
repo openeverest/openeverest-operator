@@ -163,7 +163,8 @@ func ParsePgBouncerConfig(config string) (crunchyv1beta1.PGBouncerConfiguration,
 			}
 		default:
 			return crunchyv1beta1.PGBouncerConfiguration{}, fmt.Errorf(
-				"unknown pgbouncer config section %q: expected one of [pgbouncer], [databases], [users]", name)
+				"unknown pgbouncer config section %q: expected one of [pgbouncer], [databases], [users]", name,
+			)
 		}
 	}
 

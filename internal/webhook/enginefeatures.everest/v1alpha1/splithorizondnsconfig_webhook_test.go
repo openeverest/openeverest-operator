@@ -717,7 +717,8 @@ func TestSplitHorizonDNSConfigCustomValidator_ValidateDelete(t *testing.T) {
 			wantErr: apierrors.NewForbidden(
 				enginefeatureseverestv1alpha1.GroupVersion.WithResource("splithorizondnsconfig").GroupResource(),
 				shdcName,
-				errDeleteInUse),
+				errDeleteInUse,
+			),
 		},
 		// SHDC not used by any DB Cluster
 		{
