@@ -48,7 +48,6 @@ spec:
     storage:
       size: 25Gi
     type: psmdb
-    userSecretsName: everest-secrets-test-psmdb-sharded-cluster
   sharding:
     enabled: true
     shards: 1
