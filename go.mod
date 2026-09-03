@@ -1,6 +1,6 @@
 module github.com/percona/everest-operator
 
-go 1.26.3
+go 1.26.4
 
 require (
 	github.com/AlekSi/pointer v1.2.0
@@ -62,9 +62,11 @@ require (
 	github.com/MirrexOne/unqueryvet v1.5.4 // indirect
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
-	github.com/VictoriaMetrics/VictoriaMetrics v1.116.0 // indirect
-	github.com/VictoriaMetrics/metrics v1.35.2 // indirect
-	github.com/VictoriaMetrics/metricsql v0.84.3 // indirect
+	github.com/VictoriaMetrics/VictoriaLogs v1.121.1-0.20260616132739-c901a1e31cb3 // indirect
+	github.com/VictoriaMetrics/VictoriaMetrics v1.145.1-0.20260616130439-5b31a047a5bf // indirect
+	github.com/VictoriaMetrics/easyproto v1.2.0 // indirect
+	github.com/VictoriaMetrics/metrics v1.44.0 // indirect
+	github.com/VictoriaMetrics/metricsql v0.87.1 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
 	github.com/alecthomas/go-check-sumtype v0.3.1 // indirect
 	github.com/alexkohler/nakedret/v2 v2.0.6 // indirect
