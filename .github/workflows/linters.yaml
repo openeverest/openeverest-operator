@@ -49,6 +49,9 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          # Full history so that golangci-lint can resolve the merge base.
+          fetch-depth: 0
 
       - name: Set up Go release
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
@@ -57,7 +60,7 @@ jobs:
           cache: true
 
       - name: Run golangci-lint
-        run: go tool golangci-lint run --config=./.golangci.yml --new-from-rev=$(git merge-base main HEAD) --fix --issues-exit-code=0 | go tool reviewdog -f=golangci-lint -reporter=github-pr-review
+        run: go tool golangci-lint run --config=./.golangci.yml --new-from-merge-base=origin/${{ github.base_ref }} --fix --issues-exit-code=0 | go tool reviewdog -f=golangci-lint -reporter=github-pr-review
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
