@@ -21,6 +21,11 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          # Head sha, not the merge ref: reviewdog maps the fixer's diff onto
+          # the pull request, so line numbers must match the contributor's view.
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - name: Set up Go release
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
@@ -50,8 +55,12 @@ jobs:
       - name: Check out code
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
+          # Head sha, not the merge ref: reviewdog maps the fixer's diff onto
+          # the pull request, so line numbers must match the contributor's view.
+          ref: ${{ github.event.pull_request.head.sha }}
           # Full history so that golangci-lint can resolve the merge base.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go release
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
