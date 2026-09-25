@@ -29,7 +29,38 @@ const (
 // BackupStorageType is a type of backup storage.
 type BackupStorageType string
 
+// WorkloadIdentityConfig contains cloud provider-specific configuration for workload identity.
+type WorkloadIdentityConfig struct {
+	// AWS contains AWS IRSA configuration.
+	// +optional
+	AWS *AWSWorkloadIdentityConfig `json:"aws,omitempty"`
+
+	// Azure contains Azure Workload Identity configuration.
+	// +optional
+	Azure *AzureWorkloadIdentityConfig `json:"azure,omitempty"`
+}
+
+// AWSWorkloadIdentityConfig contains AWS IRSA configuration.
+type AWSWorkloadIdentityConfig struct {
+	// RoleARN is the ARN of the IAM role to assume.
+	// Example: "arn:aws:iam::123456789012:role/my-role"
+	// +kubebuilder:validation:Required
+	RoleARN string `json:"roleArn"`
+}
+
+// AzureWorkloadIdentityConfig contains Azure Workload Identity configuration.
+type AzureWorkloadIdentityConfig struct {
+	// ClientID is the client ID of the Azure Managed Identity.
+	// +kubebuilder:validation:Required
+	ClientID string `json:"clientId"`
+	// StorageAccountName is the name of the Azure Storage Account.
+	// +kubebuilder:validation:Required
+	StorageAccountName string `json:"storageAccountName"`
+}
+
 // BackupStorageSpec defines the desired state of BackupStorage.
+// +kubebuilder:validation:XValidation:rule="(has(self.credentialsSecretName) && self.credentialsSecretName != '') != has(self.workloadIdentityConfig)",message="either credentialsSecretName or workloadIdentityConfig must be set, but not both"
+// +kubebuilder:validation:XValidation:rule="!has(self.workloadIdentityConfig) || (self.type == 's3' && has(self.workloadIdentityConfig.aws)) || (self.type == 'azure' && has(self.workloadIdentityConfig.azure))",message="workloadIdentityConfig must match storage type (aws for s3, azure for azure)"
 type BackupStorageSpec struct {
 	// Type is a type of backup storage.
 	// +kubebuilder:validation:Enum=s3;azure
@@ -54,7 +85,13 @@ type BackupStorageSpec struct {
 	// Description stores description of a backup storage.
 	Description string `json:"description,omitempty"`
 	// CredentialsSecretName is the name of the secret with credentials.
-	CredentialsSecretName string `json:"credentialsSecretName"`
+	// Optional when WorkloadIdentityConfig is provided.
+	// +optional
+	CredentialsSecretName string `json:"credentialsSecretName,omitempty"`
+	// WorkloadIdentityConfig contains cloud provider-specific workload identity configuration.
+	// When set, automatic credential discovery will be used instead of static credentials.
+	// +optional
+	WorkloadIdentityConfig *WorkloadIdentityConfig `json:"workloadIdentityConfig,omitempty"`
 	// AllowedNamespaces is the list of namespaces where the operator will copy secrets provided in the CredentialsSecretsName.
 	//
 	// Deprecated: BackupStorages are now used only in the namespaces where they are created.

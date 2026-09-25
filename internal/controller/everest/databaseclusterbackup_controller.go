@@ -1082,10 +1082,29 @@ func backupStorageName(repoName *string, pg *pgv2.PerconaPGCluster, storages *ev
 	for _, repo := range pg.Spec.Backups.PGBackRest.Repos {
 		if repo.Name == *repoName {
 			for _, storage := range storages.Items {
-				if pg.Namespace == storage.Namespace &&
-					repo.S3.Region == storage.Spec.Region &&
-					repo.S3.Bucket == storage.Spec.Bucket &&
-					repo.S3.Endpoint == storage.Spec.EndpointURL {
+				// Namespace must always match
+				if pg.Namespace != storage.Namespace {
+					continue
+				}
+
+				// Match based on storage type
+				var matches bool
+				switch storage.Spec.Type {
+				case everestv1alpha1.BackupStorageTypeS3:
+					// For S3, match region, bucket, and endpoint
+					if repo.S3 != nil {
+						matches = repo.S3.Region == storage.Spec.Region &&
+							repo.S3.Bucket == storage.Spec.Bucket &&
+							repo.S3.Endpoint == storage.Spec.EndpointURL
+					}
+				case everestv1alpha1.BackupStorageTypeAzure:
+					// For Azure, match container (stored in BackupStorage.Spec.Bucket field)
+					if repo.Azure != nil {
+						matches = repo.Azure.Container == storage.Spec.Bucket
+					}
+				}
+
+				if matches {
 					return storage.Name, nil
 				}
 			}

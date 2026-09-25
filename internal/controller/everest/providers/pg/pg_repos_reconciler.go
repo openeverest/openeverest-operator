@@ -95,6 +95,7 @@ func (p *pgReposReconciler) addRepoToPGGlobal(
 	forcePathStyle *bool,
 	retentionCopies *int32,
 	db *everestv1alpha1.DatabaseCluster,
+	backupStorage everestv1alpha1.BackupStorageSpec,
 ) {
 	p.pgBackRestGlobal[fmt.Sprintf(pgBackRestPathTmpl, repoName)] = "/" + common.BackupStoragePrefix(db)
 	if retentionCopies != nil {
@@ -107,6 +108,24 @@ func (p *pgReposReconciler) addRepoToPGGlobal(
 	if forceStyle := pointer.Get(forcePathStyle); !forceStyle {
 		// See: https://pgbackrest.org/configuration.html#section-repository/option-repo-s3-uri-style
 		p.pgBackRestGlobal[fmt.Sprintf(pgBackRestStorageForcePathTmpl, repoName)] = pgBackRestStoragePathStyle
+	}
+
+	// Add key-type=auto for workload identity
+	if backupStorage.WorkloadIdentityConfig != nil {
+		switch backupStorage.Type {
+		case everestv1alpha1.BackupStorageTypeS3:
+			if backupStorage.WorkloadIdentityConfig.AWS != nil {
+				// See: https://pgbackrest.org/configuration.html#section-repository/option-repo-s3-key-type
+				// For EKS IRSA (IAM Roles for Service Accounts), use 'web-id' which reads from
+				// AWS_ROLE_ARN and AWS_WEB_IDENTITY_TOKEN_FILE environment variables
+				p.pgBackRestGlobal[fmt.Sprintf("%s-s3-key-type", repoName)] = "web-id"
+			}
+		case everestv1alpha1.BackupStorageTypeAzure:
+			if backupStorage.WorkloadIdentityConfig.Azure != nil {
+				// See: https://pgbackrest.org/configuration.html#section-repository/option-repo-azure-key-type
+				p.pgBackRestGlobal[fmt.Sprintf("%s-azure-key-type", repoName)] = "auto"
+			}
+		}
 	}
 }
 
@@ -193,8 +212,8 @@ func (p *pgReposReconciler) reconcileBackups(
 		// Keep track of backup storages which are already in use by a repo
 		p.backupStoragesInRepos[backup.Spec.BackupStorageName] = struct{}{}
 
-		p.addRepoToPGGlobal(backupStorage.Spec.VerifyTLS, repo.Name, backupStorages[repo.Name].Spec.ForcePathStyle, nil, db)
-		err = updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backup.Spec.BackupStorageName], repo)
+		p.addRepoToPGGlobal(backupStorage.Spec.VerifyTLS, repo.Name, backupStorage.Spec.ForcePathStyle, nil, db, backupStorage.Spec)
+		err = updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backup.Spec.BackupStorageName], repo, backupStorage.Spec.WorkloadIdentityConfig)
 		if err != nil {
 			return errors.Join(err, errors.New("failed to add backup storage credentials to PGBackrest secret data"))
 		}
@@ -246,8 +265,8 @@ func (p *pgReposReconciler) reconcileExistingSchedules(
 			// Keep track of backup storages which are already in use by a repo
 			p.backupStoragesInRepos[backupSchedule.BackupStorageName] = struct{}{}
 
-			p.addRepoToPGGlobal(backupStorages[repo.Name].Spec.VerifyTLS, repo.Name, backupStorages[repo.Name].Spec.ForcePathStyle, &backupSchedule.RetentionCopies, db)
-			err := updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backupSchedule.BackupStorageName], repo)
+			p.addRepoToPGGlobal(backupStorages[backupSchedule.BackupStorageName].Spec.VerifyTLS, repo.Name, backupStorages[backupSchedule.BackupStorageName].Spec.ForcePathStyle, &backupSchedule.RetentionCopies, db, backupStorages[backupSchedule.BackupStorageName].Spec)
+			err := updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backupSchedule.BackupStorageName], repo, backupStorages[backupSchedule.BackupStorageName].Spec.WorkloadIdentityConfig)
 			if err != nil {
 				return errors.Join(err, errors.New("failed to add backup storage credentials to PGBackrest secret data"))
 			}
@@ -296,11 +315,11 @@ func (p *pgReposReconciler) reconcileRepos(
 				// Keep track of backup storages which are already in use by a repo
 				p.backupStoragesInRepos[backupSchedule.BackupStorageName] = struct{}{}
 
-				p.addRepoToPGGlobal(backupStorages[repo.Name].Spec.VerifyTLS,
-					repo.Name, backupStorages[repo.Name].Spec.ForcePathStyle,
-					&backupSchedule.RetentionCopies, db,
+				p.addRepoToPGGlobal(backupStorages[backupSchedule.BackupStorageName].Spec.VerifyTLS,
+					repo.Name, backupStorages[backupSchedule.BackupStorageName].Spec.ForcePathStyle,
+					&backupSchedule.RetentionCopies, db, backupStorages[backupSchedule.BackupStorageName].Spec,
 				)
-				err := updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backupSchedule.BackupStorageName], repo)
+				err := updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backupSchedule.BackupStorageName], repo, backupStorages[backupSchedule.BackupStorageName].Spec.WorkloadIdentityConfig)
 				if err != nil {
 					return errors.Join(err, errors.New("failed to add backup storage credentials to PGBackrest secret data"))
 				}
@@ -385,8 +404,8 @@ func (p *pgReposReconciler) addNewSchedules( //nolint:gocognit
 		// Keep track of backup storages which are already in use by a repo
 		p.backupStoragesInRepos[backupSchedule.BackupStorageName] = struct{}{}
 
-		p.addRepoToPGGlobal(backupStorage.Spec.VerifyTLS, repo.Name, backupStorages[repo.Name].Spec.ForcePathStyle, &backupSchedule.RetentionCopies, db)
-		err = updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backupSchedule.BackupStorageName], repo)
+		p.addRepoToPGGlobal(backupStorage.Spec.VerifyTLS, repo.Name, backupStorage.Spec.ForcePathStyle, &backupSchedule.RetentionCopies, db, backupStorage.Spec)
+		err = updatePGIni(p.pgBackRestSecretIni, backupStoragesSecrets[backupSchedule.BackupStorageName], repo, backupStorage.Spec.WorkloadIdentityConfig)
 		if err != nil {
 			return errors.Join(err, errors.New("failed to add backup storage credentials to PGBackrest secret data"))
 		}
@@ -454,12 +473,13 @@ func updatePGIni(
 	pgBackRestSecretIni *ini.File,
 	secret *corev1.Secret,
 	repo crunchyv1beta1.PGBackRestRepo,
+	workloadIdentityConfig *everestv1alpha1.WorkloadIdentityConfig,
 ) error {
 	sType, err := backupStorageTypeFromBackrestRepo(repo)
 	if err != nil {
 		return err
 	}
-	return addBackupStorageCredentialsToPGBackrestSecretIni(sType, pgBackRestSecretIni, repo.Name, secret)
+	return addBackupStorageCredentialsToPGBackrestSecretIni(sType, pgBackRestSecretIni, repo.Name, secret, workloadIdentityConfig)
 }
 
 func backupStorageTypeFromBackrestRepo(repo crunchyv1beta1.PGBackRestRepo) (everestv1alpha1.BackupStorageType, error) {

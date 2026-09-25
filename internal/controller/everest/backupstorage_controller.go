@@ -90,27 +90,30 @@ func (r *BackupStorageReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 	}
 
-	bsSecret := &corev1.Secret{}
-	err = r.Get(ctx, types.NamespacedName{
-		Name:      bs.Spec.CredentialsSecretName,
-		Namespace: req.Namespace,
-	},
-		bsSecret)
-	if err != nil {
-		if err = client.IgnoreNotFound(err); err != nil {
-			logger.Error(err, "unable to fetch Secret", "secretName", bs.Spec.CredentialsSecretName)
+	// Only fetch and manage credentials secret if not using workload identity
+	if bs.Spec.WorkloadIdentityConfig == nil {
+		bsSecret := &corev1.Secret{}
+		err = r.Get(ctx, types.NamespacedName{
+			Name:      bs.Spec.CredentialsSecretName,
+			Namespace: req.Namespace,
+		},
+			bsSecret)
+		if err != nil {
+			if err = client.IgnoreNotFound(err); err != nil {
+				logger.Error(err, "unable to fetch Secret", "secretName", bs.Spec.CredentialsSecretName)
+			}
+			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, err
-	}
 
-	// If the default secret is not owned/controlled by anyone, we will adopt it.
-	if controller := metav1.GetControllerOf(bsSecret); controller == nil {
-		logger.Info("setting controller reference for the secret")
-		if err = controllerutil.SetControllerReference(bs, bsSecret, r.Scheme); err != nil {
-			return ctrl.Result{}, err
-		}
-		if err = r.Update(ctx, bsSecret); err != nil {
-			return ctrl.Result{}, err
+		// If the default secret is not owned/controlled by anyone, we will adopt it.
+		if controller := metav1.GetControllerOf(bsSecret); controller == nil {
+			logger.Info("setting controller reference for the secret")
+			if err = controllerutil.SetControllerReference(bs, bsSecret, r.Scheme); err != nil {
+				return ctrl.Result{}, err
+			}
+			if err = r.Update(ctx, bsSecret); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 	}
 
