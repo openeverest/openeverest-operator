@@ -9,5 +9,4 @@ commands:
   - command: kubectl wait --for=delete db/test-pg-cluster -n ${NAMESPACE}
   - command: kubectl wait --for=delete perconapgclusters/test-pg-cluster -n ${NAMESPACE}
   - command: kubectl wait --for=delete pod/pg-client -n $NAMESPACE
-  - command: kubectl wait --for=delete pod/minio -n ${NAMESPACE}
   - command: kubectl wait --for=delete dataimporter/everest-percona-pg-operator
