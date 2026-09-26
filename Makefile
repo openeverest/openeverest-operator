@@ -244,7 +244,7 @@ cluster-cleanup:
 	done
 	@namespaces=$$(kubectl get db -A -o jsonpath='{.items[*].metadata.namespace}'); \
 	for ns in $$namespaces; do \
-		kubectl -n $$ns delete -f ./test/testdata/minio --ignore-not-found || true; \
+		kubectl -n $$ns delete -f ./test/testdata/seaweedfs --ignore-not-found || true; \
 	done
 	kubectl delete pvc --all-namespaces --all --ignore-not-found=true || true
 	kubectl delete backupstorage --all-namespaces --all --ignore-not-found=true || true
