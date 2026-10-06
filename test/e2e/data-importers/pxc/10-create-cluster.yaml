@@ -15,12 +15,12 @@ spec:
         s3:
           bucket: everest-operator
           region: us-east-1
-          endpointURL: https://minio.minio.svc
+          endpointURL: https://seaweedfs.seaweedfs.svc
           credentialsSecretName: test-s3-secret
           verifyTLS: false
           forcePathStyle: true
-          accessKeyId: minioadmin
-          secretAccessKey: minioadmin
+          accessKeyId: seaweedfsadmin
+          secretAccessKey: seaweedfsadmin
   engine:
     type: pxc
     replicas: 3

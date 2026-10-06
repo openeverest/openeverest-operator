@@ -9,5 +9,4 @@ commands:
   - command: kubectl wait --for=delete db/test-pxc-cluster -n ${NAMESPACE}
   - command: kubectl wait --for=delete pxc/test-pxc-cluster -n ${NAMESPACE}
   - command: kubectl wait --for=delete pod/pxc-client -n $NAMESPACE
-  - command: kubectl wait --for=delete pod/minio -n ${NAMESPACE}
   - command: kubectl wait --for=delete dataimporter/everest-percona-pxc-operator

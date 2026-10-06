@@ -24,7 +24,7 @@ spec:
   source:
     path: "/psmdb/2025-11-03T09:34:50Z"
     s3:
-      endpointURL: "https://minio.minio.svc"
+      endpointURL: "https://seaweedfs.seaweedfs.svc"
       bucket: everest-operator
       credentialsSecretName: test-s3-secret
       forcePathStyle: true

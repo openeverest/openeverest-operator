@@ -25,20 +25,18 @@ commands:
   - command: kubectl delete pod -n everest-system -l control-plane=controller-manager
   # Wait for Everest Operator to be ready.
   - command: kubectl wait --for condition=available --timeout=30s deploy/everest-controller-manager -n everest-system
-  # Wait for Minio to be ready
-  - command: kubectl wait pod/minio --for=condition=Ready -n minio --timeout=120s
-  # Upload test data to Minio
-  - script: |
-      cat ${OPERATOR_ROOT_PATH}/test/testdata/backups/pg.tar | kubectl exec -i minio -n minio -c cp-helper -- tar xf - -C /shared
-      cat ${OPERATOR_ROOT_PATH}/test/testdata/backups/psmdb.tar | kubectl exec -i minio -n minio -c cp-helper -- tar xf - -C /shared
-      cat ${OPERATOR_ROOT_PATH}/test/testdata/backups/pxc.tar | kubectl exec -i minio -n minio -c cp-helper -- tar xf - -C /shared
-
-      kubectl exec --quiet minio -n minio -c minio -- mc alias set s3 https://minio.minio.svc minioadmin minioadmin --insecure 
-      kubectl exec --quiet minio -n minio -c minio -- mc cp --recursive /shared/pg s3/everest-operator --insecure
-      kubectl exec --quiet minio -n minio -c minio -- mc cp --recursive /shared/psmdb s3/everest-operator --insecure
-      kubectl exec --quiet minio -n minio -c minio -- mc cp --recursive /shared/pxc s3/everest-operator --insecure
+  - command: kubectl wait deploy/seaweedfs --for=condition=Available -n seaweedfs --timeout=240s
+    timeout: 300
+  # Upload the test backups through the filer HTTP API, which records MD5 ETags like an S3 PUT.
+  - timeout: 300
+    script: |
+      set -e
+      for db in pg psmdb pxc; do
+        cat ${OPERATOR_ROOT_PATH}/test/testdata/backups/$db.tar | kubectl exec -i deploy/seaweedfs -n seaweedfs -- sh -c 'mkdir -p /tmp/import && tar xf - -C /tmp/import'
+      done
+      kubectl exec deploy/seaweedfs -n seaweedfs -- sh -c 'cd /tmp/import && find pg psmdb pxc -type f | while read -r f; do curl -sf -o /dev/null -F "file=@$f" "http://localhost:8888/buckets/everest-operator/$f" || exit 1; done'
 testDirs:
   - test/e2e/data-importers
 manifestDirs:
   - test/manifests
-  - test/testdata/minio
+  - test/testdata/seaweedfs

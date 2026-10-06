@@ -24,7 +24,7 @@ spec:
   source:
     path: "/pxc/mysql-cgb-2026-01-26-15:37:33-full"
     s3:
-      endpointURL: https://minio.minio.svc
+      endpointURL: https://seaweedfs.seaweedfs.svc
       bucket: everest-operator
       credentialsSecretName: test-s3-secret
       forcePathStyle: true

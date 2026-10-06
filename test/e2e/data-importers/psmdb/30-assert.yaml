@@ -9,5 +9,4 @@ commands:
   - command: kubectl wait --for=delete db/test-psmdb-cluster -n ${NAMESPACE}
   - command: kubectl wait --for=delete psmdb/test-psmdb-cluster -n ${NAMESPACE}
   - command: kubectl wait --for=delete pod/psmdb-client -n $NAMESPACE
-  - command: kubectl wait --for=delete pod/minio -n ${NAMESPACE}
   - command: kubectl wait --for=delete dataimporter/everest-percona-psmdb-operator
