@@ -490,7 +490,8 @@ func (r *DatabaseEngineReconciler) SetupWithManager(mgr ctrl.Manager, namespaces
 		if !ok {
 			return errors.New("expected common.DefaultNamespaceFilter to be of type *NamespaceFilter")
 		}
-		c.Watches(&corev1.Namespace{},
+		c.Watches(
+			&corev1.Namespace{},
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, o client.Object) []reconcile.Request {
 				ns, ok := o.(*corev1.Namespace)
 				if !ok {
@@ -539,7 +540,8 @@ func (r *DatabaseEngineReconciler) isOLMInstalled(ctx context.Context) bool {
 	if err := r.Get(
 		ctx,
 		types.NamespacedName{Name: "subscriptions.operators.coreos.com"},
-		unstructuredResource); err == nil {
+		unstructuredResource,
+	); err == nil {
 		return true
 	}
 	return false

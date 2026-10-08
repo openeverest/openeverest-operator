@@ -921,7 +921,8 @@ func (r *DatabaseClusterBackupReconciler) reconcilePSMDB(
 	if psmdbCluster.Status.BackupConfigHash == "" && versionCheck {
 		logger.Info(
 			fmt.Sprintf("Backup configuration is not ready yet for PerconaServerMongoDB='%s', requeuing",
-				client.ObjectKeyFromObject(psmdbCluster)))
+				client.ObjectKeyFromObject(psmdbCluster)),
+		)
 		return true, nil
 	}
 

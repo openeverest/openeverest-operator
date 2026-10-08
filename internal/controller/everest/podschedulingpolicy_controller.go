@@ -142,7 +142,8 @@ func (r *PodSchedulingPolicyReconciler) SetupWithManager(mgr ctrl.Manager) error
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("PodSchedulingPolicy").
-		For(&everestv1alpha1.PodSchedulingPolicy{},
+		For(
+			&everestv1alpha1.PodSchedulingPolicy{},
 			builder.WithPredicates(predicates.GetPodSchedulingPolicyPredicate(),
 				predicate.GenerationChangedPredicate{}),
 		).

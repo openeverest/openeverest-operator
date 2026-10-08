@@ -146,7 +146,8 @@ func (r *LoadBalancerConfigReconciler) SetupWithManager(mgr ctrl.Manager) error 
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("LoadBalancerConfig").
-		For(&everestv1alpha1.LoadBalancerConfig{},
+		For(
+			&everestv1alpha1.LoadBalancerConfig{},
 			builder.WithPredicates(predicates.GetLoadBalancerConfigPredicate(),
 				predicate.GenerationChangedPredicate{}),
 		).

@@ -168,7 +168,8 @@ func (v *DatabaseClusterRestoreCustomValidator) ValidateDelete(ctx context.Conte
 		return nil, apierrors.NewForbidden(
 			everestv1alpha1.GroupVersion.WithResource("databaseclusterrestore").GroupResource(),
 			dbcr.GetName(),
-			errDeleteInUse)
+			errDeleteInUse,
+		)
 	}
 
 	return nil, nil
