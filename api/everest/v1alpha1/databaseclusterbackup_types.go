@@ -49,6 +49,10 @@ type DatabaseClusterBackupSpec struct {
 	// BackupStorageName is the name of the BackupStorage used for backups.
 	// The BackupStorage must be created in the same namespace as the DatabaseCluster.
 	BackupStorageName string `json:"backupStorageName"`
+	// BackupJobResources defines resource limits for the backup job container.
+	// If not set, operator defaults are used (600m CPU, 1G memory).
+	// +optional
+	BackupJobResources *Resources `json:"backupJobResources,omitempty"`
 }
 
 // DatabaseClusterBackupStatus defines the observed state of DatabaseClusterBackup.
